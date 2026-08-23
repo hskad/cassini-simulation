@@ -27,8 +27,14 @@ def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, res
     # We will animate job2's time shift from 0 to its optimal shift.
     # The optimal shift from demo_step2 was 114.0ms. We'll simulate rotating to it.
     optimal_shift = 114.0
-    frames = 40
-    shifts = np.linspace(0, optimal_shift, frames)
+    move_frames = 40
+    hold_frames = 20 # Hold for 2 seconds at 10 fps
+    
+    # Create the shifts array: move smoothly, then hold the last value
+    moving_shifts = np.linspace(0, optimal_shift, move_frames)
+    holding_shifts = np.full(hold_frames, optimal_shift)
+    shifts = np.concatenate((moving_shifts, holding_shifts))
+    total_frames = len(shifts)
     
     # Base array for job1 (fixed)
     job1.time_shift = 0.0
@@ -42,16 +48,15 @@ def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, res
         
         arr2 = np.array(discretize_phases(job2, lcm_time, resolution))
         
-        bottom_r = np.zeros(len(theta))
+        base_r = np.zeros(len(theta))
         
-        # Plot job1
-        ax.fill_between(theta, bottom_r, bottom_r + arr1, label=f'{job1.name}', color='#00ffcc', alpha=0.6)
-        bottom_r += arr1
+        # Plot job1 (starting at base_r = 0)
+        ax.fill_between(theta, base_r, base_r + arr1, label=f'{job1.name}', color='#00ffcc', alpha=0.6)
         
-        # Plot job2
-        ax.fill_between(theta, bottom_r, bottom_r + arr2, label=f'{job2.name} (Shift: {int(current_shift)}ms)', color='#ff007f', alpha=0.6)
+        # Plot job2 OVERLAPPING (starting at base_r = 0 instead of stacking)
+        ax.fill_between(theta, base_r, base_r + arr2, label=f'{job2.name} (Shift: {int(current_shift)}ms)', color='#ff007f', alpha=0.6)
         
-        # Draw capacity
+        # Draw capacity (overlapping regions will exceed this)
         ax.plot(np.linspace(0, 2*np.pi, 100), [link.capacity]*100, color='white', linestyle='--', linewidth=2, label=f'Capacity ({link.capacity} Gbps)')
 
         # Aesthetics
@@ -65,8 +70,8 @@ def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, res
         
         ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1), frameon=True, facecolor='#222222', edgecolor='none')
         
-    print(f"Generating animation with {frames} frames...")
-    ani = animation.FuncAnimation(fig, update, frames=frames, interval=100)
+    print(f"Generating animation with {total_frames} frames...")
+    ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=100)
     
     writer = animation.PillowWriter(fps=10)
     ani.save(filename, writer=writer)
