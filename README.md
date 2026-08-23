@@ -16,6 +16,10 @@ In distributed ML training, compute (Up phase) and communication (Down phase) cy
 ### 2. Bipartite Affinity Graph Traversal
 When a cluster runs dozens of jobs across multiple interconnected links, shifting a job to optimize one link might accidentally cause a collision on another. CASSINI solves this by mapping the entire topology as a **Bipartite Affinity Graph** (where Jobs are one set of nodes, and Links are the other). A Breadth-First Search (Algorithm 1) safely propagates time-shifts globally, resolving multi-link placement conflicts without mathematical contradictions.
 
+<p align="center">
+  <img src="visualizations/affinity_bfs_animation.gif" alt="Affinity Graph BFS Traversal" width="600"/>
+</p>
+
 ## Features
 - **Pure Math Simulation**: No reliance on physical GPUs. Everything is simulated using precise time arrays.
 - **Aesthetic Visualizations**: Built-in visualizers using `matplotlib` and `networkx` to generate stunning proofs of the math. Generates overlapping bandwidth charts and bipartite affinity graph network plots.
