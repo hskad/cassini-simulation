@@ -38,17 +38,23 @@ When a cluster runs dozens of jobs across multiple interconnected links, shiftin
 ```
 cassini-simulation/
 ├── src/
-│   ├── models.py       # Core data structures (Jobs, Links, Phases, Cluster)
-│   ├── optimizer.py    # Math for the Link-Level Optimizer (array-shifting)
-│   ├── graph.py        # Logic for Bipartite Affinity Graph (Algorithm 1)
-│   └── visualizer.py   # Matplotlib and NetworkX aesthetic plotting functions
+│   ├── core/                       # Core CASSINI algorithm
+│   │   ├── models.py               # Data structures (Jobs, Links, Phases, Cluster)
+│   │   ├── optimizer.py            # Link-Level Optimizer (array-shifting math)
+│   │   └── graph.py                # Bipartite Affinity Graph (Algorithm 1 BFS)
+│   └── visualization/              # Rendering & animation code
+│       ├── visualizer.py           # Matplotlib/NetworkX static plot generators
+│       ├── animator.py             # Geometric circle GIF animation
+│       └── graph_animator.py       # Affinity Graph BFS GIF animation
+├── demos/                          # Runnable demonstration scripts
+│   ├── demo_link_optimizer.py      # Single-link optimization demo
+│   └── demo_affinity_graph.py      # Cluster-wide graph traversal demo
 ├── tests/
-│   ├── test_models.py  # Unit tests for the core models
-│   ├── test_graph.py   # Unit tests for the affinity graph traversal
-│   └── test_optimizer.py # Unit tests for the link-level math
-├── visualizations/     # Output directory for generated PNG plots
-├── demo_link_optimizer.py  # Standalone demo for single-link optimization
-└── demo_affinity_graph.py  # Standalone demo for cluster-wide graph traversal
+│   ├── test_models.py              # Unit tests for core models
+│   ├── test_graph.py               # Unit tests for affinity graph traversal
+│   └── test_optimizer.py           # Unit tests for link-level math
+├── visualizations/                 # Generated output (GIFs, PNGs)
+└── README.md
 ```
 
 ## Running the Demo Scripts
@@ -61,15 +67,22 @@ pip install matplotlib numpy networkx
 
 ### Link-Level Overlap Demo
 ```bash
-python demo_link_optimizer.py
+python demos/demo_link_optimizer.py
 ```
 *Generates visual charts showing network collision vs. mathematically optimized interleaved traffic.*
 
 ### Affinity Graph Demo
 ```bash
-python demo_affinity_graph.py
+python demos/demo_affinity_graph.py
 ```
 *Generates a visual network topology graph of a complex multi-link setup and prints the globally safe time-shifts.*
+
+### Generate Animations
+```bash
+python src/visualization/animator.py
+python src/visualization/graph_animator.py
+```
+*Regenerates the geometric circle and BFS traversal GIF animations in the `visualizations/` folder.*
 
 ---
 *All logic is strictly backed by unit tests to prove mathematical correctness.*

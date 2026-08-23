@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import matplotlib
 matplotlib.use('Agg')
@@ -9,8 +9,8 @@ import matplotlib.animation as animation
 import networkx as nx
 from collections import deque
 
-from src.models import Phase, Job, Link, Cluster
-from src.graph import build_affinity_graph
+from src.core.models import Phase, Job, Link, Cluster
+from src.core.graph import build_affinity_graph
 
 def trace_bfs(graph, jobs_map):
     """
