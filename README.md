@@ -9,6 +9,10 @@ A purely algorithmic and mathematical Python simulation of the CASSINI scheduler
 ### 1. Geometric Bandwidth Abstraction
 In distributed ML training, compute (Up phase) and communication (Down phase) cycle continuously. CASSINI represents these cycles as geometric circles where the perimeter is proportional to the training iteration time. By perfectly "rotating" these circles (applying mathematical time-shifts), we can interleave the communication phases of different jobs sharing the same network link, drastically reducing network traffic jams.
 
+<p align="center">
+  <img src="visualizations/optimization_animation.gif" alt="Geometric Optimization Animation" width="600"/>
+</p>
+
 ### 2. Bipartite Affinity Graph Traversal
 When a cluster runs dozens of jobs across multiple interconnected links, shifting a job to optimize one link might accidentally cause a collision on another. CASSINI solves this by mapping the entire topology as a **Bipartite Affinity Graph** (where Jobs are one set of nodes, and Links are the other). A Breadth-First Search (Algorithm 1) safely propagates time-shifts globally, resolving multi-link placement conflicts without mathematical contradictions.
 
