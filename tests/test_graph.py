@@ -10,9 +10,9 @@ from src.graph import build_affinity_graph, traverse_affinity_graph, AffinityGra
 class TestGraph(unittest.TestCase):
     def test_affinity_graph_traversal(self):
         # Create jobs and links mimicking a simple multi-link setup
-        job1 = Job("j1", "Job1", [Phase("compute", 100, 0)], iteration_time=100) # Mock time
-        job2 = Job("j2", "Job2", [Phase("compute", 100, 0)], iteration_time=100)
-        job3 = Job("j3", "Job3", [Phase("compute", 100, 0)], iteration_time=100)
+        job1 = Job("j1", "Job1", [Phase("compute", 100, 0)]) # Mock time
+        job2 = Job("j2", "Job2", [Phase("compute", 100, 0)])
+        job3 = Job("j3", "Job3", [Phase("compute", 100, 0)])
         
         # We manually craft the AffinityGraph to test Algorithm 1 (BFS)
         # Graph structure: j1 - l1 - j2 - l2 - j3

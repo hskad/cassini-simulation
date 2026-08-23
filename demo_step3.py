@@ -7,9 +7,9 @@ def main():
     os.makedirs('visualizations', exist_ok=True)
     
     # 1. Setup Mock Multi-Link Scenario
-    job1 = Job(job_id="j1", name="VGG16_1", phases=[Phase("compute", 100, 0)], iteration_time=100)
-    job2 = Job(job_id="j2", name="VGG16_2", phases=[Phase("compute", 100, 0)], iteration_time=100)
-    job3 = Job(job_id="j3", name="VGG16_3", phases=[Phase("compute", 100, 0)], iteration_time=100)
+    job1 = Job(job_id="j1", name="VGG16_1", phases=[Phase("compute", 100, 0)])
+    job2 = Job(job_id="j2", name="VGG16_2", phases=[Phase("compute", 100, 0)])
+    job3 = Job(job_id="j3", name="VGG16_3", phases=[Phase("compute", 100, 0)])
     
     link1 = Link(link_id="l1", capacity=50)
     link2 = Link(link_id="l2", capacity=50)
