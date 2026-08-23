@@ -68,8 +68,9 @@ def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, res
         ax.set_xticklabels([f"{int(t)}ms" for t in np.linspace(0, lcm_time, 8, endpoint=False)], color='gray')
         ax.grid(True, alpha=0.2, color='gray', linestyle='--')
         
-        ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1), frameon=True, facecolor='#222222', edgecolor='none')
+        ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1), frameon=True, facecolor='#222222', edgecolor='none')
         
+    fig.subplots_adjust(right=0.75)
     print(f"Generating animation with {total_frames} frames...")
     ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=100)
     
