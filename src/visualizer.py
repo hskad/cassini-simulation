@@ -109,3 +109,54 @@ def plot_circular_alignment(jobs: List[Job], link: Link, title: str, filename: s
     plt.tight_layout()
     plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#111111')
     plt.close()
+
+def plot_affinity_graph(graph, title: str, filename: str):
+    """
+    Plots the bipartite Affinity Graph using networkx.
+    """
+    try:
+        import networkx as nx
+    except ImportError:
+        print("NetworkX is required for this visualization. Please install it.")
+        return
+        
+    plt.style.use('dark_background')
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Create networkx graph
+    G = nx.Graph()
+    
+    # Add nodes with bipartite attribute
+    G.add_nodes_from(graph.U, bipartite=0) # Jobs
+    G.add_nodes_from(graph.V, bipartite=1) # Links
+    
+    # Add edges
+    for u in graph.U:
+        for v in graph.edges_U_to_V.get(u, []):
+            G.add_edge(u, v)
+            
+    # Define positions for bipartite layout
+    # Jobs on top (y=1), Links on bottom (y=0)
+    pos = {}
+    for i, u in enumerate(sorted(list(graph.U))):
+        pos[u] = (i, 1)
+    for i, v in enumerate(sorted(list(graph.V))):
+        pos[v] = (i + 0.5 if len(graph.V) < len(graph.U) else i, 0)
+        
+    # Draw Jobs
+    nx.draw_networkx_nodes(G, pos, nodelist=graph.U, node_color='#ff007f', node_size=1500, alpha=0.9, ax=ax)
+    # Draw Links
+    nx.draw_networkx_nodes(G, pos, nodelist=graph.V, node_color='#00ffcc', node_size=1500, alpha=0.9, node_shape='s', ax=ax)
+    
+    # Draw Edges
+    nx.draw_networkx_edges(G, pos, width=2.0, alpha=0.7, edge_color='gray', ax=ax)
+    
+    # Draw Labels
+    nx.draw_networkx_labels(G, pos, font_size=12, font_color='white', font_weight='bold', ax=ax)
+    
+    ax.set_title(title, fontsize=16, color='white', pad=20)
+    ax.axis('off')
+    
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#111111')
+    plt.close()
