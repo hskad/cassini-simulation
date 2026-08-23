@@ -25,6 +25,24 @@ When a cluster runs dozens of jobs across multiple interconnected links, shiftin
 - [ ] **4. Placement Evaluator**: Will evaluate different candidate placement configurations and mathematically rank them based on our custom compatibility score.
 - [ ] **5. Time-Based Simulator**: A master timeline loop to simulate jobs arriving and departing dynamically over time.
 
+## Directory Structure
+
+```
+cassini-simulation/
+├── src/
+│   ├── models.py       # Core data structures (Jobs, Links, Phases, Cluster)
+│   ├── optimizer.py    # Math for the Link-Level Optimizer (array-shifting)
+│   ├── graph.py        # Logic for Bipartite Affinity Graph (Algorithm 1)
+│   └── visualizer.py   # Matplotlib and NetworkX aesthetic plotting functions
+├── tests/
+│   ├── test_models.py  # Unit tests for the core models
+│   ├── test_graph.py   # Unit tests for the affinity graph traversal
+│   └── test_optimizer.py # Unit tests for the link-level math
+├── visualizations/     # Output directory for generated PNG plots
+├── demo_link_optimizer.py  # Standalone demo for single-link optimization
+└── demo_affinity_graph.py  # Standalone demo for cluster-wide graph traversal
+```
+
 ## Running the Demo Scripts
 
 This project includes visualizations for the implemented steps. To run them, you will need `matplotlib` and `networkx`.
@@ -33,15 +51,15 @@ This project includes visualizations for the implemented steps. To run them, you
 pip install matplotlib numpy networkx
 ```
 
-### Step 2 Demo: Link-Level Overlap
+### Link-Level Overlap Demo
 ```bash
-python demo_step2.py
+python demo_link_optimizer.py
 ```
 *Generates visual charts showing network collision vs. mathematically optimized interleaved traffic.*
 
-### Step 3 Demo: Affinity Graph
+### Affinity Graph Demo
 ```bash
-python demo_step3.py
+python demo_affinity_graph.py
 ```
 *Generates a visual network topology graph of a complex multi-link setup and prints the globally safe time-shifts.*
 
