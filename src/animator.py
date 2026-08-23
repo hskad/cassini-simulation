@@ -1,14 +1,14 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
-from src.core.models import Phase, Job, Link
-from src.core.optimizer import discretize_phases, lcm
+from src.models import Phase, Job, Link
+from src.optimizer import discretize_phases, lcm
 
 def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, resolution: float = 1.0):
     """

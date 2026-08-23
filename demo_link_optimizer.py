@@ -1,7 +1,4 @@
 import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from src.models import Phase, Job, Link
 from src.optimizer import optimize_link
 from src.visualizer import plot_link_alignment, plot_circular_alignment
