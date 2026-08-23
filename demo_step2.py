@@ -1,7 +1,7 @@
 import os
 from src.models import Phase, Job, Link
 from src.optimizer import optimize_link
-from src.visualizer import plot_link_alignment
+from src.visualizer import plot_link_alignment, plot_circular_alignment
 
 def main():
     # Make sure we have an output directory for images
@@ -23,6 +23,7 @@ def main():
     # 2. Plot Before Optimization
     print("Plotting Before Optimization...")
     plot_link_alignment([job1, job2], link, "Before Optimization: Bandwidth Collision", "visualizations/before_optimization.png")
+    plot_circular_alignment([job1, job2], link, "Before Optimization (Circular)", "visualizations/before_optimization_circle.png")
     
     # 3. Optimize
     print("Running Link-Level Optimizer...")
@@ -32,6 +33,7 @@ def main():
     # 4. Plot After Optimization
     print("Plotting After Optimization...")
     plot_link_alignment([job1, job2], link, "After Optimization: Perfectly Interleaved", "visualizations/after_optimization.png")
+    plot_circular_alignment([job1, job2], link, "After Optimization (Circular)", "visualizations/after_optimization_circle.png")
     print("Done! Check the visualizations folder.")
 
 if __name__ == '__main__':
