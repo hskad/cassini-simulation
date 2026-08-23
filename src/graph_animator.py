@@ -15,13 +15,14 @@ from src.graph import build_affinity_graph
 def trace_bfs(graph, jobs_map):
     """
     Yields the state of the BFS algorithm at every step to build animation frames.
-    Yields: (visited_nodes, current_node, active_edge)
+    Yields: (visited_U, visited_V, current_node, active_edge)
     """
     visited_U = set()
+    visited_V = set()
     global_time_shifts = {}
     
     # Initial state (nothing visited)
-    yield visited_U, None, None
+    yield visited_U, visited_V, None, None
     
     for u in graph.U:
         if u in visited_U:
@@ -32,29 +33,30 @@ def trace_bfs(graph, jobs_map):
         visited_U.add(u)
         
         # State: Root node added
-        yield visited_U.copy(), u, None
+        yield visited_U.copy(), visited_V.copy(), u, None
         
         while queue:
             current_job = queue.popleft()
             
             for link_id in graph.edges_U_to_V.get(current_job, []):
+                visited_V.add(link_id)
                 # State: Exploring an edge to a link
-                yield visited_U.copy(), current_job, (current_job, link_id)
+                yield visited_U.copy(), visited_V.copy(), current_job, (current_job, link_id)
                 
                 for neighbor_job in graph.edges_V_to_U.get(link_id, []):
                     # State: Exploring edge from link to neighbor job
-                    yield visited_U.copy(), link_id, (link_id, neighbor_job)
+                    yield visited_U.copy(), visited_V.copy(), link_id, (link_id, neighbor_job)
                     
                     if neighbor_job not in visited_U:
                         visited_U.add(neighbor_job)
                         queue.append(neighbor_job)
                         
                         # State: Discovered a new job
-                        yield visited_U.copy(), neighbor_job, (link_id, neighbor_job)
+                        yield visited_U.copy(), visited_V.copy(), neighbor_job, (link_id, neighbor_job)
                         
     # Final state: Hold for a few frames
     for _ in range(10):
-        yield visited_U, None, None
+        yield visited_U, visited_V, None, None
 
 def create_bfs_animation(filename: str):
     # Setup Complex Cluster (from demo)
@@ -105,7 +107,7 @@ def create_bfs_animation(filename: str):
     
     def update(frame_idx):
         ax.clear()
-        visited, current, active_edge = frames_data[frame_idx]
+        visited_U, visited_V, current, active_edge = frames_data[frame_idx]
         
         # Determine Node Colors
         node_colors = []
@@ -113,11 +115,9 @@ def create_bfs_animation(filename: str):
             if n == current:
                 node_colors.append('#FFFF00') # Yellow active
             elif n in graph.U: # Job
-                node_colors.append('#ff007f' if n in visited else '#444444')
+                node_colors.append('#ff007f' if n in visited_U else '#444444')
             else: # Link
-                # Links are technically visited if any job connected to them is visited (simplification)
-                connected_visited = any(job in visited for job in graph.edges_V_to_U[n])
-                node_colors.append('#00ffcc' if connected_visited else '#444444')
+                node_colors.append('#00ffcc' if n in visited_V else '#444444')
                 
         # Determine Edge Colors
         edge_colors = []
@@ -127,7 +127,7 @@ def create_bfs_animation(filename: str):
             if active_edge and ((u == active_edge[0] and v == active_edge[1]) or (u == active_edge[1] and v == active_edge[0])):
                 edge_colors.append('#FFFF00')
                 edge_widths.append(4.0)
-            elif (u in visited and v in graph.V) or (v in visited and u in graph.V):
+            elif (u in visited_U and v in visited_V) or (v in visited_U and u in visited_V):
                 # Edge has been fully traversed
                 edge_colors.append('#aaaaaa')
                 edge_widths.append(2.0)
