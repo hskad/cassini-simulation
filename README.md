@@ -53,7 +53,7 @@ cassini-simulation/
 
 ## Running the Demo Scripts
 
-This project includes visualizations for the implemented steps. To run them, you will need `matplotlib` and `networkx`.
+This project includes visualizations for the implemented steps. To run them, you will need to install `matplotlib` and `networkx`.
 
 ```bash
 pip install matplotlib numpy networkx
