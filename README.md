@@ -35,26 +35,18 @@ When a cluster runs dozens of jobs across multiple interconnected links, shiftin
 
 ## Directory Structure
 
-```
+```text
 cassini-simulation/
-├── src/
-│   ├── models.py       # Core data structures (Jobs, Links, Phases, Cluster)
-│   ├── optimizer.py    # Math for the Link-Level Optimizer (array-shifting)
-│   ├── graph.py        # Logic for Bipartite Affinity Graph (Algorithm 1)
-│   ├── evaluator.py    # Evaluates cluster placements and handles mock candidate generation
-│   ├── simulator.py    # Master discrete-event timeline loop and slowdown calculator
-│   └── visualizer.py   # Matplotlib and NetworkX aesthetic plotting functions
-├── tests/
-│   ├── test_models.py  # Unit tests for the core models
-│   ├── test_graph.py   # Unit tests for the affinity graph traversal
-│   ├── test_optimizer.py # Unit tests for the link-level math
-│   ├── test_evaluator.py # Unit tests for cycle detection and candidate scoring
-│   └── test_simulator.py # Unit tests for the time-based loop
-├── visualizations/     # Output directory for generated PNG plots
-├── demo_link_optimizer.py  # Standalone demo for single-link optimization
-├── demo_affinity_graph.py  # Standalone demo for cluster-wide graph traversal
-├── demo_evaluator.py       # Standalone demo showing how candidates are ranked and selected
-└── demo_simulator.py       # Standalone demo simulating a timeline of jobs arriving and finishing
+├── src/                  # Core engine
+│   ├── core/             # Fundamental data structures
+│   ├── math_engine/      # Theoretical algorithms from the paper
+│   ├── scheduler/        # High-level scheduling and time loop
+│   └── utils/            # Helper tools (visualizer, animator)
+├── tests/                # Unit tests for CI/CD
+├── examples/             # Demo scripts 
+├── experiments/          # Benchmarks and evaluation scripts
+├── visualizations/       # Generated plots and charts
+└── README.md
 ```
 
 ## Running the Demo Scripts
@@ -67,25 +59,25 @@ pip install matplotlib numpy networkx
 
 ### Link-Level Overlap Demo
 ```bash
-python demo_link_optimizer.py
+python examples/demo_link_optimizer.py
 ```
 *Generates visual charts showing network collision vs. mathematically optimized interleaved traffic.*
 
 ### Affinity Graph Demo
 ```bash
-python demo_affinity_graph.py
+python examples/demo_affinity_graph.py
 ```
 *Generates a visual network topology graph of a complex multi-link setup and prints the globally safe time-shifts.*
 
 ### Placement Evaluator Demo
 ```bash
-python demo_evaluator.py
+python examples/demo_evaluator.py
 ```
 *Generates mock placement candidates, tests them for cyclic conditions, calculates their network compatibility, and selects the optimal layout.*
 
 ### Time-Based Simulator Demo
 ```bash
-python demo_simulator.py
+python examples/demo_simulator.py
 ```
 *Fires up a master event loop simulating jobs arriving over time, dynamically re-routing them, calculating iteration slowdowns based on mathematical collisions, and tracking total turnaround time.*
 
