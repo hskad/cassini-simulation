@@ -117,4 +117,27 @@ python experiments/macro_test.py --num-jobs 50 --num-links 4 --capacity 100 --pe
 ```
 
 ---
+
+## Makefile Shortcuts
+
+A `Makefile` is provided for running demos, tests, and cleanup tasks:
+
+| Command | Description |
+| :--- | :--- |
+| `make help` | Show all available make targets |
+| `make demo-link` | Run the link-level collision & optimizer demo |
+| `make demo-affinity` | Run the Affinity Graph & traversal demo |
+| `make demo-evaluator` | Run the placement evaluator candidate demo |
+| `make demo-simulator` | Run the master time-based simulator demo |
+| `make demo-all` | Run all 4 demos sequentially |
+| `make micro-test` | Run the Micro-Test (Figure 3 replica) |
+| `make macro-test` | Run the Macro-Test (Figure 9 replica) |
+| `make validate-baseline` | Run both micro and macro baseline tests |
+| `make test` | Run all unit tests |
+| `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF files**) |
+| `make clean` | Delete generated PNGs and `__pycache__` (**strictly preserves GIF files**) |
+
+> **Note**: You can pass `PYTHON=python3` or any custom interpreter: `make PYTHON=python3 micro-test`.
+
+---
 *All logic is strictly backed by unit tests and baseline validation experiments to prove mathematical correctness.*
