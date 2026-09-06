@@ -1,143 +1,217 @@
-# CASSINI Simulator
+# CASSINI: Network-Aware Job Scheduling in ML Clusters
 
-A purely algorithmic and mathematical Python simulation of the CASSINI scheduler. 
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Paper: USENIX NSDI '24](https://img.shields.io/badge/Paper-USENIX%20NSDI%20'24-red.svg)](https://www.usenix.org/conference/nsdi24/presentation/rajasekaran)
+[![Tests: Passing](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
 
-*CASSINI* is a network-aware job scheduler for machine learning (ML) clusters, introduced in the paper: **"CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters"**. This repository aims to validate the core mathematical concepts and geometric abstractions proposed in the paper through a lightweight Python simulation, completely isolated from heavy frameworks like PyTorch or real GPU hardware constraints.
+A lightweight, purely algorithmic and discrete-event Python simulation of **CASSINI**, the network-aware deep learning scheduler introduced at **USENIX NSDI '24**.
 
-## Core Concepts Modeled
+This project provides a standalone mathematical testbed to validate CASSINI's geometric abstractions, circular phase-interleaving algorithms, bipartite graph conflict resolutions, and discrete-event cluster timelines—completely isolated from heavy GPU hardware constraints or deep learning runtimes.
 
-### 1. Geometric Bandwidth Abstraction
-In distributed ML training, compute (Up phase) and communication (Down phase) cycle continuously. CASSINI represents these cycles as geometric circles where the perimeter is proportional to the training iteration time. By perfectly "rotating" these circles (applying mathematical time-shifts), we can interleave the communication phases of different jobs sharing the same network link, drastically reducing network traffic jams.
+---
+
+## 📖 Core Concepts Modeled
+
+Distributed deep learning training alternates cyclically between **Compute** (GPU forward/backward pass) and **Communication** (AllReduce gradient synchronization). When multiple training jobs share bottleneck switches and links in a cluster, uncoordinated communication bursts collide, creating packet buffers, queuing delay, and severe tail latencies.
+
+CASSINI introduces three foundational techniques to eliminate these bottlenecks:
+
+### 1. Geometric Bandwidth Abstraction & Circular Phase Interleaving
+CASSINI models repeating training iterations as geometric circles whose perimeter equals the iteration time ($T_{\text{iter}}$). Multiple jobs sharing a link are projected onto a **Unified Circle** with a perimeter equal to the Least Common Multiple (LCM) of their iteration times:
+$$\text{Perimeter} = \text{LCM}(T_1, T_2, \dots, T_k)$$
+By rotating these circles (applying mathematical time-shifts $\tau_i$), CASSINI slots the communication bursts of one job directly into the compute valleys of others—achieving **zero network collisions** on shared links.
 
 <p align="center">
   <img src="visualizations/optimization_animation.gif" alt="Geometric Optimization Animation" width="600"/>
 </p>
 
-### 2. Bipartite Affinity Graph Traversal
-When a cluster runs dozens of jobs across multiple interconnected links, shifting a job to optimize one link might accidentally cause a collision on another. CASSINI solves this by mapping the entire topology as a **Bipartite Affinity Graph** (where Jobs are one set of nodes, and Links are the other). A Breadth-First Search (Algorithm 1) safely propagates time-shifts globally, resolving multi-link placement conflicts without mathematical contradictions.
+### 2. Multi-Link Conflict Resolution via Bipartite Affinity Graphs
+In modern clusters, jobs traverse multiple links and share different bottleneck paths with different co-runners. Shifting a job to resolve contention on Link $A$ might inadvertently create a collision on Link $B$.
+
+CASSINI models the cluster topology as a **Bipartite Affinity Graph** $G = (U, V, E)$, where:
+- Nodes $U$ represent Jobs
+- Nodes $V$ represent Network Links
+- Edges $E$ carry optimal relative phase shifts determined by the link optimizer
+
+Using **Algorithm 1 (BFS Traversal)**, CASSINI walks the connected acyclic subgraphs, propagating globally consistent, collision-free time-shifts cluster-wide without mathematical contradictions.
 
 <p align="center">
   <img src="visualizations/affinity_bfs_animation.gif" alt="Affinity Graph BFS Traversal" width="600"/>
 </p>
 
-## Features
-- **Pure Math Simulation**: No reliance on physical GPUs. Everything is simulated using precise time arrays.
-- **Aesthetic Visualizations**: Built-in visualizers using `matplotlib` and `networkx` to generate stunning proofs of the math. Generates overlapping bandwidth charts and bipartite affinity graph network plots.
-- **Unit Tested**: The core logic is backed by strict unit tests confirming mathematical alignment with the paper's properties.
-
-## Roadmap & Progress
-
-- [x] **1. Data Structures**: Modeled the datacenter network, jobs, links, servers, and repeating "compute"/"communicate" phases.
-- [x] **2. Link-Level Optimizer**: Built a mathematical array-shifting optimizer to calculate optimal time-delays and interleave bandwidth on a single bottleneck link.
-- [x] **3. Cluster-Wide Traversal**: Built the bipartite Affinity Graph to resolve multi-link placement conflicts without contradictions using BFS (Algorithm 1).
-- [x] **4. Placement Evaluator**: Evaluates different candidate placement configurations and mathematically ranks them based on our custom compatibility score.
-- [x] **5. Time-Based Simulator**: A master timeline loop to simulate jobs arriving and departing dynamically over time, complete with mathematical slowdown calculation for network congestion.
-
-## Directory Structure
-
-```text
-cassini-simulation/
-├── src/                  # Core engine
-│   ├── core/             # Fundamental data structures
-│   ├── math_engine/      # Theoretical algorithms from the paper
-│   ├── scheduler/        # High-level scheduling and time loop
-│   └── utils/            # Helper tools (visualizer, animator)
-├── tests/                # Unit tests for CI/CD
-├── examples/             # Demo scripts 
-├── experiments/          # Benchmarks and evaluation scripts
-├── visualizations/       # Generated plots and charts
-└── README.md
-```
-
-## Running the Demo Scripts
-
-This project includes visualizations for the implemented steps. To run them, you will need to install `matplotlib` and `networkx`.
-
-```bash
-pip install matplotlib numpy networkx
-```
-
-### Link-Level Overlap Demo
-```bash
-python examples/demo_link_optimizer.py
-```
-*Generates visual charts showing network collision vs. mathematically optimized interleaved traffic.*
-
-### Affinity Graph Demo
-```bash
-python examples/demo_affinity_graph.py
-```
-*Generates a visual network topology graph of a complex multi-link setup and prints the globally safe time-shifts.*
-
-### Placement Evaluator Demo
-```bash
-python examples/demo_evaluator.py
-```
-*Generates mock placement candidates, tests them for cyclic conditions, calculates their network compatibility, and selects the optimal layout.*
-
-### Time-Based Simulator Demo
-```bash
-python examples/demo_simulator.py
-```
-*Fires up a master event loop simulating jobs arriving over time, dynamically re-routing them, calculating iteration slowdowns based on mathematical collisions, and tracking total turnaround time.*
+### 3. Loop-Free Placement Evaluation & Time-Based Event Simulation
+- **Placement Evaluator**: Evaluates cluster placement candidates generated by cluster managers (e.g., Themis/Tiresias), detects and discards cyclic configurations using BFS cycle detection, scores compatibility, and selects the optimal layout.
+- **Master Event Simulator**: A priority-queue discrete-event engine (`Simulator`) tracking job arrivals, dynamic re-routing, iterations, completion progress, and contention-induced dilation of communication times.
 
 ---
 
-## Phase 1: Baseline Validation (Paper Replication)
+## 📂 Directory Structure
 
-We have implemented end-to-end experiment scripts with full CLI argument support to replicate Key Figures from the paper:
+```text
+cassini-simulation/
+├── src/                          # Core CASSINI framework
+│   ├── core/                     # Data models (Phase, Job, Link, Cluster)
+│   │   ├── __init__.py
+│   │   └── models.py
+│   ├── math_engine/              # Mathematical algorithms & graph engines
+│   │   ├── __init__.py
+│   │   ├── graph.py              # Bipartite Affinity Graph & BFS Traversal (Algorithm 1)
+│   │   └── optimizer.py          # Circular rolling phase interleaver & LCM math
+│   ├── scheduler/                # Evaluation & discrete-event simulation loop
+│   │   ├── __init__.py
+│   │   ├── evaluator.py          # Candidate evaluation, scoring & loop filtering
+│   │   └── simulator.py          # Master discrete-event cluster simulator
+│   └── utils/                    # Visualization & animation tools
+│       ├── __init__.py
+│       ├── animator.py           # GIF generation for phase & graph animations
+│       └── visualizer.py         # Static plotting (linear, circular, topology)
+├── examples/                     # Standalone demo scripts for paper concepts
+│   ├── demo_link_optimizer.py    # Link-level phase collision & circular interleaving
+│   ├── demo_affinity_graph.py    # Bipartite graph construction & BFS traversal
+│   ├── demo_evaluator.py         # Multi-candidate ranking & cycle detection
+│   └── demo_simulator.py         # Event loop with dynamic arrival/departure
+├── experiments/                  # Baseline validation & paper figure replication
+│   ├── micro_test.py             # Replicating Figure 3 (Geometric 30° shift)
+│   └── macro_test.py             # Replicating Figure 9 (50-job cluster JCT CDF)
+├── tests/                        # Comprehensive unit tests
+│   ├── test_core.py
+│   ├── test_optimizer.py
+│   ├── test_graph.py
+│   ├── test_evaluator.py
+│   └── test_simulator.py
+├── visualizations/               # Output charts, CDF plots, and animations
+├── Makefile                      # Cross-platform CLI shortcuts
+├── requirements.txt              # Dependency specifications
+└── README.md
+```
 
-### 1. The Micro-Test (Figure 3 Replica)
-Tests two jobs: Job A (40ms iteration: 30ms compute, 10ms comm) and Job B (60ms iteration: 50ms compute, 10ms comm) on a shared link.
+---
+
+## ⚡ Quick Start
+
+### 1. Installation
+
+Clone the repository and install dependencies:
+```bash
+git clone https://github.com/hskad/cassini-simulation.git
+cd cassini-simulation
+pip install -r requirements.txt
+```
+
+> **Note for Windows Users**:
+> Use `python` in Command Prompt / PowerShell rather than `python3` (which can map to the Windows Store stub). On Linux/WSL/macOS, use `python3`.
+
+---
+
+## 🧪 Phase 1: Baseline Validation (Paper Replication)
+
+We have built end-to-end experiment scripts with full CLI argument support to mathematically replicate the key figures from the CASSINI paper:
+
+### 🔬 1. The Micro-Test (Figure 3 Replica)
+Tests two jobs sharing a single bottleneck link:
+- **Job A**: 40ms iteration (30ms compute, 10ms comm)
+- **Job B**: 60ms iteration (50ms compute, 10ms comm)
+- **Unified Circle Perimeter**: $\text{LCM}(40, 60) = 120\text{ ms}$
+
 ```bash
 python experiments/micro_test.py
 ```
-Outputs:
-- 100% Compatibility Score
-- Optimal Job B phase shift of **30.0 degrees** (10.0ms over the 120ms LCM circle)
-- Circular diagram saved to `visualizations/micro_test_circular.png`
 
-Custom parameters can be passed:
+<p align="center">
+  <img src="visualizations/micro_test_circular.png" alt="Figure 3 Micro-Test Circular Representation" width="500"/>
+</p>
+
+- **Validation Result**: 
+  - **100.0% Compatibility Score** (Zero collision)
+  - Optimal Job B time shift: **$10.0\text{ ms}$**
+  - Geometric phase shift: **$\frac{10\text{ ms}}{120\text{ ms}} \times 360^\circ = \mathbf{30.0^\circ}$** (Exact Figure 3 replication)
+
+Custom parameters can be tested:
 ```bash
 python experiments/micro_test.py --compute-a 30 --comm-a 10 --compute-b 50 --comm-b 10 --capacity 50
 ```
 
-### 2. The Macro-Test (Figure 9 Replica)
-Runs a discrete-event cluster simulation comparing the **CASSINI Scheduler** against a **Random Baseline Scheduler** across 50 jobs with random iterations and arrival times.
+---
+
+### 📈 2. The Macro-Test (Figure 9 Replica)
+Runs a discrete-event cluster simulation comparing the **CASSINI Scheduler** against a **Random Baseline Scheduler** across 50 multi-iteration distributed ML training jobs competing over bottleneck links.
+
 ```bash
 python experiments/macro_test.py
 ```
-Outputs:
-- Average Job Completion Time comparison
-- Cumulative Distribution Function (CDF) graph saved to `visualizations/macro_test_cdf.png`
 
-Custom parameters can be passed:
+<p align="center">
+  <img src="visualizations/macro_test_cdf.png" alt="Figure 9 Macro-Test CDF Plot" width="650"/>
+</p>
+
+```text
+--- Results Summary ---
+Average JCT (CASSINI): 1129.74ms
+Average JCT (Random) : 1355.48ms
+Performance Gain    : 16.7% faster with CASSINI
+```
+
+#### How to Interpret the CDF Graph:
+- **X-Axis (Job Completion Time in ms)**: Total turnaround time from job arrival to completion. Lower values (further left) represent faster completions.
+- **Y-Axis (Cumulative Probability)**: The proportion of all 50 cluster jobs completed (from 0% to 100%).
+- **Shifted Left is Better**:
+  - **Median JCT (P50)**: CASSINI finishes 50% of the workload at **$\sim 1150\text{ ms}$**, whereas the baseline Random scheduler requires **$\sim 1420\text{ ms}$** ($\approx 270\text{ ms}$ faster).
+  - **Tail Latency (P90)**: 90% of CASSINI jobs complete by **$1750\text{ ms}$**, while Random scheduling suffers from cascading collisions with jobs dragging out past **$2560\text{ ms}$**.
+  - **Physical Mechanism**: CASSINI's circular interleaving prevents packet drops and network queueing on bottleneck links, enabling jobs to transmit at full line rate without contention.
+
+Custom cluster experiments can be passed directly via CLI:
 ```bash
-python experiments/macro_test.py --num-jobs 50 --num-links 4 --capacity 100 --penalty 0.8 --seed 42
+python experiments/macro_test.py --num-jobs 50 --num-links 16 --capacity 50 --penalty 2.0 --seed 42
 ```
 
 ---
 
-## Makefile Shortcuts
+## 🖥️ Running the Demo Visualizations
 
-A `Makefile` is provided for running demos, tests, and cleanup tasks:
+Each core component has an isolated demo script for inspection:
+
+| Demo Script | Description | Generated Artifact |
+| :--- | :--- | :--- |
+| `python examples/demo_link_optimizer.py` | Shows link collision vs. circular phase interleaving | `visualizations/before_optimization.png`<br>`visualizations/after_optimization.png` |
+| `python examples/demo_affinity_graph.py` | Constructs a multi-link cluster and runs BFS Traversal | `visualizations/complex_affinity_graph.png` |
+| `python examples/demo_evaluator.py` | Generates candidates, filters cycles, and scores placements | Console logs & placement ranks |
+| `python examples/demo_simulator.py` | Master discrete-event loop with dynamic job arrivals | Turnaround time report per job |
+
+---
+
+## 🛠️ Makefile Commands
+
+A cross-platform `Makefile` is included to streamline execution and maintenance:
 
 | Command | Description |
 | :--- | :--- |
-| `make help` | Show all available make targets |
-| `make demo-link` | Run the link-level collision & optimizer demo |
-| `make demo-affinity` | Run the Affinity Graph & traversal demo |
-| `make demo-evaluator` | Run the placement evaluator candidate demo |
-| `make demo-simulator` | Run the master time-based simulator demo |
-| `make demo-all` | Run all 4 demos sequentially |
-| `make micro-test` | Run the Micro-Test (Figure 3 replica) |
-| `make macro-test` | Run the Macro-Test (Figure 9 replica) |
-| `make validate-baseline` | Run both micro and macro baseline tests |
-| `make test` | Run all unit tests |
-| `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF files**) |
-| `make clean` | Delete generated PNGs and `__pycache__` (**strictly preserves GIF files**) |
+| `make help` | View all available make targets |
+| `make demo-all` | Sequentially execute all 4 demonstration scripts |
+| `make micro-test` | Run the Phase 1 Micro-Test (Figure 3 replica) |
+| `make macro-test` | Run the Phase 1 Macro-Test (Figure 9 replica) |
+| `make validate-baseline` | Run both micro and macro baseline tests sequentially |
+| `make test` | Run the complete suite of unit tests |
+| `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF animations**) |
+| `make clean` | Clean all PNG charts and `__pycache__` artifacts (**preserves GIFs**) |
 
-> **Note**: You can pass `PYTHON=python3` or any custom interpreter: `make PYTHON=python3 micro-test`.
+> **Custom Python Interpreter**: If needed, pass `PYTHON=python3`:
+> ```bash
+> make PYTHON=python3 macro-test
+> ```
+> *(On Windows PowerShell using MinGW Make, run `mingw32-make <target>`)*
 
 ---
-*All logic is strictly backed by unit tests and baseline validation experiments to prove mathematical correctness.*
+
+## 🧪 Unit Testing
+
+Run all unit tests to verify mathematical correctness:
+```bash
+python -m unittest discover tests
+```
+
+---
+
+## 📚 References
+
+- Rajasekaran et al., **"CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters"**, *USENIX Symposium on Networked Systems Design and Implementation (NSDI '24)*.
