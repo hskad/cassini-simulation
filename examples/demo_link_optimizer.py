@@ -4,11 +4,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.core.models import Phase, Job, Link
 from src.math_engine.optimizer import optimize_link
-from src.utils.visualizer import plot_link_alignment, plot_circular_alignment
 
 def main():
-    # Make sure we have an output directory for images
-    os.makedirs('visualizations', exist_ok=True)
+    print("--- CASSINI Link-Level Optimizer Demo ---")
     
     # 1. Setup Mock Jobs and Link (Capacity 25 Gbps to force a bottleneck if they overlap)
     job1 = Job(job_id="j1", name="VGG16_A", phases=[
@@ -23,21 +21,16 @@ def main():
     
     link = Link(link_id="l1", capacity=25.0)
     
-    # 2. Plot Before Optimization
-    print("Plotting Before Optimization...")
-    plot_link_alignment([job1, job2], link, "Before Optimization: Bandwidth Collision", "visualizations/before_optimization.png")
-    plot_circular_alignment([job1, job2], link, "Before Optimization (Circular)", "visualizations/before_optimization_circle.png")
+    print("Initial State:")
+    print(f"  {job1.name}: Iteration={job1.iteration_time}ms, TimeShift={job1.time_shift}ms")
+    print(f"  {job2.name}: Iteration={job2.iteration_time}ms, TimeShift={job2.time_shift}ms")
+    print(f"  Link Capacity: {link.capacity} Gbps")
     
-    # 3. Optimize
-    print("Running Link-Level Optimizer...")
+    # 2. Optimize
+    print("\nRunning Link-Level Optimizer...")
     optimize_link([job1, job2], link)
     print(f"Optimal Time-Shift for {job2.name}: {job2.time_shift}ms")
-    
-    # 4. Plot After Optimization
-    print("Plotting After Optimization...")
-    plot_link_alignment([job1, job2], link, "After Optimization: Perfectly Interleaved", "visualizations/after_optimization.png")
-    plot_circular_alignment([job1, job2], link, "After Optimization (Circular)", "visualizations/after_optimization_circle.png")
-    print("Done! Check the visualizations folder.")
+    print("\nOptimization Complete! (See visualizations/optimization_animation.gif for animated demonstration)")
 
 if __name__ == '__main__':
     main()

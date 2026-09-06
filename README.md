@@ -171,10 +171,10 @@ python experiments/macro_test.py --num-jobs 50 --num-links 16 --capacity 50 --pe
 
 Each core component has an isolated demo script for inspection:
 
-| Demo Script | Description | Generated Artifact |
+| Demo Script | Description | Visualization Output |
 | :--- | :--- | :--- |
-| `python examples/demo_link_optimizer.py` | Shows link collision vs. circular phase interleaving | `visualizations/before_optimization.png`<br>`visualizations/after_optimization.png` |
-| `python examples/demo_affinity_graph.py` | Constructs a multi-link cluster and runs BFS Traversal | `visualizations/complex_affinity_graph.png` |
+| `python examples/demo_link_optimizer.py` | Shows link collision vs. circular phase interleaving | `visualizations/optimization_animation.gif` |
+| `python examples/demo_affinity_graph.py` | Constructs a multi-link cluster and runs BFS Traversal | `visualizations/affinity_bfs_animation.gif` |
 | `python examples/demo_evaluator.py` | Generates candidates, filters cycles, and scores placements | Console logs & placement ranks |
 | `python examples/demo_simulator.py` | Master discrete-event loop with dynamic job arrivals | Turnaround time report per job |
 

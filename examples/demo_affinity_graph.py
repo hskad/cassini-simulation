@@ -4,7 +4,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.core.models import Phase, Job, Link, Cluster, Server
 from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph
-from src.utils.visualizer import plot_affinity_graph
 
 def main():
     os.makedirs('visualizations', exist_ok=True)
@@ -44,11 +43,7 @@ def main():
     print("Building Complex Bipartite Affinity Graph...")
     graph = build_affinity_graph(cluster, optimal_shifts)
     
-    # 3. Plot the Graph
-    print("Plotting Affinity Graph...")
-    plot_affinity_graph(graph, "Complex Cluster-Wide Affinity Graph", "visualizations/complex_affinity_graph.png")
-    
-    # 4. Traverse and resolve unique time-shifts
+    # 3. Traverse and resolve unique time-shifts
     print("Running Algorithm 1 (BFS Traversal)...")
     jobs_map = {"j1": job1, "j2": job2, "j3": job3, "j4": job4, "j5": job5}
     global_shifts = traverse_affinity_graph(graph, jobs_map)
@@ -57,7 +52,7 @@ def main():
     for jid, shift in global_shifts.items():
         print(f"  Job {jid}: {shift}ms")
         
-    print("\nDone! Check visualizations/complex_affinity_graph.png")
+    print("\nTraversal Complete! (See visualizations/affinity_bfs_animation.gif for animated demonstration)")
 
 if __name__ == '__main__':
     main()
