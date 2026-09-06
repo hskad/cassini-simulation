@@ -46,3 +46,37 @@ def has_cycle(graph: AffinityGraph) -> bool:
                     
     return False
 
+def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candidates: int = 5) -> List[PlacementCandidate]:
+    """
+    Simulates a scheduler (like Themis) by generating N random placement candidates.
+    Assigns jobs randomly to the links in the base cluster to create varied network overlaps.
+    """
+    candidates = []
+    
+    for i in range(num_candidates):
+        # Create a new link_jobs mapping
+        new_link_jobs = {link.link_id: [] for link in base_cluster.links}
+        
+        for job in jobs:
+            # Randomly select a number of links this job traverses (e.g., 1 to 3)
+            num_links = random.randint(1, min(3, max(1, len(base_cluster.links))))
+            chosen_links = random.sample(base_cluster.links, num_links)
+            
+            for link in chosen_links:
+                new_link_jobs[link.link_id].append(job)
+                
+        # Clone the cluster with the new placement
+        new_cluster = Cluster(
+            servers=base_cluster.servers,
+            links=base_cluster.links,
+            link_jobs=new_link_jobs
+        )
+        
+        candidates.append(PlacementCandidate(
+            candidate_id=f"candidate_{i+1}",
+            cluster=new_cluster
+        ))
+        
+    return candidates
+
+
