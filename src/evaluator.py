@@ -79,4 +79,79 @@ def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candida
         
     return candidates
 
+def score_candidate(candidate: PlacementCandidate) -> Tuple[float, Dict[str, Dict[str, float]]]:
+    """
+    Evaluates a single placement candidate by running the link optimizer on all its links.
+    Returns a tuple of (overall_compatibility_score, link_optimal_shifts).
+    """
+    total_score = 0.0
+    num_links_scored = 0
+    link_optimal_shifts: Dict[str, Dict[str, float]] = {}
+    
+    for link in candidate.cluster.links:
+        jobs_on_link = candidate.cluster.link_jobs.get(link.link_id, [])
+        if len(jobs_on_link) > 1:
+            # Copy jobs to avoid mutating original objects globally
+            jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift) for j in jobs_on_link]
+            
+            # optimize_link modifies time_shift in-place for jobs_copy
+            optimize_link(jobs_copy, link, resolution=1.0)
+            
+            # calculate score
+            lcm_steps = int(jobs_copy[0].iteration_time)
+            for j in jobs_copy[1:]:
+                lcm_steps = lcm(lcm_steps, int(j.iteration_time))
+                
+            arrs = [discretize_phases(j, float(lcm_steps), 1.0) for j in jobs_copy]
+            link_score = calculate_score(arrs, link.capacity)
+            
+            total_score += link_score
+            num_links_scored += 1
+            
+            # Record the optimal shifts for the affinity graph
+            link_optimal_shifts[link.link_id] = {j.job_id: j.time_shift for j in jobs_copy}
+            
+    if num_links_scored == 0:
+        return 1.0, {} # Perfect score if no links have >1 job
+        
+    avg_score = total_score / num_links_scored
+    return avg_score, link_optimal_shifts
+
+def evaluate_placements(candidates: List[PlacementCandidate]) -> Tuple[PlacementCandidate, Dict[str, float]]:
+    """
+    Evaluates all placement candidates and returns the winning candidate 
+    along with the globally safe time-shifts.
+    """
+    valid_candidates = []
+    
+    for candidate in candidates:
+        score, link_shifts = score_candidate(candidate)
+        
+        # Build graph to check for cycles
+        graph = build_affinity_graph(candidate.cluster, link_shifts)
+        
+        if not has_cycle(graph):
+            candidate.compatibility_score = score
+            valid_candidates.append((candidate, graph))
+            
+    if not valid_candidates:
+        raise ValueError("No valid loop-free placement candidates found.")
+        
+    # Sort candidates by compatibility score (descending)
+    valid_candidates.sort(key=lambda x: x[0].compatibility_score, reverse=True)
+    
+    winning_candidate, winning_graph = valid_candidates[0]
+    
+    # Reconstruct jobs map for traversal
+    jobs_map = {}
+    for link_jobs in winning_candidate.cluster.link_jobs.values():
+        for job in link_jobs:
+            jobs_map[job.job_id] = job
+            
+    # Compute global time-shifts
+    global_time_shifts = traverse_affinity_graph(winning_graph, jobs_map)
+    
+    return winning_candidate, global_time_shifts
+
+
 
