@@ -1,3 +1,7 @@
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from src.core.models import Phase, Job, Link, Cluster
 from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
 
