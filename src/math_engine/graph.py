@@ -1,6 +1,6 @@
 from collections import deque
 from typing import Dict, List, Set, Tuple
-from src.models import Cluster, Job, Link
+from src.core.models import Cluster, Job, Link
 
 class AffinityGraph:
     """

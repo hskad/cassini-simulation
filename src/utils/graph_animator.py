@@ -9,8 +9,8 @@ import matplotlib.animation as animation
 import networkx as nx
 from collections import deque
 
-from src.models import Phase, Job, Link, Cluster
-from src.graph import build_affinity_graph
+from src.core.models import Phase, Job, Link, Cluster
+from src.math_engine.graph import build_affinity_graph
 
 def trace_bfs(graph, jobs_map):
     """

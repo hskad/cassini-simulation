@@ -1,6 +1,6 @@
 import unittest
-from src.models import Phase, Job, Link, Cluster
-from src.simulator import Simulator, Event
+from src.core.models import Phase, Job, Link, Cluster
+from src.scheduler.simulator import Simulator, Event
 
 class TestSimulator(unittest.TestCase):
     def test_simulator_single_job(self):

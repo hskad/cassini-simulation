@@ -4,8 +4,8 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.models import Phase, Job, Link, Cluster, Server
-from src.graph import build_affinity_graph, traverse_affinity_graph, AffinityGraph
+from src.core.models import Phase, Job, Link, Cluster, Server
+from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph, AffinityGraph
 
 class TestGraph(unittest.TestCase):
     def test_affinity_graph_traversal(self):

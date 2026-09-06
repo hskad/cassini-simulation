@@ -7,8 +7,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
-from src.models import Phase, Job, Link
-from src.optimizer import discretize_phases, lcm
+from src.core.models import Phase, Job, Link
+from src.math_engine.optimizer import discretize_phases, lcm
 
 def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, resolution: float = 1.0):
     """

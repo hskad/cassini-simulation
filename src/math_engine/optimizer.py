@@ -1,6 +1,6 @@
 import math
 from typing import List, Tuple
-from src.models import Job, Link
+from src.core.models import Job, Link
 
 def lcm(a: int, b: int) -> int:
     return abs(a * b) // math.gcd(a, b)

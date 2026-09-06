@@ -1,7 +1,7 @@
 import unittest
-from src.models import Phase, Job, Link, Cluster
-from src.graph import AffinityGraph
-from src.evaluator import has_cycle, PlacementCandidate, generate_mock_candidates, evaluate_placements
+from src.core.models import Phase, Job, Link, Cluster
+from src.math_engine.graph import AffinityGraph
+from src.scheduler.evaluator import has_cycle, PlacementCandidate, generate_mock_candidates, evaluate_placements
 
 class TestEvaluator(unittest.TestCase):
     def test_has_cycle(self):

@@ -1,5 +1,5 @@
-from src.models import Phase, Job, Link, Cluster
-from src.evaluator import generate_mock_candidates, evaluate_placements
+from src.core.models import Phase, Job, Link, Cluster
+from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
 
 def main():
     print("--- CASSINI Placement Evaluator Demo ---")

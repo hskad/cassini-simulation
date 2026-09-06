@@ -1,7 +1,7 @@
 import os
-from src.models import Phase, Job, Link, Cluster, Server
-from src.graph import build_affinity_graph, traverse_affinity_graph
-from src.visualizer import plot_affinity_graph
+from src.core.models import Phase, Job, Link, Cluster, Server
+from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph
+from src.utils.visualizer import plot_affinity_graph
 
 def main():
     os.makedirs('visualizations', exist_ok=True)

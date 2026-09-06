@@ -5,7 +5,7 @@ import os
 # Add parent directory to path so we can import src
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.models import Phase, Job, Link, Server, Cluster
+from src.core.models import Phase, Job, Link, Server, Cluster
 
 class TestModels(unittest.TestCase):
     def test_job_iteration_time(self):

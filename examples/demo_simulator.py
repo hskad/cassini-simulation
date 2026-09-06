@@ -1,5 +1,5 @@
-from src.models import Phase, Job, Link, Cluster
-from src.simulator import Simulator
+from src.core.models import Phase, Job, Link, Cluster
+from src.scheduler.simulator import Simulator
 
 def main():
     print("--- CASSINI Time-Based Simulator Demo ---")

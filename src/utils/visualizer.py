@@ -3,8 +3,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import List
-from src.models import Job, Link
-from src.optimizer import discretize_phases, lcm
+from src.core.models import Job, Link
+from src.math_engine.optimizer import discretize_phases, lcm
 
 def plot_link_alignment(jobs: List[Job], link: Link, title: str, filename: str, resolution: float = 1.0):
     """

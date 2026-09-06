@@ -1,8 +1,8 @@
 import heapq
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
-from src.models import Job, Cluster
-from src.evaluator import generate_mock_candidates, evaluate_placements
+from src.core.models import Job, Cluster
+from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
 
 @dataclass(order=True)
 class Event:

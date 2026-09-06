@@ -4,8 +4,8 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.models import Phase, Job, Link
-from src.optimizer import discretize_phases, calculate_score, optimize_link
+from src.core.models import Phase, Job, Link
+from src.math_engine.optimizer import discretize_phases, calculate_score, optimize_link
 
 class TestOptimizer(unittest.TestCase):
     def setUp(self):
