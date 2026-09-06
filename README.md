@@ -82,4 +82,39 @@ python examples/demo_simulator.py
 *Fires up a master event loop simulating jobs arriving over time, dynamically re-routing them, calculating iteration slowdowns based on mathematical collisions, and tracking total turnaround time.*
 
 ---
-*All logic is strictly backed by unit tests to prove mathematical correctness.*
+
+## Phase 1: Baseline Validation (Paper Replication)
+
+We have implemented end-to-end experiment scripts with full CLI argument support to replicate Key Figures from the paper:
+
+### 1. The Micro-Test (Figure 3 Replica)
+Tests two jobs: Job A (40ms iteration: 30ms compute, 10ms comm) and Job B (60ms iteration: 50ms compute, 10ms comm) on a shared link.
+```bash
+python experiments/micro_test.py
+```
+Outputs:
+- 100% Compatibility Score
+- Optimal Job B phase shift of **30.0 degrees** (10.0ms over the 120ms LCM circle)
+- Circular diagram saved to `visualizations/micro_test_circular.png`
+
+Custom parameters can be passed:
+```bash
+python experiments/micro_test.py --compute-a 30 --comm-a 10 --compute-b 50 --comm-b 10 --capacity 50
+```
+
+### 2. The Macro-Test (Figure 9 Replica)
+Runs a discrete-event cluster simulation comparing the **CASSINI Scheduler** against a **Random Baseline Scheduler** across 50 jobs with random iterations and arrival times.
+```bash
+python experiments/macro_test.py
+```
+Outputs:
+- Average Job Completion Time comparison
+- Cumulative Distribution Function (CDF) graph saved to `visualizations/macro_test_cdf.png`
+
+Custom parameters can be passed:
+```bash
+python experiments/macro_test.py --num-jobs 50 --num-links 4 --capacity 100 --penalty 0.8 --seed 42
+```
+
+---
+*All logic is strictly backed by unit tests and baseline validation experiments to prove mathematical correctness.*
