@@ -15,6 +15,8 @@ class Job:
     name: str
     phases: List[Phase]
     time_shift: float = 0.0  # The calculated delay for this job
+    arrival_time: float = 0.0
+    total_iterations: int = 1
 
     @property
     def iteration_time(self) -> float:
