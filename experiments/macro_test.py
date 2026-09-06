@@ -17,9 +17,9 @@ from src.scheduler.simulator import Simulator
 def main():
     parser = argparse.ArgumentParser(description="Macro-Test (Figure 9 Replica)")
     parser.add_argument('--num-jobs', type=int, default=50, help="Number of jobs to simulate")
-    parser.add_argument('--num-links', type=int, default=4, help="Number of cluster links")
-    parser.add_argument('--capacity', type=float, default=100.0, help="Link capacity (Gbps)")
-    parser.add_argument('--penalty', type=float, default=0.8, help="Slowdown penalty factor")
+    parser.add_argument('--num-links', type=int, default=16, help="Number of cluster links")
+    parser.add_argument('--capacity', type=float, default=50.0, help="Link capacity (Gbps)")
+    parser.add_argument('--penalty', type=float, default=1.5, help="Slowdown penalty factor")
     parser.add_argument('--seed', type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
 
@@ -32,11 +32,11 @@ def main():
     # 2. Generate Jobs
     jobs = []
     for i in range(args.num_jobs):
-        comp_time = float(random.choice([20, 30, 40, 50, 60, 70, 80]))
-        comm_time = float(random.choice([10, 20, 30, 40]))
-        demand = float(random.choice([10, 20, 30, 40, 50, 60, 70]))
-        arrival = float(random.choice(range(0, 500, 50)))
-        iters = random.randint(5, 20)
+        comp_time = float(random.choice([25, 35, 45, 55]))
+        comm_time = float(random.choice([15, 20, 25]))
+        demand = float(random.choice([40, 50]))
+        arrival = float(random.randint(0, 400))
+        iters = random.randint(5, 25)
         
         job = Job(job_id=f"J{i}", name=f"Job_{i}", phases=[
             Phase("compute", comp_time, 0.0),
@@ -63,19 +63,19 @@ def main():
 
     # 4. Plot CDF
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(9, 6.5))
 
     y_cassini = np.arange(1, len(cassini_times) + 1) / len(cassini_times)
     y_random = np.arange(1, len(random_times) + 1) / len(random_times)
 
-    ax.plot(cassini_times, y_cassini, marker='o', linestyle='-', color='#00ffcc', label='CASSINI Scheduler')
-    ax.plot(random_times, y_random, marker='s', linestyle='--', color='#ff007f', label='Random Scheduler')
+    ax.plot(cassini_times, y_cassini, marker='o', markersize=4, linestyle='-', color='#00ffcc', label=f'CASSINI Scheduler (Mean: {np.mean(cassini_times):.1f}ms)')
+    ax.plot(random_times, y_random, marker='s', markersize=4, linestyle='--', color='#ff007f', label=f'Random Scheduler (Mean: {np.mean(random_times):.1f}ms)')
 
-    ax.set_title("CDF of Job Completion Times (Figure 9 Replica)", fontsize=14, color='white', pad=15)
+    ax.set_title("CDF of Job Completion Times (Figure 9 Replica)", fontsize=15, color='white', pad=15)
     ax.set_xlabel("Job Completion Time (ms)", fontsize=12, color='white')
     ax.set_ylabel("Cumulative Probability (CDF)", fontsize=12, color='white')
-    ax.grid(True, alpha=0.2, color='gray', linestyle='--')
-    ax.legend(loc='lower right', frameon=True, facecolor='#222222', edgecolor='none')
+    ax.grid(True, alpha=0.25, color='gray', linestyle='--')
+    ax.legend(loc='lower right', frameon=True, facecolor='#1e1e1e', edgecolor='#444444', fontsize=11)
     
     os.makedirs("visualizations", exist_ok=True)
     output_path = "visualizations/macro_test_cdf.png"
@@ -83,10 +83,12 @@ def main():
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='#111111')
     plt.close()
     
+    speedup = (np.mean(random_times) - np.mean(cassini_times)) / np.mean(random_times) * 100
     # Print stats
     print(f"\n--- Results Summary ---")
     print(f"Average JCT (CASSINI): {np.mean(cassini_times):.2f}ms")
     print(f"Average JCT (Random) : {np.mean(random_times):.2f}ms")
+    print(f"Performance Gain    : {speedup:.1f}% faster with CASSINI")
     print(f"CDF Graph saved to {output_path}")
 
 if __name__ == '__main__':

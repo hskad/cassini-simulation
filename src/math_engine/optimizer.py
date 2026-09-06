@@ -1,5 +1,6 @@
 import math
 from typing import List, Tuple
+import numpy as np
 from src.core.models import Job, Link
 
 def lcm(a: int, b: int) -> int:
@@ -10,34 +11,22 @@ def discretize_phases(job: Job, lcm_time: float, resolution: float = 1.0) -> Lis
     Converts a job's continuous phases into a discrete 1D array representing 
     bandwidth demand over the LCM time.
     """
-    num_steps = int(lcm_time / resolution)
-    bw_array = [0.0] * num_steps
-    
-    current_time = 0.0
-    iteration_time = job.iteration_time
-    
-    # Repeat the job's phases over the lcm_time
-    while current_time < lcm_time - 1e-9:
-        for phase in job.phases:
-            start_step = int((current_time + job.time_shift) / resolution) % num_steps
-            end_step = int((current_time + job.time_shift + phase.duration) / resolution) % num_steps
-            
-            # Fill the bandwidth array for this phase
-            if start_step <= end_step:
-                for step in range(start_step, end_step):
-                    bw_array[step] += phase.bandwidth_demand
-            else:
-                # Wrap around
-                for step in range(start_step, num_steps):
-                    bw_array[step] += phase.bandwidth_demand
-                for step in range(0, end_step):
-                    bw_array[step] += phase.bandwidth_demand
-                    
-            current_time += phase.duration
-            if current_time >= lcm_time - 1e-9:
-                break
-                
-    return bw_array
+    iter_steps = max(1, int(round(job.iteration_time / resolution)))
+    iter_arr = [0.0] * iter_steps
+    curr = 0
+    for p in job.phases:
+        d = int(round(p.duration / resolution))
+        if p.bandwidth_demand > 0:
+            for s in range(curr, min(iter_steps, curr + d)):
+                iter_arr[s] = p.bandwidth_demand
+        curr += d
+    num_steps = max(1, int(round(lcm_time / resolution)))
+    reps = (num_steps // iter_steps) + 2
+    full_arr = (iter_arr * reps)[:num_steps]
+    shift_steps = int(round(job.time_shift / resolution)) % num_steps
+    if shift_steps > 0:
+        return full_arr[-shift_steps:] + full_arr[:-shift_steps]
+    return full_arr
 
 def calculate_score(arrays: List[List[float]], link_capacity: float) -> float:
     """
@@ -45,73 +34,55 @@ def calculate_score(arrays: List[List[float]], link_capacity: float) -> float:
     """
     if not arrays or not arrays[0]:
         return 1.0
-        
-    num_steps = len(arrays[0])
-    total_excess = 0.0
-    
-    for step in range(num_steps):
-        total_bw = sum(arr[step] for arr in arrays)
-        if total_bw > link_capacity:
-            total_excess += (total_bw - link_capacity)
-            
-    average_excess = total_excess / num_steps
-    score = 1.0 - (average_excess / link_capacity)
-    return score
+    tot = np.sum(np.array(arrays, dtype=np.float32), axis=0)
+    excess = np.sum(np.maximum(0.0, tot - link_capacity))
+    return float(1.0 - (excess / (len(tot) * link_capacity)))
 
 def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0) -> None:
     """
     Finds the optimal time-shift for a set of jobs to maximize compatibility.
-    (Fast circular sliding for demonstration of the math).
+    (Fast circular sliding and greedy multi-job phase alignment).
     Modifies the jobs in-place with their new time_shift.
     """
     if len(jobs) < 2:
-        return # Nothing to interleave
+        return
         
-    # Calculate LCM of iteration times (round to nearest resolution)
     times = [int(job.iteration_time / resolution) for job in jobs]
     lcm_steps = times[0]
     for t in times[1:]:
         lcm_steps = lcm(lcm_steps, t)
     
     # Cap hyperperiod for computational tractability
-    lcm_steps = min(lcm_steps, 2400)
+    lcm_steps = min(lcm_steps, 600)
     lcm_time = lcm_steps * resolution
     
-    # We will hold job[0] fixed, and shift job[1]
-    # For a full cluster this needs bipartite graph traversal, but for a single link
-    # with 2 jobs, we just slide one against the other.
-    if len(jobs) == 2:
-        job1, job2 = jobs[0], jobs[1]
-        job1.time_shift = 0.0
+    # Hold jobs[0] fixed at 0.0 shift
+    jobs[0].time_shift = 0.0
+    curr = np.array(discretize_phases(jobs[0], lcm_time, resolution), dtype=np.float32)
+    n = len(curr)
+    
+    # For exactly 2 jobs (like Figure 3 micro-test), check all discrete steps
+    # For multi-job links, fine step ensures speed and quality
+    step_sz = 1 if len(jobs) == 2 else max(1, int(2.0 / resolution))
+    
+    for job in jobs[1:]:
+        old_shift = job.time_shift
+        job.time_shift = 0.0
+        base = np.array(discretize_phases(job, lcm_time, resolution), dtype=np.float32)
+        job.time_shift = old_shift
         
+        max_shifts = int(job.iteration_time / resolution)
         best_shift = 0.0
-        best_score = float('-inf')
+        min_excess = float('inf')
         
-        arr1 = discretize_phases(job1, lcm_time, resolution)
-        
-        old_shift = job2.time_shift
-        job2.time_shift = 0.0
-        arr2_base = discretize_phases(job2, lcm_time, resolution)
-        job2.time_shift = old_shift
-        
-        max_shift_steps = int(job2.iteration_time / resolution)
-        n = len(arr2_base)
-        
-        # Test all possible shifts for job2
-        for shift_step in range(max_shift_steps):
-            shift_time = shift_step * resolution
-            roll = shift_step % n
-            if roll == 0:
-                arr2 = arr2_base
-            else:
-                arr2 = arr2_base[-roll:] + arr2_base[:-roll]
-            
-            score = calculate_score([arr1, arr2], link.capacity)
-            
-            if score > best_score:
-                best_score = score
-                best_shift = shift_time
+        for shift_step in range(0, max_shifts, step_sz):
+            rolled = np.roll(base, shift_step)
+            exc = np.sum(np.maximum(0.0, curr + rolled - link.capacity))
+            if exc < min_excess:
+                min_excess = exc
+                best_shift = float(shift_step * resolution)
                 
-        # Apply the best shift
-        job2.time_shift = best_shift
+        job.time_shift = best_shift
+        roll = int(round(best_shift / resolution)) % n
+        curr = curr + np.roll(base, roll)
 
