@@ -30,8 +30,8 @@ When a cluster runs dozens of jobs across multiple interconnected links, shiftin
 - [x] **1. Data Structures**: Modeled the datacenter network, jobs, links, servers, and repeating "compute"/"communicate" phases.
 - [x] **2. Link-Level Optimizer**: Built a mathematical array-shifting optimizer to calculate optimal time-delays and interleave bandwidth on a single bottleneck link.
 - [x] **3. Cluster-Wide Traversal**: Built the bipartite Affinity Graph to resolve multi-link placement conflicts without contradictions using BFS (Algorithm 1).
-- [ ] **4. Placement Evaluator**: Will evaluate different candidate placement configurations and mathematically rank them based on our custom compatibility score.
-- [ ] **5. Time-Based Simulator**: A master timeline loop to simulate jobs arriving and departing dynamically over time.
+- [x] **4. Placement Evaluator**: Evaluates different candidate placement configurations and mathematically ranks them based on our custom compatibility score.
+- [x] **5. Time-Based Simulator**: A master timeline loop to simulate jobs arriving and departing dynamically over time, complete with mathematical slowdown calculation for network congestion.
 
 ## Directory Structure
 
@@ -41,14 +41,20 @@ cassini-simulation/
 │   ├── models.py       # Core data structures (Jobs, Links, Phases, Cluster)
 │   ├── optimizer.py    # Math for the Link-Level Optimizer (array-shifting)
 │   ├── graph.py        # Logic for Bipartite Affinity Graph (Algorithm 1)
+│   ├── evaluator.py    # Evaluates cluster placements and handles mock candidate generation
+│   ├── simulator.py    # Master discrete-event timeline loop and slowdown calculator
 │   └── visualizer.py   # Matplotlib and NetworkX aesthetic plotting functions
 ├── tests/
 │   ├── test_models.py  # Unit tests for the core models
 │   ├── test_graph.py   # Unit tests for the affinity graph traversal
-│   └── test_optimizer.py # Unit tests for the link-level math
+│   ├── test_optimizer.py # Unit tests for the link-level math
+│   ├── test_evaluator.py # Unit tests for cycle detection and candidate scoring
+│   └── test_simulator.py # Unit tests for the time-based loop
 ├── visualizations/     # Output directory for generated PNG plots
 ├── demo_link_optimizer.py  # Standalone demo for single-link optimization
-└── demo_affinity_graph.py  # Standalone demo for cluster-wide graph traversal
+├── demo_affinity_graph.py  # Standalone demo for cluster-wide graph traversal
+├── demo_evaluator.py       # Standalone demo showing how candidates are ranked and selected
+└── demo_simulator.py       # Standalone demo simulating a timeline of jobs arriving and finishing
 ```
 
 ## Running the Demo Scripts
@@ -70,6 +76,18 @@ python demo_link_optimizer.py
 python demo_affinity_graph.py
 ```
 *Generates a visual network topology graph of a complex multi-link setup and prints the globally safe time-shifts.*
+
+### Placement Evaluator Demo
+```bash
+python demo_evaluator.py
+```
+*Generates mock placement candidates, tests them for cyclic conditions, calculates their network compatibility, and selects the optimal layout.*
+
+### Time-Based Simulator Demo
+```bash
+python demo_simulator.py
+```
+*Fires up a master event loop simulating jobs arriving over time, dynamically re-routing them, calculating iteration slowdowns based on mathematical collisions, and tracking total turnaround time.*
 
 ---
 *All logic is strictly backed by unit tests to prove mathematical correctness.*
