@@ -11,9 +11,10 @@ class Event:
     job: Job = field(compare=False)
 
 class Simulator:
-    def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0):
+    def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0, use_cassini: bool = True):
         self.base_cluster = base_cluster
         self.penalty_factor = penalty_factor
+        self.use_cassini = use_cassini
         self.events: List[Event] = []
         self.active_jobs: Dict[str, Job] = {}
         self.current_time: float = 0.0
@@ -86,15 +87,22 @@ class Simulator:
             # Re-evaluate placements if cluster state changed
             if placement_changed and self.active_jobs:
                 jobs_list = list(self.active_jobs.values())
-                candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=5)
                 
-                try:
-                    winning_candidate, _ = evaluate_placements(candidates)
+                if self.use_cassini:
+                    candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=5)
+                    try:
+                        winning_candidate, _ = evaluate_placements(candidates)
+                        self.active_cluster = winning_candidate.cluster
+                        score = winning_candidate.compatibility_score
+                    except ValueError:
+                        # Fallback if no valid candidates (e.g., all have cycles)
+                        score = 0.0
+                else:
+                    from src.scheduler.evaluator import score_candidate
+                    candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=1)
+                    winning_candidate = candidates[0]
                     self.active_cluster = winning_candidate.cluster
-                    score = winning_candidate.compatibility_score
-                except ValueError:
-                    # Fallback if no valid candidates (e.g., all have cycles)
-                    score = 0.0
+                    score, _ = score_candidate(winning_candidate, optimize=False)
                     
                 # Calculate slowdowns
                 slowdown_factor = 1.0 + (1.0 - score) * self.penalty_factor

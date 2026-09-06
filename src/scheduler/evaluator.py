@@ -79,7 +79,7 @@ def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candida
         
     return candidates
 
-def score_candidate(candidate: PlacementCandidate) -> Tuple[float, Dict[str, Dict[str, float]]]:
+def score_candidate(candidate: PlacementCandidate, optimize: bool = True) -> Tuple[float, Dict[str, Dict[str, float]]]:
     """
     Evaluates a single placement candidate by running the link optimizer on all its links.
     Returns a tuple of (overall_compatibility_score, link_optimal_shifts).
@@ -94,8 +94,9 @@ def score_candidate(candidate: PlacementCandidate) -> Tuple[float, Dict[str, Dic
             # Copy jobs to avoid mutating original objects globally
             jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift) for j in jobs_on_link]
             
-            # optimize_link modifies time_shift in-place for jobs_copy
-            optimize_link(jobs_copy, link, resolution=1.0)
+            if optimize:
+                # optimize_link modifies time_shift in-place for jobs_copy
+                optimize_link(jobs_copy, link, resolution=1.0)
             
             # calculate score
             lcm_steps = int(jobs_copy[0].iteration_time)
