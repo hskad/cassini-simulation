@@ -61,7 +61,7 @@ def calculate_score(arrays: List[List[float]], link_capacity: float) -> float:
 def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0) -> None:
     """
     Finds the optimal time-shift for a set of jobs to maximize compatibility.
-    (Simple Brute-force array-shifting for demonstration of the math).
+    (Fast circular sliding for demonstration of the math).
     Modifies the jobs in-place with their new time_shift.
     """
     if len(jobs) < 2:
@@ -73,6 +73,8 @@ def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0) -> None:
     for t in times[1:]:
         lcm_steps = lcm(lcm_steps, t)
     
+    # Cap hyperperiod for computational tractability
+    lcm_steps = min(lcm_steps, 2400)
     lcm_time = lcm_steps * resolution
     
     # We will hold job[0] fixed, and shift job[1]
@@ -85,14 +87,24 @@ def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0) -> None:
         best_shift = 0.0
         best_score = float('-inf')
         
-        # Test all possible shifts for job2
+        arr1 = discretize_phases(job1, lcm_time, resolution)
+        
+        old_shift = job2.time_shift
+        job2.time_shift = 0.0
+        arr2_base = discretize_phases(job2, lcm_time, resolution)
+        job2.time_shift = old_shift
+        
         max_shift_steps = int(job2.iteration_time / resolution)
+        n = len(arr2_base)
+        
+        # Test all possible shifts for job2
         for shift_step in range(max_shift_steps):
             shift_time = shift_step * resolution
-            job2.time_shift = shift_time
-            
-            arr1 = discretize_phases(job1, lcm_time, resolution)
-            arr2 = discretize_phases(job2, lcm_time, resolution)
+            roll = shift_step % n
+            if roll == 0:
+                arr2 = arr2_base
+            else:
+                arr2 = arr2_base[-roll:] + arr2_base[:-roll]
             
             score = calculate_score([arr1, arr2], link.capacity)
             

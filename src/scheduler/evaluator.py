@@ -48,8 +48,9 @@ def has_cycle(graph: AffinityGraph) -> bool:
 
 def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candidates: int = 5) -> List[PlacementCandidate]:
     """
-    Simulates a scheduler (like Themis) by generating N random placement candidates.
-    Assigns jobs randomly to the links in the base cluster to create varied network overlaps.
+    Simulates a scheduler (like Themis) by generating N placement candidates.
+    Assigns jobs randomly to cluster links (representing their primary network path/bottleneck)
+    to explore varied network placements while ensuring loop-free Affinity subgraphs.
     """
     candidates = []
     
@@ -58,12 +59,9 @@ def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candida
         new_link_jobs = {link.link_id: [] for link in base_cluster.links}
         
         for job in jobs:
-            # Randomly select a number of links this job traverses (e.g., 1 to 3)
-            num_links = random.randint(1, min(3, max(1, len(base_cluster.links))))
-            chosen_links = random.sample(base_cluster.links, num_links)
-            
-            for link in chosen_links:
-                new_link_jobs[link.link_id].append(job)
+            # Assign job to a bottleneck link in the cluster
+            chosen_link = random.choice(base_cluster.links)
+            new_link_jobs[chosen_link.link_id].append(job)
                 
         # Clone the cluster with the new placement
         new_cluster = Cluster(
@@ -102,6 +100,7 @@ def score_candidate(candidate: PlacementCandidate, optimize: bool = True) -> Tup
             lcm_steps = int(jobs_copy[0].iteration_time)
             for j in jobs_copy[1:]:
                 lcm_steps = lcm(lcm_steps, int(j.iteration_time))
+            lcm_steps = min(lcm_steps, 2400)
                 
             arrs = [discretize_phases(j, float(lcm_steps), 1.0) for j in jobs_copy]
             link_score = calculate_score(arrs, link.capacity)
