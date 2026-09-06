@@ -11,7 +11,7 @@ This project provides a standalone mathematical testbed to validate CASSINI's ge
 
 ---
 
-## 📖 Core Concepts Modeled
+## Core Concepts Modeled
 
 Distributed deep learning training alternates cyclically between **Compute** (GPU forward/backward pass) and **Communication** (AllReduce gradient synchronization). When multiple training jobs share bottleneck switches and links in a cluster, uncoordinated communication bursts collide, creating packet buffers, queuing delay, and severe tail latencies.
 
@@ -46,7 +46,7 @@ Using **Algorithm 1 (BFS Traversal)**, CASSINI walks the connected acyclic subgr
 
 ---
 
-## 📂 Directory Structure
+## Directory Structure
 
 ```text
 cassini-simulation/
@@ -88,7 +88,7 @@ cassini-simulation/
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Installation
 
@@ -104,11 +104,11 @@ pip install -r requirements.txt
 
 ---
 
-## 🧪 Phase 1: Baseline Validation (Paper Replication)
+## Phase 1: Baseline Validation (Paper Replication)
 
 We have built end-to-end experiment scripts with full CLI argument support to mathematically replicate the key figures from the CASSINI paper:
 
-### 🔬 1. The Micro-Test (Figure 3 Replica)
+### 1. The Micro-Test (Figure 3 Replica)
 Tests two jobs sharing a single bottleneck link:
 - **Job A**: 40ms iteration (30ms compute, 10ms comm)
 - **Job B**: 60ms iteration (50ms compute, 10ms comm)
@@ -134,7 +134,7 @@ python experiments/micro_test.py --compute-a 30 --comm-a 10 --compute-b 50 --com
 
 ---
 
-### 📈 2. The Macro-Test (Figure 9 Replica)
+### 2. The Macro-Test (Figure 9 Replica)
 Runs a discrete-event cluster simulation comparing the **CASSINI Scheduler** against a **Random Baseline Scheduler** across 50 multi-iteration distributed ML training jobs competing over bottleneck links.
 
 ```bash
@@ -167,7 +167,7 @@ python experiments/macro_test.py --num-jobs 50 --num-links 16 --capacity 50 --pe
 
 ---
 
-## 🖥️ Running the Demo Visualizations
+## Running the Demo Visualizations
 
 Each core component has an isolated demo script for inspection:
 
@@ -180,7 +180,7 @@ Each core component has an isolated demo script for inspection:
 
 ---
 
-## 🛠️ Makefile Commands
+## Makefile Commands
 
 A cross-platform `Makefile` is included to streamline execution and maintenance:
 
@@ -203,7 +203,7 @@ A cross-platform `Makefile` is included to streamline execution and maintenance:
 
 ---
 
-## 🧪 Unit Testing
+## Unit Testing
 
 Run all unit tests to verify mathematical correctness:
 ```bash
@@ -212,6 +212,6 @@ python -m unittest discover tests
 
 ---
 
-## 📚 References
+## References
 
 - Rajasekaran et al., **"CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters"**, *USENIX Symposium on Networked Systems Design and Implementation (NSDI '24)*.
