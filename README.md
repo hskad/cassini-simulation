@@ -263,6 +263,55 @@ ViT-Base         |           9.40 |          5.62 |      40.2%
 
 ---
 
+## Phase 4: Ultra-Scale 10,000-Job Production Cluster Workload
+
+To evaluate CASSINI under massive datacenter conditions, we expanded the empirical simulation to **10,000 jobs** (spanning **~1.5 months** of production multi-tenant cluster operation with **20,000 discrete events** and **27,791,391 full training iterations**).
+
+The simulation executes concurrently across multiple CPU cores via multiprocessing:
+
+```bash
+python experiments/scale_10000_jobs.py
+# or via Makefile
+make scale-10k
+```
+
+<p align="center">
+  <img src="visualizations/scale_10000_jobs_cdf.png" alt="10,000 Jobs JCT CDF" width="600"/>
+  <img src="visualizations/scale_10000_jobs_breakdown.png" alt="10,000 Jobs Architecture Breakdown" width="600"/>
+</p>
+
+### 10,000-Job Empirical Results Summary
+
+```text
+=========================================================================
+               10,000-JOB PRODUCTION SIMULATION RESULTS                  
+=========================================================================
+Metric                    | Baseline (Uncoord) |         CASSINI |  Improvement
+-----------------------------------------------------------------------------
+Mean JCT (minutes)        |              17.04 |            8.15 |        52.2%
+Median P50 (minutes)      |              13.19 |            6.38 |        51.6%
+P90 Tail Latency (min)    |              33.01 |           15.69 |        52.5%
+P95 Tail Latency (min)    |              42.82 |           19.85 |        53.6%
+P99 Tail Latency (min)    |              65.00 |           29.60 |        54.5%
+=============================================================================
+
+-------------------------------------------------------------------------
+  Per-Model Turnaround & Speedup Breakdown (10,000 Jobs)                 
+-------------------------------------------------------------------------
+Model Architecture | Baseline (min) | CASSINI (min) |    Speedup
+------------------------------------------------------------
+BERT-Base        |          14.60 |          6.94 |      52.4%
+BERT-Large       |          31.10 |         14.52 |      53.3%
+DLRM             |           8.84 |          4.44 |      49.8%
+GPT-2-Medium     |          28.00 |         13.76 |      50.8%
+ResNet-50        |          11.79 |          5.63 |      52.3%
+VGG-16           |          24.78 |         11.87 |      52.1%
+ViT-Base         |          12.45 |          5.85 |      53.0%
+============================================================
+```
+
+---
+
 ## Running the Demo Visualizations
 
 Each core component has an isolated demo script for inspection:
@@ -288,6 +337,7 @@ A cross-platform `Makefile` is included to streamline execution and maintenance:
 | `make macro-test` | Run the Phase 1 Macro-Test (Figure 9 replica) |
 | `make real-workload` | Run the Phase 2 Real-World Microsoft Philly trace experiment |
 | `make large-scale` | Run the Phase 3 Large-Scale 2,000-job production experiment |
+| `make scale-10k` | Run the Phase 4 Ultra-Scale 10,000-job production experiment |
 | `make validate-baseline` | Run both micro and macro baseline tests sequentially |
 | `make test` | Run the complete suite of unit tests |
 | `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF animations**) |
