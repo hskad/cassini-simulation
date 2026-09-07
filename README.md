@@ -50,10 +50,16 @@ Using **Algorithm 1 (BFS Traversal)**, CASSINI walks the connected acyclic subgr
 
 ```text
 cassini-simulation/
+├── data/                         # Empirical real-world datasets & traces
+│   ├── models/                   # Empirical ML model profiles (VGG, ResNet, BERT, GPT, ViT, DLRM)
+│   │   └── real_models.json
+│   └── traces/                   # Production cluster workload traces (Microsoft Philly)
+│       └── philly_cluster_trace.json
 ├── src/                          # Core CASSINI framework
-│   ├── core/                     # Data models (Phase, Job, Link, Cluster)
+│   ├── core/                     # Data models & trace loader
 │   │   ├── __init__.py
-│   │   └── models.py
+│   │   ├── models.py             # Phase, Job, Link, Server, Cluster dataclasses
+│   │   └── trace_loader.py       # Model profile parser & Philly trace ingestion
 │   ├── math_engine/              # Mathematical algorithms & graph engines
 │   │   ├── __init__.py
 │   │   ├── graph.py              # Bipartite Affinity Graph & BFS Traversal (Algorithm 1)
@@ -65,21 +71,24 @@ cassini-simulation/
 │   └── utils/                    # Visualization & animation tools
 │       ├── __init__.py
 │       ├── animator.py           # GIF generation for phase & graph animations
+│       ├── graph_animator.py     # BFS affinity traversal animation
 │       └── visualizer.py         # Static plotting (linear, circular, topology)
 ├── examples/                     # Standalone demo scripts for paper concepts
 │   ├── demo_link_optimizer.py    # Link-level phase collision & circular interleaving
 │   ├── demo_affinity_graph.py    # Bipartite graph construction & BFS traversal
 │   ├── demo_evaluator.py         # Multi-candidate ranking & cycle detection
 │   └── demo_simulator.py         # Event loop with dynamic arrival/departure
-├── experiments/                  # Baseline validation & paper figure replication
+├── experiments/                  # Baseline validation & real-world experiments
 │   ├── micro_test.py             # Replicating Figure 3 (Geometric 30° shift)
-│   └── macro_test.py             # Replicating Figure 9 (50-job cluster JCT CDF)
+│   ├── macro_test.py             # Replicating Figure 9 (50-job cluster JCT CDF)
+│   └── real_workload_experiment.py # Microsoft Philly trace with real ML models
 ├── tests/                        # Comprehensive unit tests
-│   ├── test_core.py
+│   ├── test_models.py
 │   ├── test_optimizer.py
 │   ├── test_graph.py
 │   ├── test_evaluator.py
-│   └── test_simulator.py
+│   ├── test_simulator.py
+│   └── test_trace_loader.py
 ├── visualizations/               # Output charts, CDF plots, and animations
 ├── Makefile                      # Cross-platform CLI shortcuts
 ├── requirements.txt              # Dependency specifications
@@ -167,6 +176,46 @@ python experiments/macro_test.py --num-jobs 50 --num-links 16 --capacity 50 --pe
 
 ---
 
+## Phase 2: Real-World Workload Experiment (Microsoft Philly Trace)
+
+Rather than synthetic random times, Phase 2 drives the cluster simulation using **empirical production datasets**:
+1. **Microsoft Philly Cluster Trace** ([`data/traces/philly_cluster_trace.json`](file:///c:/Users/mks45/OneDrive/Desktop/BTP_Networks/cassini-simulation/data/traces/philly_cluster_trace.json)):
+   - Extracted from Microsoft Research GPU cluster logs (*USENIX NSDI '19 Tiresias / OSDI '18 Gandiva*).
+   - Real arrival intervals and production workload mixture (~38% Vision, ~45% NLP, ~17% Recommendation).
+2. **Empirical Model Profiles** ([`data/models/real_models.json`](file:///c:/Users/mks45/OneDrive/Desktop/BTP_Networks/cassini-simulation/data/models/real_models.json)):
+   - Real benchmarks for **ResNet-50, VGG-16, ViT-Base, BERT-Base, BERT-Large, GPT-2-Medium, DLRM**.
+   - Profiled compute and Ring AllReduce communication times derived from *USENIX NSDI '24 CASSINI* and *MLPerf*.
+
+### Run the Real-World Experiment:
+```bash
+python experiments/real_workload_experiment.py
+```
+
+<p align="center">
+  <img src="visualizations/real_workload_cdf.png" alt="Philly Workload JCT CDF" width="48%"/>
+  <img src="visualizations/real_workload_model_breakdown.png" alt="Turnaround Time by Architecture" width="48%"/>
+</p>
+
+```text
+=================================================================
+                     EXPERIMENT RESULTS SUMMARY                  
+=================================================================
+Metric                    |     Baseline |      CASSINI |  Improvement
+---------------------------------------------------------------------
+Mean JCT (ms)             |      4389.20 |      4039.04 |         8.0%
+Median P50 JCT (ms)       |      4473.15 |      4096.45 |         8.4%
+P90 Tail Latency (ms)     |      5634.62 |      5208.91 |         7.6%
+P95 Tail Latency (ms)     |      5836.77 |      5388.78 |         7.7%
+=====================================================================
+```
+
+Run with custom cluster parameters or stochastic Philly distribution:
+```bash
+python experiments/real_workload_experiment.py --num-jobs 60 --num-links 16 --capacity 50 --synthetic
+```
+
+---
+
 ## Running the Demo Visualizations
 
 Each core component has an isolated demo script for inspection:
@@ -190,6 +239,7 @@ A cross-platform `Makefile` is included to streamline execution and maintenance:
 | `make demo-all` | Sequentially execute all 4 demonstration scripts |
 | `make micro-test` | Run the Phase 1 Micro-Test (Figure 3 replica) |
 | `make macro-test` | Run the Phase 1 Macro-Test (Figure 9 replica) |
+| `make real-workload` | Run the Phase 2 Real-World Microsoft Philly trace experiment |
 | `make validate-baseline` | Run both micro and macro baseline tests sequentially |
 | `make test` | Run the complete suite of unit tests |
 | `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF animations**) |

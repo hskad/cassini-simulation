@@ -1,0 +1,74 @@
+{
+  "models": {
+    "ResNet-50": {
+      "domain": "Computer Vision",
+      "architecture": "CNN",
+      "parameters_million": 25.6,
+      "gradient_size_mb": 102.4,
+      "compute_time_ms": 82.0,
+      "default_comm_time_ms": 35.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "Standard 50-layer residual network for ImageNet classification (Compute-heavy)"
+    },
+    "VGG-16": {
+      "domain": "Computer Vision",
+      "architecture": "CNN",
+      "parameters_million": 138.4,
+      "gradient_size_mb": 553.6,
+      "compute_time_ms": 141.0,
+      "default_comm_time_ms": 114.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "Large parameter CNN with dense fully connected layers (Communication-heavy, NSDI '24 Figure 16 benchmark)"
+    },
+    "ViT-Base": {
+      "domain": "Computer Vision",
+      "architecture": "Vision Transformer",
+      "parameters_million": 86.0,
+      "gradient_size_mb": 344.0,
+      "compute_time_ms": 75.0,
+      "default_comm_time_ms": 48.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "Vision Transformer Base (16x16 patch size) with multi-head self-attention"
+    },
+    "BERT-Base": {
+      "domain": "NLP",
+      "architecture": "Transformer Encoder",
+      "parameters_million": 110.0,
+      "gradient_size_mb": 440.0,
+      "compute_time_ms": 95.0,
+      "default_comm_time_ms": 62.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "12-layer bidirectional Transformer encoder for language modeling"
+    },
+    "BERT-Large": {
+      "domain": "NLP",
+      "architecture": "Transformer Encoder",
+      "parameters_million": 340.0,
+      "gradient_size_mb": 1360.0,
+      "compute_time_ms": 180.0,
+      "default_comm_time_ms": 145.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "24-layer Transformer encoder with large hidden representation (High communication demand)"
+    },
+    "GPT-2-Medium": {
+      "domain": "NLP",
+      "architecture": "Autoregressive LM",
+      "parameters_million": 355.0,
+      "gradient_size_mb": 1420.0,
+      "compute_time_ms": 165.0,
+      "default_comm_time_ms": 138.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "24-layer autoregressive generative language model"
+    },
+    "DLRM": {
+      "domain": "Recommendation",
+      "architecture": "Embedding Tables + Bottom/Top MLP",
+      "parameters_million": 120.0,
+      "gradient_size_mb": 480.0,
+      "compute_time_ms": 45.0,
+      "default_comm_time_ms": 55.0,
+      "default_bandwidth_gbps": 25.0,
+      "description": "Deep Learning Recommendation Model with sparse embedding All-to-All and dense AllReduce"
+    }
+  }
+}
