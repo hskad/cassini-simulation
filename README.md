@@ -216,6 +216,53 @@ python experiments/real_workload_experiment.py --num-jobs 60 --num-links 16 --ca
 
 ---
 
+## Phase 3: Large-Scale Production Experiment (2,000 Jobs / ~5.5M Iterations)
+
+To evaluate CASSINI under unscaled, large-scale multi-tenant datacenter conditions:
+- **2,000 ML training jobs** across **32 shared cluster switches/links** (50 Gbps line rate).
+- **5,565,953 total training iterations** (1,000 to 12,000 iterations per job).
+- **Real-world architecture mix**: ResNet-50, VGG-16, ViT-Base, BERT-Base, BERT-Large, GPT-2-Medium, DLRM.
+- **Trace dataset**: Saved in [`data/traces/philly_2000_jobs.json`](file:///c:/Users/mks45/OneDrive/Desktop/BTP_Networks/cassini-simulation/data/traces/philly_2000_jobs.json).
+
+### Run the Large-Scale Experiment:
+```bash
+python experiments/large_scale_2000_jobs.py
+```
+
+<p align="center">
+  <img src="visualizations/large_scale_2000_jobs_cdf.png" alt="2000-Job Philly Workload JCT CDF" width="48%"/>
+  <img src="visualizations/large_scale_2000_jobs_breakdown.png" alt="2000-Job Turnaround by Architecture" width="48%"/>
+</p>
+
+```text
+=========================================================================
+               LARGE-SCALE PRODUCTION SIMULATION RESULTS                 
+=========================================================================
+Metric                    | Baseline (Uncoord) |         CASSINI |  Improvement
+-----------------------------------------------------------------------------
+Mean JCT (minutes)        |              13.84 |            8.27 |        40.3%
+Median P50 (minutes)      |              10.71 |            6.46 |        39.7%
+P90 Tail Latency (min)    |              27.55 |           16.19 |        41.3%
+P95 Tail Latency (min)    |              34.76 |           20.55 |        40.9%
+=============================================================================
+
+-------------------------------------------------------------------------
+  Per-Model Turnaround & Speedup Breakdown                               
+-------------------------------------------------------------------------
+Model Architecture | Baseline (min) | CASSINI (min) |    Speedup
+------------------------------------------------------------
+BERT-Base        |          11.45 |          6.84 |      40.3%
+BERT-Large       |          24.45 |         14.37 |      41.2%
+DLRM             |           6.98 |          4.40 |      36.9%
+GPT-2-Medium     |          22.57 |         13.84 |      38.7%
+ResNet-50        |           9.90 |          5.76 |      41.8%
+VGG-16           |          20.05 |         11.98 |      40.2%
+ViT-Base         |           9.40 |          5.62 |      40.2%
+============================================================
+```
+
+---
+
 ## Running the Demo Visualizations
 
 Each core component has an isolated demo script for inspection:
@@ -240,6 +287,7 @@ A cross-platform `Makefile` is included to streamline execution and maintenance:
 | `make micro-test` | Run the Phase 1 Micro-Test (Figure 3 replica) |
 | `make macro-test` | Run the Phase 1 Macro-Test (Figure 9 replica) |
 | `make real-workload` | Run the Phase 2 Real-World Microsoft Philly trace experiment |
+| `make large-scale` | Run the Phase 3 Large-Scale 2,000-job production experiment |
 | `make validate-baseline` | Run both micro and macro baseline tests sequentially |
 | `make test` | Run the complete suite of unit tests |
 | `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF animations**) |

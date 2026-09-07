@@ -2,7 +2,7 @@
 
 PYTHON ?= python
 
-.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload validate-baseline clean-png clean
+.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload large-scale validate-baseline clean-png clean
 
 help:
 	@echo "CASSINI Simulation - Available Targets:"
@@ -14,6 +14,7 @@ help:
 	@echo "  make micro-test         - Run Phase 1 Micro-Test (Fig 3 replica)"
 	@echo "  make macro-test         - Run Phase 1 Macro-Test (Fig 9 replica)"
 	@echo "  make real-workload      - Run real-world Philly trace cluster experiment"
+	@echo "  make large-scale        - Run 2,000-job production cluster experiment"
 	@echo "  make validate-baseline  - Run both micro and macro baseline tests"
 	@echo "  make test               - Run unit tests"
 	@echo "  make clean-png          - Delete generated PNG files (Preserves GIF files)"
@@ -41,6 +42,9 @@ macro-test:
 
 real-workload:
 	$(PYTHON) experiments/real_workload_experiment.py
+
+large-scale:
+	$(PYTHON) experiments/large_scale_2000_jobs.py
 
 validate-baseline: micro-test macro-test
 
