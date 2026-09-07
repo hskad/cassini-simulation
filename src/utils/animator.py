@@ -1,6 +1,9 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 import matplotlib
 matplotlib.use('Agg')
@@ -79,7 +82,8 @@ def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, res
     print(f"Saved animation to {filename}")
 
 if __name__ == '__main__':
-    os.makedirs('visualizations', exist_ok=True)
+    output_dir = os.path.join(PROJECT_ROOT, 'visualizations')
+    os.makedirs(output_dir, exist_ok=True)
     
     # 1. Setup Mock Jobs and Link (Capacity 25 Gbps to force a bottleneck if they overlap)
     j1 = Job(job_id="j1", name="VGG16_A", phases=[
@@ -94,4 +98,4 @@ if __name__ == '__main__':
     
     l1 = Link(link_id="l1", capacity=25.0)
     
-    create_optimization_gif(j1, j2, l1, "visualizations/optimization_animation.gif")
+    create_optimization_gif(j1, j2, l1, os.path.join(output_dir, "optimization_animation.gif"))

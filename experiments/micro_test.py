@@ -1,7 +1,11 @@
 import argparse
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from src.core.models import Phase, Job, Link
 from src.math_engine.optimizer import optimize_link, lcm, discretize_phases, calculate_score
 from src.utils.visualizer import plot_circular_alignment
@@ -54,8 +58,9 @@ def main():
         print(f"{j.name} Time Shift: {j.time_shift}ms -> Geometric Shift: {degrees:.1f} degrees")
 
     # Save visualization
-    os.makedirs("visualizations", exist_ok=True)
-    output_path = "visualizations/micro_test_circular.png"
+    output_dir = os.path.join(PROJECT_ROOT, "visualizations")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "micro_test_circular.png")
     plot_circular_alignment(jobs, link, "Micro-Test (Figure 3)", output_path)
     print(f"\nCircular visualization saved to {output_path}")
 

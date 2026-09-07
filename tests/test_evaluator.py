@@ -1,4 +1,11 @@
 import unittest
+import os
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from src.core.models import Phase, Job, Link, Cluster
 from src.math_engine.graph import AffinityGraph
 from src.scheduler.evaluator import has_cycle, PlacementCandidate, generate_mock_candidates, evaluate_placements

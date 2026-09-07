@@ -1,6 +1,9 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 import matplotlib
 matplotlib.use('Agg')
@@ -151,5 +154,6 @@ def create_bfs_animation(filename: str):
     print(f"Saved animation to {filename}")
 
 if __name__ == '__main__':
-    os.makedirs('visualizations', exist_ok=True)
-    create_bfs_animation('visualizations/affinity_bfs_animation.gif')
+    output_dir = os.path.join(PROJECT_ROOT, 'visualizations')
+    os.makedirs(output_dir, exist_ok=True)
+    create_bfs_animation(os.path.join(output_dir, 'affinity_bfs_animation.gif'))

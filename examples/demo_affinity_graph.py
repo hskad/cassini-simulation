@@ -1,12 +1,15 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.models import Phase, Job, Link, Cluster, Server
 from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph
 
 def main():
-    os.makedirs('visualizations', exist_ok=True)
+    os.makedirs(os.path.join(PROJECT_ROOT, 'visualizations'), exist_ok=True)
     
     # 1. Setup Mock Complex Multi-Link Scenario
     job1 = Job(job_id="j1", name="VGG16", phases=[Phase("compute", 100, 0)])

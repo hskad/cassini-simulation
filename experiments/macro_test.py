@@ -4,7 +4,9 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 import matplotlib
 matplotlib.use('Agg')
@@ -77,8 +79,9 @@ def main():
     ax.grid(True, alpha=0.25, color='gray', linestyle='--')
     ax.legend(loc='lower right', frameon=True, facecolor='#1e1e1e', edgecolor='#444444', fontsize=11)
     
-    os.makedirs("visualizations", exist_ok=True)
-    output_path = "visualizations/macro_test_cdf.png"
+    output_dir = os.path.join(PROJECT_ROOT, "visualizations")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "macro_test_cdf.png")
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='#111111')
     plt.close()
