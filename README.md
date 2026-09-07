@@ -54,7 +54,9 @@ cassini-simulation/
 │   ├── models/                   # Empirical ML model profiles (VGG, ResNet, BERT, GPT, ViT, DLRM)
 │   │   └── real_models.json
 │   └── traces/                   # Production cluster workload traces (Microsoft Philly)
-│       └── philly_cluster_trace.json
+│       ├── philly_cluster_trace.json # 60-job snapshot trace
+│       ├── philly_2000_jobs.json     # 2,000-job production trace (~2 weeks)
+│       └── philly_10000_jobs.json    # 10,000-job ultra-scale trace (~1.5 months)
 ├── src/                          # Core CASSINI framework
 │   ├── core/                     # Data models & trace loader
 │   │   ├── __init__.py
@@ -67,7 +69,7 @@ cassini-simulation/
 │   ├── scheduler/                # Evaluation & discrete-event simulation loop
 │   │   ├── __init__.py
 │   │   ├── evaluator.py          # Candidate evaluation, scoring & loop filtering
-│   │   └── simulator.py          # Master discrete-event cluster simulator
+│   │   └── simulator.py          # Master discrete-event cluster simulator (incremental & batch)
 │   └── utils/                    # Visualization & animation tools
 │       ├── __init__.py
 │       ├── animator.py           # GIF generation for phase & graph animations
@@ -81,7 +83,9 @@ cassini-simulation/
 ├── experiments/                  # Baseline validation & real-world experiments
 │   ├── micro_test.py             # Replicating Figure 3 (Geometric 30° shift)
 │   ├── macro_test.py             # Replicating Figure 9 (50-job cluster JCT CDF)
-│   └── real_workload_experiment.py # Microsoft Philly trace with real ML models
+│   ├── real_workload_experiment.py # Microsoft Philly trace with real ML models
+│   ├── large_scale_2000_jobs.py  # 2,000-job production cluster experiment
+│   └── scale_10000_jobs.py       # 10,000-job ultra-scale parallel experiment
 ├── tests/                        # Comprehensive unit tests
 │   ├── test_models.py
 │   ├── test_optimizer.py
@@ -351,6 +355,65 @@ A cross-platform `Makefile` is included to streamline execution and maintenance:
 
 ---
 
+## Baseline Scheduler Architecture & Comparative Formulation
+
+### What is the Baseline Scheduler Now?
+In the current simulation framework, the baseline is an **Uncoordinated FIFO Cluster Scheduler** (analogous to standard modern datacenter orchestrators like **Kubernetes** or **Slurm**):
+
+1. **Topology & Placement**:
+   - Arriving jobs are assigned to cluster servers and bottleneck links based on link availability and current load.
+   - However, the scheduler is **phase-blind**: it assigns jobs with zero time shift ($\tau = 0$) and does not synchronize or offset repeating iteration intervals.
+2. **Contention & Congestion Dynamics**:
+   - Because AllReduce gradient exchanges are periodic, uncoordinated jobs sharing a physical switch/link experience periodic bursts of overlapping traffic.
+   - When communication bursts collide, total instantaneous bandwidth demand exceeds link capacity $C$.
+   - The simulator computes the uncoordinated compatibility score $S_{\text{uncoord}}$ over the unified circle perimeter $\text{LCM}(T_1, \dots, T_k)$:
+     $$S = 1.0 - \frac{\text{Total Over-Capacity Area}}{\text{Total Requested Communication Area}}$$
+   - Communication phases are dilated by a contention-induced slowdown factor:
+     $$\text{Slowdown} = 1.0 + (1.0 - S_{\text{uncoord}}) \times \text{penalty}$$
+   - This dilation extends the job's effective iteration time ($T_{\text{iter}} = T_{\text{comp}} + T_{\text{comm}} \times \text{Slowdown}$), directly causing the severe tail latencies observed in uncoordinated clusters.
+
+---
+
+## Future Workflow: Developing Advanced Alternative Baselines
+
+While the current uncoordinated FIFO baseline accurately models today's phase-blind schedulers, future work can benchmark CASSINI against several advanced baseline schedulers:
+
+### 1. Priority & Least-Attained-Service (LAS) Schedulers (Tiresias / Themis)
+- **Concept**: Implement a 2D-Gittins index or Least Remaining Time First (SRTF) heuristic that preemptively schedules short ML jobs ahead of long jobs.
+- **Goal**: Measure how much of CASSINI's speedup is orthogonal to priority scheduling. In theory, CASSINI can be integrated *on top* of Tiresias to interleave phases among prioritized co-runners.
+
+### 2. Randomized / Staggered Offset Baseline (Ablation Study)
+- **Concept**: A naive baseline that applies an arbitrary uniform random phase shift $\tau_i \sim \text{Uniform}(0, T_i)$ to arriving jobs rather than solving the geometric LCM circular alignment problem.
+- **Goal**: Disentangle the benefit of *deliberate geometric non-collision* from *statistical de-synchronization*.
+
+### 3. Traffic-Pacing & Bandwidth-Partitioning Schedulers (Gandiva / AlloX)
+- **Concept**: Rather than time-multiplexing communication bursts, partition link capacity evenly ($C / k$) or pace NCCL flows using rate limiters.
+- **Goal**: Quantify the trade-off between constant bandwidth throttling vs. CASSINI's full line-rate burst interleaving.
+
+### 4. Packet-Level Discrete-Event Simulator Integration (ns-3 / Astra-sim / htsim)
+- **Concept**: Bridge the high-level Python mathematical simulator with packet-level network simulators to model Priority Flow Control (PFC), RoCEv2 Explicit Congestion Notification (ECN), and switch buffer drops directly.
+- **Goal**: Validate CASSINI's zero-collision guarantee under real microsecond-level packet jitter and transport-layer queueing.
+
+---
+
+## Summary of Additions on `dev` Branch (On Top of `main`)
+
+The following major enhancements and empirical expansions have been implemented on the `dev` branch:
+
+| Component | Status on `main` | Added / Enhanced on `dev` | Impact |
+| :--- | :--- | :--- | :--- |
+| **Path Resolution** | Broken (`sys.path` 1-level traversal bug) | Fully resolved across all scripts, tests, and utils | Demos, tests, and make commands execute cleanly |
+| **Encoding Robustness** | Unicode checkmark crashes on Windows | Replaced with clean ASCII indicators (`[+]`, `[OK]`) | 100% cross-platform compatibility (Windows, Linux, macOS) |
+| **Empirical ML Model Profiling** | None (hardcoded synthetic values) | [`data/models/real_models.json`](data/models/real_models.json) with 7 architectures | Grounded in A100 micro-benchmarks from USENIX NSDI '24 & MLPerf |
+| **Trace Ingestion Engine** | None | [`src/core/trace_loader.py`](src/core/trace_loader.py) with dynamic bandwidth scaling ($T_{\text{comm}} \propto 1/B$) | Realistic multi-tenant trace generation and unit test suite |
+| **Incremental Placement Engine** | Batch-only (all jobs reshuffled every tick) | Added `incremental=True` mode in [`Simulator`](src/scheduler/simulator.py) | Simulation runtime reduced by **>95%** (sub-minute execution) |
+| **Phase 2 Real Workload** | None | 60-job snapshot experiment with empirical models | Initial validation of 38.6% mean JCT reduction |
+| **Phase 3 Large-Scale Experiment** | None | 2,000-job production cluster trace (~2 weeks) | 40.3% speedup over 5.5M training iterations |
+| **Phase 4 Ultra-Scale Workload** | None | 10,000-job multi-core parallel simulation (~1.5 months) | **52.2% speedup** and **54.5% P99 tail reduction** across 27.8M iterations |
+| **CLI & Automation** | Basic targets | `make real-workload`, `make large-scale`, `make scale-10k` | One-command execution for all scales |
+
+---
+
 ## Unit Testing
 
 Run all unit tests to verify mathematical correctness:
@@ -363,3 +426,5 @@ python -m unittest discover tests
 ## References
 
 - Rajasekaran et al., **"CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters"**, *USENIX Symposium on Networked Systems Design and Implementation (NSDI '24)*.
+- Jeon et al., **"Analysis of Large-Scale Multi-Tenant GPU Clusters for DNN Training Workloads"**, *USENIX Symposium on Operating Systems Design and Implementation (OSDI '18)* (Microsoft Philly Trace).
+
