@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from src.core.models import Job, Link, Cluster
 from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
-from src.math_engine.optimizer import optimize_link, calculate_score, discretize_phases, lcm
+from src.math_engine.optimizer import optimize_link, score_link
 
 @dataclass(order=True)
 class Event:
@@ -17,18 +17,13 @@ def eval_link_compatibility(jobs: List[Job], link: Link, optimize: bool = True) 
     Returns (compatibility_score, optimal_shift_for_last_job).
     """
     if len(jobs) <= 1:
-        return 1.0, 0.0
+        return score_link(jobs, link), 0.0
     jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift) for j in jobs]
     if optimize:
         optimize_link(jobs_copy, link, resolution=1.0)
     opt_shift = jobs_copy[-1].time_shift if optimize else 0.0
     
-    lcm_steps = int(jobs_copy[0].iteration_time)
-    for j in jobs_copy[1:]:
-        lcm_steps = lcm(lcm_steps, int(j.iteration_time))
-    lcm_steps = min(lcm_steps, 1200)
-    arrs = [discretize_phases(j, float(lcm_steps), 1.0) for j in jobs_copy]
-    score = calculate_score(arrs, link.capacity)
+    score = score_link(jobs_copy, link)
     return score, opt_shift
 
 class Simulator:

@@ -1,3 +1,13 @@
+> Implementation correction in progress. Historical plots and speedup tables below
+> were produced by the previous score-based runtime model. Do not use them as
+> validated Cassini results.
+>
+> Score calculations now integrate traffic at phase boundaries. They include the
+> full common period and retain fractional times. A large calculation raises an
+> error. An explicit finite score horizon gives an estimate for that window only.
+> The shift search checks a time grid. With more than two jobs it is a greedy
+> heuristic; it does not guarantee the global optimum of the paper's formulation.
+
 # CASSINI: Network-Aware Job Scheduling in ML Clusters
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)

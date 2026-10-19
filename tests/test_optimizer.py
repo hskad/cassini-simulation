@@ -7,7 +7,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.models import Phase, Job, Link
-from src.math_engine.optimizer import discretize_phases, calculate_score, optimize_link
+from src.math_engine.optimizer import discretize_phases, calculate_score, optimize_link, score_link, hyperperiod, ProfileLimitError
 
 class TestOptimizer(unittest.TestCase):
     def setUp(self):
@@ -50,6 +50,38 @@ class TestOptimizer(unittest.TestCase):
         self.assertGreater(score_after, score_before)
         self.assertEqual(score_after, 1.0) # 100% compatible if perfectly shifted
         self.assertGreater(self.job2.time_shift, 0.0)
+
+class TestExactProfiles(unittest.TestCase):
+    def pair(self, compute, comm):
+        return [Job(str(i), str(i), [Phase("compute", compute, 0), Phase("communicate", comm, 50)]) for i in range(2)]
+
+    def test_late_communication_is_not_hidden(self):
+        jobs = self.pair(1300, 100)
+        self.assertAlmostEqual(score_link(jobs, Link("L", 50)), 1 - 100 / 1400)
+
+    def test_long_period_can_be_aligned(self):
+        jobs = self.pair(700, 300)
+        optimize_link(jobs, Link("L", 50))
+        self.assertAlmostEqual(score_link(jobs, Link("L", 50)), 1)
+        self.assertEqual(jobs[1].time_shift, 300)
+
+    def test_fractional_phases_retain_their_duration(self):
+        jobs = self.pair(0.25, 0.25)
+        self.assertEqual(hyperperiod(jobs), 0.5)
+        self.assertAlmostEqual(score_link(jobs, Link("L", 50)), 0.5)
+        jobs[1].time_shift = 0.25
+        self.assertAlmostEqual(score_link(jobs, Link("L", 50)), 1)
+
+    def test_finite_window_shifts_use_the_job_period(self):
+        job = self.pair(3, 2)[0]
+        job.time_shift = 2
+        self.assertEqual(discretize_phases(job, 7), [50, 50, 0, 0, 0, 50, 50])
+
+    def test_large_full_period_fails_explicitly(self):
+        jobs = [Job(str(t), str(t), [Phase("compute", t-1, 0), Phase("communicate", 1, 50)]) for t in [1009, 1013, 1019]]
+        with self.assertRaises(ProfileLimitError):
+            score_link(jobs, Link("L", 50))
+        self.assertLessEqual(score_link(jobs, Link("L", 50), horizon=2000), 1)
 
 if __name__ == '__main__':
     unittest.main()
