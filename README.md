@@ -33,6 +33,26 @@ To rebuild the experiment figures in WSL:
 make PYTHON=python3 micro-test macro-test real-workload large-scale scale-10k
 ```
 
+### Shared scoring window
+
+The optimizer, placement evaluator, and both simulator modes now use the same
+scoring-window rule for each link. They use the sampled common period when it
+is shorter than 600 ms; otherwise, they use a 600 ms window. The limit is in
+milliseconds, and the actual window fits the sampling grid. A bounded window
+is a finite-window estimate of compatibility.
+
+All five experiment commands accept `--score-window-ms`. The selected limit
+applies to shift search and scoring under both policies, including parallel
+workers. For example:
+
+```bash
+python3 experiments/large_scale_2000_jobs.py --score-window-ms 1200
+```
+
+The fast runtime formula is unchanged. The tables and figures below currently
+record the preceding periodic-shift correction; they are being rerun with the
+shared window.
+
 ---
 
 ## Core Concepts Modeled

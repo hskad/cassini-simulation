@@ -15,6 +15,7 @@ import numpy as np
 
 from src.core.models import Phase, Job, Link, Cluster
 from src.scheduler.simulator import Simulator
+from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 def main():
     parser = argparse.ArgumentParser(description="Macro-Test (Figure 9 Replica)")
@@ -23,7 +24,10 @@ def main():
     parser.add_argument('--capacity', type=float, default=50.0, help="Link capacity (Gbps)")
     parser.add_argument('--penalty', type=float, default=1.5, help="Slowdown penalty factor")
     parser.add_argument('--seed', type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument('--score-window-ms', type=float, default=DEFAULT_SCORE_WINDOW_MS,
+                        help='Shared scoring-window limit in ms (default: 600).')
     args = parser.parse_args()
+    print(f'Scoring-window limit: {args.score_window_ms:g} ms (shared by optimizer and simulator)')
 
     random.seed(args.seed)
 
@@ -48,13 +52,15 @@ def main():
 
     # We need to run them on two independent simulators
     print(f"--- Running CASSINI Scheduler (Optimized) ---", flush=True)
-    sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True)
+    sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True,
+                            score_window_ms=args.score_window_ms)
     for job in jobs:
         sim_cassini.add_job_arrival(copy.deepcopy(job))
     sim_cassini.run_simulation()
     
     print(f"--- Running Random Scheduler (Baseline) ---", flush=True)
-    sim_random = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False)
+    sim_random = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False,
+                            score_window_ms=args.score_window_ms)
     for job in jobs:
         sim_random.add_job_arrival(copy.deepcopy(job))
     sim_random.run_simulation()

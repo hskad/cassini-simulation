@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from src.core.models import Job, Link, Cluster
 from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
-from src.math_engine.optimizer import optimize_link, calculate_score, discretize_phases, lcm
+from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS, get_score_window, optimize_link, score_link
 
 @dataclass(order=True)
 class Event:
@@ -11,7 +11,8 @@ class Event:
     event_type: str = field(compare=False) # 'arrival' or 'completion'
     job: Job = field(compare=False)
 
-def eval_link_compatibility(jobs: List[Job], link: Link, optimize: bool = True) -> Tuple[float, float]:
+def eval_link_compatibility(jobs: List[Job], link: Link, optimize: bool = True, *,
+                            score_window_ms: float = DEFAULT_SCORE_WINDOW_MS) -> Tuple[float, float]:
     """
     Evaluates compatibility score of a link with a set of jobs.
     Returns (compatibility_score, optimal_shift_for_last_job).
@@ -20,20 +21,18 @@ def eval_link_compatibility(jobs: List[Job], link: Link, optimize: bool = True) 
         return 1.0, 0.0
     jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift) for j in jobs]
     if optimize:
-        optimize_link(jobs_copy, link, resolution=1.0)
+        optimize_link(jobs_copy, link, score_window_ms=score_window_ms)
     opt_shift = jobs_copy[-1].time_shift if optimize else 0.0
     
-    lcm_steps = int(jobs_copy[0].iteration_time)
-    for j in jobs_copy[1:]:
-        lcm_steps = lcm(lcm_steps, int(j.iteration_time))
-    lcm_steps = min(lcm_steps, 1200)
-    arrs = [discretize_phases(j, float(lcm_steps), 1.0) for j in jobs_copy]
-    score = calculate_score(arrs, link.capacity)
+    score = score_link(jobs_copy, link, score_window_ms=score_window_ms)
     return score, opt_shift
 
 class Simulator:
-    def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0, use_cassini: bool = True, incremental: bool = False):
+    def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0, use_cassini: bool = True, incremental: bool = False, *,
+                 score_window_ms: float = DEFAULT_SCORE_WINDOW_MS):
+        get_score_window([], score_window_ms=score_window_ms)
         self.base_cluster = base_cluster
+        self.score_window_ms = score_window_ms
         self.penalty_factor = penalty_factor
         self.use_cassini = use_cassini
         self.incremental = incremental
@@ -105,7 +104,8 @@ class Simulator:
                         rem_jobs = [j for j in self.active_cluster.link_jobs[link_id] if j.job_id != jid]
                         self.active_cluster.link_jobs[link_id] = rem_jobs
                         link_obj = next(l for l in self.base_cluster.links if l.link_id == link_id)
-                        score, _ = eval_link_compatibility(rem_jobs, link_obj, optimize=self.use_cassini)
+                        score, _ = eval_link_compatibility(rem_jobs, link_obj, optimize=self.use_cassini,
+                                                          score_window_ms=self.score_window_ms)
                         slowdown = 1.0 + (1.0 - score) * self.penalty_factor
                         for rj in rem_jobs:
                             effective_iteration_time[rj.job_id] = rj.iteration_time * slowdown
@@ -131,7 +131,8 @@ class Simulator:
                     for cand_link in candidate_links:
                         curr_link_jobs = self.active_cluster.link_jobs[cand_link.link_id]
                         test_jobs = curr_link_jobs + [job]
-                        score, opt_shift = eval_link_compatibility(test_jobs, cand_link, optimize=self.use_cassini)
+                        score, opt_shift = eval_link_compatibility(test_jobs, cand_link, optimize=self.use_cassini,
+                                                                  score_window_ms=self.score_window_ms)
                         if score > best_score:
                             best_score = score
                             best_shift = opt_shift
@@ -187,7 +188,7 @@ class Simulator:
                     if self.use_cassini:
                         candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=5)
                         try:
-                            winning_candidate, _ = evaluate_placements(candidates)
+                            winning_candidate, _ = evaluate_placements(candidates, score_window_ms=self.score_window_ms)
                             self.active_cluster = winning_candidate.cluster
                             score = winning_candidate.compatibility_score
                         except ValueError:
@@ -197,7 +198,8 @@ class Simulator:
                         candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=1)
                         winning_candidate = candidates[0]
                         self.active_cluster = winning_candidate.cluster
-                        score, _ = score_candidate(winning_candidate, optimize=False)
+                        score, _ = score_candidate(winning_candidate, optimize=False,
+                                                   score_window_ms=self.score_window_ms)
                         
                     slowdown_factor = 1.0 + (1.0 - score) * self.penalty_factor
                     for jid, job in self.active_jobs.items():

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 from src.core.models import Cluster, Job, Link
 from src.math_engine.graph import AffinityGraph, build_affinity_graph, traverse_affinity_graph
-from src.math_engine.optimizer import optimize_link, calculate_score, discretize_phases, lcm
+from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS, optimize_link, score_link
 
 @dataclass
 class PlacementCandidate:
@@ -77,7 +77,8 @@ def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candida
         
     return candidates
 
-def score_candidate(candidate: PlacementCandidate, optimize: bool = True) -> Tuple[float, Dict[str, Dict[str, float]]]:
+def score_candidate(candidate: PlacementCandidate, optimize: bool = True, *,
+                    score_window_ms: float = DEFAULT_SCORE_WINDOW_MS) -> Tuple[float, Dict[str, Dict[str, float]]]:
     """
     Evaluates a single placement candidate by running the link optimizer on all its links.
     Returns a tuple of (overall_compatibility_score, link_optimal_shifts).
@@ -94,16 +95,9 @@ def score_candidate(candidate: PlacementCandidate, optimize: bool = True) -> Tup
             
             if optimize:
                 # optimize_link modifies time_shift in-place for jobs_copy
-                optimize_link(jobs_copy, link, resolution=1.0)
+                optimize_link(jobs_copy, link, score_window_ms=score_window_ms)
             
-            # calculate score
-            lcm_steps = int(jobs_copy[0].iteration_time)
-            for j in jobs_copy[1:]:
-                lcm_steps = lcm(lcm_steps, int(j.iteration_time))
-            lcm_steps = min(lcm_steps, 2400)
-                
-            arrs = [discretize_phases(j, float(lcm_steps), 1.0) for j in jobs_copy]
-            link_score = calculate_score(arrs, link.capacity)
+            link_score = score_link(jobs_copy, link, score_window_ms=score_window_ms)
             
             total_score += link_score
             num_links_scored += 1
@@ -117,7 +111,8 @@ def score_candidate(candidate: PlacementCandidate, optimize: bool = True) -> Tup
     avg_score = total_score / num_links_scored
     return avg_score, link_optimal_shifts
 
-def evaluate_placements(candidates: List[PlacementCandidate]) -> Tuple[PlacementCandidate, Dict[str, float]]:
+def evaluate_placements(candidates: List[PlacementCandidate], *,
+                        score_window_ms: float = DEFAULT_SCORE_WINDOW_MS) -> Tuple[PlacementCandidate, Dict[str, float]]:
     """
     Evaluates all placement candidates and returns the winning candidate 
     along with the globally safe time-shifts.
@@ -125,7 +120,7 @@ def evaluate_placements(candidates: List[PlacementCandidate]) -> Tuple[Placement
     valid_candidates = []
     
     for candidate in candidates:
-        score, link_shifts = score_candidate(candidate)
+        score, link_shifts = score_candidate(candidate, score_window_ms=score_window_ms)
         
         # Build graph to check for cycles
         graph = build_affinity_graph(candidate.cluster, link_shifts)

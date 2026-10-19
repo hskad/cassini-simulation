@@ -7,7 +7,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.models import Phase, Job, Link
-from src.math_engine.optimizer import optimize_link, lcm, discretize_phases, calculate_score
+from src.math_engine.optimizer import (DEFAULT_SCORE_WINDOW_MS, get_score_window,
+                                       lcm, optimize_link, score_link)
 from src.utils.visualizer import plot_circular_alignment
 
 def main():
@@ -19,7 +20,10 @@ def main():
     parser.add_argument('--capacity', type=float, default=50.0, help="Link capacity (Gbps)")
     parser.add_argument('--demand-a', type=float, default=50.0, help="Bandwidth demand Job A")
     parser.add_argument('--demand-b', type=float, default=50.0, help="Bandwidth demand Job B")
+    parser.add_argument('--score-window-ms', type=float, default=DEFAULT_SCORE_WINDOW_MS,
+                        help='Shared scoring-window limit in ms (default: 600).')
     args = parser.parse_args()
+    print(f'Scoring-window limit: {args.score_window_ms:g} ms (shared by optimizer and simulator)')
 
     job_a = Job(job_id="A", name="Job A", phases=[
         Phase("compute", args.compute_a, 0.0),
@@ -42,12 +46,12 @@ def main():
     print(f"LCM (Unified Circle Perimeter): {lcm_time}ms")
 
     # Optimize Link
-    optimize_link(jobs, link, resolution=1.0)
+    optimize_link(jobs, link, score_window_ms=args.score_window_ms)
 
     # Calculate final score
-    arr_a = discretize_phases(jobs[0], lcm_time, 1.0)
-    arr_b = discretize_phases(jobs[1], lcm_time, 1.0)
-    score = calculate_score([arr_a, arr_b], link.capacity)
+    score = score_link(jobs, link, score_window_ms=args.score_window_ms)
+    window = get_score_window(jobs, score_window_ms=args.score_window_ms)
+    print(f"Scoring window: {window:g} ms")
 
     print(f"\nOptimization Complete!")
     print(f"Compatibility Score: {score * 100:.1f}%")

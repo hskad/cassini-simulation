@@ -17,6 +17,7 @@ import numpy as np
 from src.core.models import Link, Cluster
 from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
+from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 def main():
     parser = argparse.ArgumentParser(description="Real-World Production Workload Experiment (Microsoft Philly Trace)")
@@ -27,7 +28,10 @@ def main():
     parser.add_argument('--penalty', type=float, default=1.5, help="Contention slowdown penalty factor")
     parser.add_argument('--synthetic', action='store_true', help="Use stochastic Philly generator instead of static trace")
     parser.add_argument('--seed', type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument('--score-window-ms', type=float, default=DEFAULT_SCORE_WINDOW_MS,
+                        help='Shared scoring-window limit in ms (default: 600).')
     args = parser.parse_args()
+    print(f'Scoring-window limit: {args.score_window_ms:g} ms (shared by optimizer and simulator)')
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -73,7 +77,8 @@ def main():
     print("-----------------------------------------------------------------")
     print("  Running Simulation 1: CASSINI Scheduler (Network-Aware Phase Interleaving)")
     print("-----------------------------------------------------------------")
-    sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True)
+    sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True,
+                            score_window_ms=args.score_window_ms)
     for job in jobs:
         sim_cassini.add_job_arrival(copy.deepcopy(job))
     sim_cassini.run_simulation()
@@ -83,7 +88,8 @@ def main():
     print("\n-----------------------------------------------------------------")
     print("  Running Simulation 2: Baseline Uncoordinated Scheduler")
     print("-----------------------------------------------------------------")
-    sim_baseline = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False)
+    sim_baseline = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False,
+                            score_window_ms=args.score_window_ms)
     for job in jobs:
         sim_baseline.add_job_arrival(copy.deepcopy(job))
     sim_baseline.run_simulation()

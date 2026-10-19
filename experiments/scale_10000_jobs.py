@@ -19,6 +19,7 @@ import numpy as np
 from src.core.models import Link, Cluster, Job
 from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
+from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 TRACE_10000_PATH = os.path.join(PROJECT_ROOT, "data", "traces", "philly_10000_jobs.json")
 
@@ -58,12 +59,13 @@ def ensure_10000_job_trace(loader: TraceLoader, num_jobs: int = 10000, seed: int
 
 def _run_single_sim(args_tuple):
     """Worker function for multiprocessing execution."""
-    sim_name, use_cassini, cluster_links, capacity, penalty, jobs = args_tuple
+    sim_name, use_cassini, cluster_links, capacity, penalty, jobs, score_window_ms = args_tuple
     print(f"  [>] Process launched: {sim_name} (PID: {os.getpid()})...")
     t0 = time.time()
     links = [Link(f"L{i}", capacity) for i in range(cluster_links)]
     cluster = Cluster(servers=[], links=links)
-    sim = Simulator(cluster, penalty_factor=penalty, use_cassini=use_cassini, incremental=True)
+    sim = Simulator(cluster, penalty_factor=penalty, use_cassini=use_cassini, incremental=True,
+                    score_window_ms=score_window_ms)
     for job in jobs:
         sim.add_job_arrival(job)
     sim.run_simulation()
@@ -80,7 +82,10 @@ def main():
     parser.add_argument('--penalty', type=float, default=1.5, help="Slowdown penalty factor for contention")
     parser.add_argument('--seed', type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument('--sequential', action='store_true', help="Run sequentially instead of parallel")
+    parser.add_argument('--score-window-ms', type=float, default=DEFAULT_SCORE_WINDOW_MS,
+                        help='Shared scoring-window limit in ms (default: 600).')
     args = parser.parse_args()
+    print(f'Scoring-window limit: {args.score_window_ms:g} ms (shared by optimizer and simulator)')
 
     print("=========================================================================")
     print("      CASSINI Ultra-Scale Production Experiment (10,000 Jobs)            ")
@@ -110,8 +115,8 @@ def main():
     print(f"\n[*] Cluster Fabric: {args.num_links} shared switches/links with {args.capacity} Gbps line rate.\n")
 
     tasks = [
-        ("CASSINI (Geometric Coordinated)", True, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs]),
-        ("Baseline (Uncoordinated FIFO)", False, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs])
+        ("CASSINI (Geometric Coordinated)", True, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs], args.score_window_ms),
+        ("Baseline (Uncoordinated FIFO)", False, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs], args.score_window_ms)
     ]
 
     completed_results = {}

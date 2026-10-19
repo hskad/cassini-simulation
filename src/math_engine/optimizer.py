@@ -3,6 +3,8 @@ from typing import List, Tuple
 import numpy as np
 from src.core.models import Job, Link
 
+DEFAULT_SCORE_WINDOW_MS = 600.0
+
 def lcm(a: int, b: int) -> int:
     return abs(a * b) // math.gcd(a, b)
 
@@ -37,27 +39,48 @@ def calculate_score(arrays: List[List[float]], link_capacity: float) -> float:
     excess = np.sum(np.maximum(0.0, tot - link_capacity))
     return float(1.0 - (excess / (len(tot) * link_capacity)))
 
-def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0) -> None:
+def get_score_window(jobs: List[Job], resolution: float = 1.0,
+                     score_window_ms: float = DEFAULT_SCORE_WINDOW_MS) -> float:
+    """Use the sampled common period, bounded by one shared limit in ms."""
+    if not math.isfinite(resolution) or resolution <= 0:
+        raise ValueError("Scoring resolution must be finite and positive.")
+    if not math.isfinite(score_window_ms) or score_window_ms < resolution:
+        raise ValueError("Scoring window must be finite and at least one sample long.")
+    if not jobs:
+        return 0.0
+    limit_steps = int(math.floor(score_window_ms / resolution))
+    common_steps = 1
+    for job in jobs:
+        # Match the cycle length used by discretize_phases.
+        period_steps = max(1, int(round(job.iteration_time / resolution)))
+        common_steps = lcm(common_steps, period_steps)
+        if common_steps >= limit_steps:
+            return limit_steps * resolution
+    return common_steps * resolution
+
+
+def score_link(jobs: List[Job], link: Link, resolution: float = 1.0,
+               score_window_ms: float = DEFAULT_SCORE_WINDOW_MS) -> float:
+    """Score the same window that optimize_link uses for these jobs."""
+    window = get_score_window(jobs, resolution, score_window_ms)
+    arrays = [discretize_phases(job, window, resolution) for job in jobs]
+    return calculate_score(arrays, link.capacity)
+
+
+def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0, *,
+                  score_window_ms: float = DEFAULT_SCORE_WINDOW_MS) -> None:
     """
     Finds the optimal time-shift for a set of jobs to maximize compatibility.
     (Fast circular sliding and greedy multi-job phase alignment).
     Modifies the jobs in-place with their new time_shift.
     """
+    window = get_score_window(jobs, resolution, score_window_ms)
     if len(jobs) < 2:
         return
-        
-    times = [int(job.iteration_time / resolution) for job in jobs]
-    lcm_steps = times[0]
-    for t in times[1:]:
-        lcm_steps = lcm(lcm_steps, t)
-    
-    # Cap hyperperiod for computational tractability
-    lcm_steps = min(lcm_steps, 600)
-    lcm_time = lcm_steps * resolution
     
     # Hold jobs[0] fixed at 0.0 shift
     jobs[0].time_shift = 0.0
-    curr = np.array(discretize_phases(jobs[0], lcm_time, resolution), dtype=np.float32)
+    curr = np.array(discretize_phases(jobs[0], window, resolution), dtype=np.float32)
     n = len(curr)
     
     # For exactly 2 jobs (like Figure 3 micro-test), check all discrete steps
