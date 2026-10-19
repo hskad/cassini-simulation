@@ -132,7 +132,12 @@ CASSINI models the cluster topology as a **Bipartite Affinity Graph** $G = (U, V
 - Nodes $V$ represent Network Links
 - Edges $E$ carry optimal relative phase shifts determined by the link optimizer
 
-Using **Algorithm 1 (BFS Traversal)**, CASSINI walks the connected acyclic subgraphs, propagating globally consistent, collision-free time-shifts cluster-wide without mathematical contradictions.
+The graph demo and animation now share an acyclic example with supplied edge
+offsets. For 100 ms periods, the calculated offsets are j1=0, j2=10, j3=20,
+j4=40, and j5=60 ms. These illustrate relative-shift propagation, not measured
+traffic performance or a collision-free guarantee. The demo regenerates the GIF.
+Traversal rejects cycles instead of returning a partial spanning-tree result.
+Job and link IDs remain separate even when their text is identical.
 
 <p align="center">
   <img src="visualizations/affinity_bfs_animation.gif" alt="Affinity Graph BFS Traversal" width="600"/>

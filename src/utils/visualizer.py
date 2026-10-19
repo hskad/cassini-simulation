@@ -127,32 +127,32 @@ def plot_affinity_graph(graph, title: str, filename: str):
     G = nx.Graph()
     
     # Add nodes with bipartite attribute
-    G.add_nodes_from(graph.U, bipartite=0) # Jobs
-    G.add_nodes_from(graph.V, bipartite=1) # Links
+    G.add_nodes_from([("job", j) for j in sorted(graph.U)], bipartite=0) # Jobs
+    G.add_nodes_from([("link", l) for l in sorted(graph.V)], bipartite=1) # Links
     
     # Add edges
     for u in graph.U:
         for v in graph.edges_U_to_V.get(u, []):
-            G.add_edge(u, v)
+            G.add_edge(("job", u), ("link", v))
             
     # Define positions for bipartite layout
     # Jobs on top (y=1), Links on bottom (y=0)
     pos = {}
     for i, u in enumerate(sorted(list(graph.U))):
-        pos[u] = (i, 1)
+        pos[("job", u)] = (i, 1)
     for i, v in enumerate(sorted(list(graph.V))):
-        pos[v] = (i + 0.5 if len(graph.V) < len(graph.U) else i, 0)
+        pos[("link", v)] = (i + 0.5 if len(graph.V) < len(graph.U) else i, 0)
         
     # Draw Jobs
-    nx.draw_networkx_nodes(G, pos, nodelist=graph.U, node_color='#ff007f', node_size=1500, alpha=0.9, ax=ax)
+    nx.draw_networkx_nodes(G, pos, nodelist=[("job", j) for j in sorted(graph.U)], node_color='#ff007f', node_size=1500, alpha=0.9, ax=ax)
     # Draw Links
-    nx.draw_networkx_nodes(G, pos, nodelist=graph.V, node_color='#00ffcc', node_size=1500, alpha=0.9, node_shape='s', ax=ax)
+    nx.draw_networkx_nodes(G, pos, nodelist=[("link", l) for l in sorted(graph.V)], node_color='#00ffcc', node_size=1500, alpha=0.9, node_shape='s', ax=ax)
     
     # Draw Edges
     nx.draw_networkx_edges(G, pos, width=2.0, alpha=0.7, edge_color='gray', ax=ax)
     
     # Draw Labels
-    nx.draw_networkx_labels(G, pos, font_size=12, font_color='white', font_weight='bold', ax=ax)
+    nx.draw_networkx_labels(G, pos, labels={n: n[1] for n in G}, font_size=12, font_color='white', font_weight='bold', ax=ax)
     
     ax.set_title(title, fontsize=16, color='white', pad=20)
     ax.axis('off')

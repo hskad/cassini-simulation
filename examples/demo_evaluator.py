@@ -1,4 +1,5 @@
 import os
+import random
 import sys
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -9,7 +10,8 @@ from src.core.models import Phase, Job, Link, Cluster
 from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
 
 def main():
-    print("--- CASSINI Placement Evaluator Demo ---")
+    random.seed(42)
+    print("--- CASSINI Placement Evaluator Demo (seed 42) ---")
     
     # 1. Setup Jobs and Cluster
     job1 = Job(job_id="j1", name="VGG16", phases=[Phase("compute", 100, 20), Phase("communicate", 50, 40)])
@@ -41,9 +43,9 @@ def main():
         job_names = [j.name for j in jobs]
         print(f"  Link {link_id}: {job_names}")
     
-    print("\nGlobal Time-Shifts applied:")
-    for jid, shift in global_shifts.items():
-        print(f"  Job {jid}: delayed by {shift}ms")
+    print("\nProposed global offsets (this demo does not execute jobs):")
+    for job in (job1, job2, job3):
+        print(f"  Job {job.job_id}: {global_shifts.get(job.job_id, 0):g} ms")
         
 if __name__ == '__main__':
     main()

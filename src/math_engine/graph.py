@@ -19,6 +19,8 @@ class AffinityGraph:
         self.weights: Dict[Tuple[str, str], float] = {}
 
     def add_edge(self, job_id: str, link_id: str, weight: float = 0.0):
+        if (job_id, link_id) in self.weights:
+            raise ValueError(f"Duplicate job-link edge: {job_id!r}, {link_id!r}")
         self.U.add(job_id)
         self.V.add(link_id)
         
@@ -31,7 +33,32 @@ class AffinityGraph:
         self.edges_V_to_U[link_id].append(job_id)
         
         self.weights[(job_id, link_id)] = weight
-        self.weights[(link_id, job_id)] = weight
+
+def has_cycle(graph: AffinityGraph) -> bool:
+    """Detect cycles with separate job and link identities, even for equal IDs."""
+    visited = set()
+    for job_id in graph.edges_U_to_V:
+        start = ("job", job_id)
+        if start in visited:
+            continue
+        visited.add(start)
+        queue = deque([(start, None)])
+        while queue:
+            node, parent = queue.popleft()
+            kind, identifier = node
+            if kind == "job":
+                neighbors = [("link", link) for link in graph.edges_U_to_V[identifier]]
+            else:
+                neighbors = [("job", job) for job in graph.edges_V_to_U[identifier]]
+            for neighbor in neighbors:
+                if neighbor == parent:
+                    continue
+                if neighbor in visited:
+                    return True
+                visited.add(neighbor)
+                queue.append((neighbor, node))
+    return False
+
 
 def build_affinity_graph(cluster: Cluster, link_optimal_shifts: Dict[str, Dict[str, float]]) -> AffinityGraph:
     """
@@ -49,8 +76,12 @@ def build_affinity_graph(cluster: Cluster, link_optimal_shifts: Dict[str, Dict[s
 
 def traverse_affinity_graph(graph: AffinityGraph, jobs_map: Dict[str, Job]) -> Dict[str, float]:
     """
-    Algorithm 1 from the paper: BFS Affinity Graph Traversal to find unique global time shifts.
+    Propagate relative shifts on a forest; cyclic inputs are unsupported.
     """
+    if has_cycle(graph):
+        raise ValueError("Affinity traversal requires an acyclic graph.")
+    if not graph.U.issubset(jobs_map):
+        raise ValueError("jobs_map must contain every job in the affinity graph.")
     global_time_shifts: Dict[str, float] = {}
     visited_U: Set[str] = set()
     
@@ -78,7 +109,7 @@ def traverse_affinity_graph(graph: AffinityGraph, jobs_map: Dict[str, Job]) -> D
                 for neighbor_job_id in graph.edges_V_to_U.get(link_id, []):
                     if neighbor_job_id not in visited_U:
                         # Traversing V -> U incurs a positive sign
-                        w_v_to_u = graph.weights[(link_id, neighbor_job_id)]
+                        w_v_to_u = graph.weights[(neighbor_job_id, link_id)]
                         
                         # Calculate final shift (Eq 17 in paper algorithm)
                         # tk = (tj - we1 + we2) % iter_timek
