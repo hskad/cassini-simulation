@@ -120,6 +120,8 @@ class Simulator:
             raise ValueError("Link IDs must be unique.")
         if any(not math.isfinite(c) or c <= 0 for c in self.capacities.values()):
             raise ValueError("Link capacity must be finite and positive.")
+        self.link_totals = {lid: {"served_work_gbps_ms": 0.0, "overcapacity_time_ms": 0.0, "busy_time_ms": 0.0}
+                            for lid in self.capacities}
         self._routes = {}
         for lid, jobs in base_cluster.link_jobs.items():
             if lid not in self.capacities:
@@ -239,6 +241,7 @@ class Simulator:
             error = math.remainder(self.current_time - ideal, state.job.iteration_time)
             observation = {"job_id": state.job.job_id, "iteration": state.iteration,
                            "phase_index": state.phase_index, "time": self.current_time,
+                           "period_ms": state.job.iteration_time,
                            "error_ms": self.current_time - ideal, "phase_error_ms": error}
             if self.record_history:
                 self.drift_history.append(observation)
@@ -291,11 +294,15 @@ class Simulator:
                 state.wait_time += dt
             if self.record_history:
                 self._record(jid, state, self.current_time, end, rate)
-        if self.record_history:
-            for lid, capacity in self.capacities.items():
-                demand = sum(s.job.phases[s.phase_index].bandwidth_demand for s in self.states.values()
-                             if s.mode == "phase" and lid in s.links)
-                served = sum(rate for jid, rate in rates.items() if lid in self.states[jid].links)
+        for lid, capacity in self.capacities.items():
+            demand = sum(s.job.phases[s.phase_index].bandwidth_demand for s in self.states.values()
+                         if s.mode == "phase" and lid in s.links)
+            served = sum(rate for jid, rate in rates.items() if lid in self.states[jid].links)
+            totals = self.link_totals[lid]
+            totals["served_work_gbps_ms"] += served * dt
+            totals["overcapacity_time_ms"] += dt if demand > capacity + EPS else 0.0
+            totals["busy_time_ms"] += dt if served > EPS else 0.0
+            if self.record_history:
                 self.link_history.append({"link_id": lid, "start": self.current_time, "end": end,
                                           "demand_gbps": demand, "served_gbps": served,
                                           "capacity_gbps": capacity})
