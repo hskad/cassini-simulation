@@ -8,7 +8,11 @@
       "compute_time_ms": 82.0,
       "default_comm_time_ms": 35.0,
       "default_bandwidth_gbps": 25.0,
-      "description": "Standard 50-layer residual network for ImageNet classification (Compute-heavy)"
+      "description": "Standard 50-layer residual network for ImageNet classification (Compute-heavy)",
+      "provenance": {
+        "kind": "illustrative",
+        "source": null
+      }
     },
     "VGG-16": {
       "domain": "Computer Vision",
@@ -17,8 +21,13 @@
       "gradient_size_mb": 553.6,
       "compute_time_ms": 141.0,
       "default_comm_time_ms": 114.0,
-      "default_bandwidth_gbps": 25.0,
-      "description": "Large parameter CNN with dense fully connected layers (Communication-heavy, NSDI '24 Figure 16 benchmark)"
+      "default_bandwidth_gbps": 50.0,
+      "description": "Large parameter CNN with dense fully connected layers (Communication-heavy, NSDI '24 Figure 16 benchmark)",
+      "provenance": {
+        "kind": "paper_profile",
+        "source": "Cassini.pdf, arXiv:2308.00852v1, Section 3 and Figure 16",
+        "note": "141 ms low-demand phase and 114 ms high-demand phase on the paper testbed with 50 Gbps links. Scaling to other rates is a model assumption."
+      }
     },
     "ViT-Base": {
       "domain": "Computer Vision",
@@ -28,7 +37,11 @@
       "compute_time_ms": 75.0,
       "default_comm_time_ms": 48.0,
       "default_bandwidth_gbps": 25.0,
-      "description": "Vision Transformer Base (16x16 patch size) with multi-head self-attention"
+      "description": "Vision Transformer Base (16x16 patch size) with multi-head self-attention",
+      "provenance": {
+        "kind": "illustrative",
+        "source": null
+      }
     },
     "BERT-Base": {
       "domain": "NLP",
@@ -38,7 +51,11 @@
       "compute_time_ms": 95.0,
       "default_comm_time_ms": 62.0,
       "default_bandwidth_gbps": 25.0,
-      "description": "12-layer bidirectional Transformer encoder for language modeling"
+      "description": "12-layer bidirectional Transformer encoder for language modeling",
+      "provenance": {
+        "kind": "illustrative",
+        "source": null
+      }
     },
     "BERT-Large": {
       "domain": "NLP",
@@ -48,7 +65,11 @@
       "compute_time_ms": 180.0,
       "default_comm_time_ms": 145.0,
       "default_bandwidth_gbps": 25.0,
-      "description": "24-layer Transformer encoder with large hidden representation (High communication demand)"
+      "description": "24-layer Transformer encoder with large hidden representation (High communication demand)",
+      "provenance": {
+        "kind": "illustrative",
+        "source": null
+      }
     },
     "GPT-2-Medium": {
       "domain": "NLP",
@@ -58,7 +79,11 @@
       "compute_time_ms": 165.0,
       "default_comm_time_ms": 138.0,
       "default_bandwidth_gbps": 25.0,
-      "description": "24-layer autoregressive generative language model"
+      "description": "24-layer autoregressive generative language model",
+      "provenance": {
+        "kind": "illustrative",
+        "source": null
+      }
     },
     "DLRM": {
       "domain": "Recommendation",
@@ -68,7 +93,12 @@
       "compute_time_ms": 45.0,
       "default_comm_time_ms": 55.0,
       "default_bandwidth_gbps": 25.0,
-      "description": "Deep Learning Recommendation Model with sparse embedding All-to-All and dense AllReduce"
+      "description": "Deep Learning Recommendation Model with sparse embedding All-to-All and dense AllReduce",
+      "provenance": {
+        "kind": "illustrative",
+        "source": null
+      }
     }
-  }
+  },
+  "provenance": "Illustrative simulation parameters unless an entry provides a specific source. These are not a verified benchmark catalog."
 }

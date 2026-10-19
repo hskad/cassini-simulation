@@ -26,16 +26,16 @@ class TestTraceLoader(unittest.TestCase):
         vgg = self.loader.models["VGG-16"]
         self.assertEqual(vgg.compute_time_ms, 141.0)
         self.assertEqual(vgg.default_comm_time_ms, 114.0)
-        self.assertEqual(vgg.default_bandwidth_gbps, 25.0)
+        self.assertEqual(vgg.default_bandwidth_gbps, 50.0)
 
     def test_bandwidth_scaling(self):
         vgg = self.loader.models["VGG-16"]
-        # At 25 Gbps: 114ms
-        self.assertEqual(vgg.get_comm_time(25.0), 114.0)
-        # At 50 Gbps: should cut in half to 57ms
-        self.assertAlmostEqual(vgg.get_comm_time(50.0), 57.0)
-        # At 100 Gbps: 28.5ms
-        self.assertAlmostEqual(vgg.get_comm_time(100.0), 28.5)
+        # At 25 Gbps: modeled communication duration doubles.
+        self.assertEqual(vgg.get_comm_time(25.0), 228.0)
+        # At 50 Gbps: use the paper profile.
+        self.assertAlmostEqual(vgg.get_comm_time(50.0), 114.0)
+        # At 100 Gbps: modeled communication duration halves.
+        self.assertAlmostEqual(vgg.get_comm_time(100.0), 57.0)
 
     def test_profile_to_job(self):
         resnet = self.loader.models["ResNet-50"]

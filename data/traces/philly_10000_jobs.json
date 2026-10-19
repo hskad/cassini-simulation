@@ -1,6 +1,6 @@
 {
-  "trace_name": "Microsoft Philly 10,000-Job Production Cluster Trace",
-  "description": "10,000 ML training jobs with unscaled convergence iterations (1,000 - 12,000 iters) over high-concurrency multi-tenant cluster.",
+  "trace_name": "Synthetic 10000-job workload",
+  "description": "Generated locally from assumed model weights, exponential arrivals, and log-normal iteration counts. This is not a production trace.",
   "timeline_hours": 12.5,
   "num_jobs": 10000,
   "jobs": [
@@ -70004,5 +70004,11 @@
       "total_iterations": 3503,
       "gpu_count": 8
     }
-  ]
+  ],
+  "provenance": {
+    "kind": "synthetic",
+    "generator": "TraceLoader.generate_large_scale_trace",
+    "seed": 42,
+    "arrival_span_parameter_hours": 12.5
+  }
 }

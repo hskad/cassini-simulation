@@ -1,3 +1,8 @@
+> Data correction: the 2,000-job and 10,000-job files are synthetic. Their
+> generation parameters span 2.5 and 12.5 hours. The 60-job file has no verified
+> mapping to production records. Model values are illustrative unless a source
+> is given. The VGG-16 profile now uses the paper testbed rate of 50 Gbps.
+
 > The Cassini policy now checks communication phase error against 5% of the
 > nominal iteration time (paper Section 5.7). For a compatible group, it delays
 > a phase to its next nominal start when the threshold is exceeded. This

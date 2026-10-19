@@ -9,7 +9,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 
 @dataclass
 class ModelProfile:
-    """Represents the empirical profile of an ML model on standard GPU clusters."""
+    """Stores a model profile. See the catalog for its source and assumptions."""
     name: str
     domain: str
     architecture: str
@@ -51,7 +51,7 @@ class ModelProfile:
         )
 
 class TraceLoader:
-    """Loads empirical model catalogs and cluster traces."""
+    """Loads model parameters and workload files."""
 
     DEFAULT_MODELS_PATH = os.path.join(PROJECT_ROOT, "data", "models", "real_models.json")
     DEFAULT_TRACE_PATH = os.path.join(PROJECT_ROOT, "data", "traces", "philly_cluster_trace.json")
@@ -87,7 +87,7 @@ class TraceLoader:
         bandwidth_gbps: float = 25.0,
         max_jobs: Optional[int] = None
     ) -> List[Job]:
-        """Loads a real cluster trace (e.g. Microsoft Philly) into a list of simulator Jobs."""
+        """Loads a workload file into simulator jobs. File names do not establish provenance."""
         path = trace_path or self.DEFAULT_TRACE_PATH
         if not os.path.exists(path):
             raise FileNotFoundError(f"Trace file not found at: {path}")
@@ -121,15 +121,15 @@ class TraceLoader:
         seed: Optional[int] = 42
     ) -> List[Job]:
         """
-        Generates a synthetic workload following the Microsoft Philly production mixture:
-        ~38% Vision, ~45% NLP, ~17% Recommendation with heavy-tailed iteration distribution.
+        Generates a synthetic workload with assumed model weights.
+        The legacy function name does not establish a production source.
         """
         if seed is not None:
             rng = random.Random(seed)
         else:
             rng = random.Random()
 
-        # Model distribution weights matching Philly production logs
+        # Assumed model weights: 40% vision, 45% NLP, 15% recommendation
         weights = {
             "ResNet-50": 0.22,
             "VGG-16": 0.10,
@@ -176,13 +176,12 @@ class TraceLoader:
         seed: int = 42
     ) -> List[Job]:
         """
-        Generates an unscaled large-scale production trace (e.g. 2,000 jobs)
-        with empirical model profiles and realistic full training iterations (1,000 - 10,000 iters)
-        calibrated for realistic multi-tenant cluster concurrency (~80-120 concurrent jobs).
+        Generates a synthetic workload with exponential arrivals and log-normal
+        iteration counts. Model weights and distribution parameters are assumptions.
         """
         rng = random.Random(seed)
 
-        # Philly empirical proportions
+        # Assumed model weights
         weights = {
             "ResNet-50": 0.22,
             "VGG-16": 0.10,

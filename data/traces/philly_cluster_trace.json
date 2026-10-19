@@ -1,6 +1,7 @@
 {
-  "trace_name": "Microsoft Philly Production Trace Sample",
-  "description": "Representative 60-job workload extracted from Microsoft Research GPU cluster logs (Tiresias NSDI '19 / Gandiva OSDI '18) with realistic arrival intervals and model distributions.",
+  "trace_name": "Illustrative 60-job workload",
+  "description": "Source mapping to original production records is not available. Use as an illustrative workload.",
+  "provenance": {"kind": "unverified", "source_record_mapping": null},
   "jobs": [
     {"job_id": "job_01", "model_name": "ResNet-50", "arrival_time_ms": 0.0, "total_iterations": 20, "gpu_count": 4},
     {"job_id": "job_02", "model_name": "VGG-16", "arrival_time_ms": 15.0, "total_iterations": 15, "gpu_count": 8},
