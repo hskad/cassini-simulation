@@ -409,6 +409,33 @@ A constant 10 ms offset adds 10 ms once, regardless of iteration count. Later ta
 
 ---
 
+## Choosing when to apply a shift
+
+The optional `shift_policy="benefit"` compares keeping the current offsets with
+applying Cassini's proposed offsets. It estimates mean remaining completion
+time for all affected jobs, including pending and newly added waits. A change
+is accepted only if its estimated mean gain exceeds `min_gain_ms` (default 0).
+A rejected plan keeps both the current offsets and their recomputed score.
+The default `shift_policy="compatibility"` retains the existing Cassini-based
+selection rule. Both policies use the same traffic model and wait accounting.
+
+The control policy `shift_policy="cooldown"` accepts changes at most once per
+`cooldown_ms` (default 100 ms), per link in incremental mode or across the
+cluster in global mode. It is checked at arrival/completion events. Both new
+policies require fixed placement. Completion records include `shift_changes`,
+and `Simulator.shift_stats` reports proposed, accepted, and rejected plans.
+
+The estimate holds current scores fixed over the remaining work. It uses
+known remaining iterations in this model, does not inspect future arrivals,
+and does not predict departures or profile uncertainty. It is a prototype
+extension, with no guarantee of lower actual JCT on every workload.
+
+The design draws on [Eclipse](https://people.csail.mit.edu/alizadeh/papers/eclipse-sigmetrics16.pdf)
+and [adaptive scheduling with reconfiguration delay](https://arxiv.org/html/1511.03417),
+which weigh schedule benefits against change costs. Their guarantees do not
+transfer to this model. The comparison baseline is our Cassini-based model,
+not the paper's full implementation with worker-level drift correction.
+
 ## Future Workflow: Developing Advanced Alternative Baselines
 
 Future work can compare this simplified model with additional baseline policies:

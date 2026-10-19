@@ -1,8 +1,10 @@
 import heapq
+import math
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 from src.core.models import Job, Link, Cluster
 from src.scheduler.evaluator import PlacementCandidate, generate_mock_candidates, evaluate_placements
+from src.scheduler.shift_policy import estimate_shift_change
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS, get_score_window, optimize_link, score_link
 
 @dataclass(order=True)
@@ -34,8 +36,22 @@ def _link_plan(jobs: List[Job], link: Link, optimize: bool, *,
 class Simulator:
     def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0, use_cassini: bool = True, incremental: bool = False, *,
                  score_window_ms: float = DEFAULT_SCORE_WINDOW_MS,
-                 fixed_placement: Optional[Dict[str, str]] = None):
+                 fixed_placement: Optional[Dict[str, str]] = None,
+                 shift_policy: str = "compatibility", min_gain_ms: float = 0.0,
+                 cooldown_ms: float = 100.0):
         get_score_window([], score_window_ms=score_window_ms)
+        if shift_policy not in ("compatibility", "benefit", "cooldown"):
+            raise ValueError("Unknown shift policy.")
+        if not math.isfinite(min_gain_ms) or min_gain_ms < 0:
+            raise ValueError("Minimum mean gain must be finite and nonnegative.")
+        if not math.isfinite(cooldown_ms) or cooldown_ms < 0:
+            raise ValueError("Cooldown must be finite and nonnegative.")
+        if shift_policy != "compatibility" and (not use_cassini or fixed_placement is None):
+            raise ValueError("Shift decision policies require Cassini and fixed placement.")
+        self.shift_policy = shift_policy
+        self.min_gain_ms = min_gain_ms
+        self.cooldown_ms = cooldown_ms
+        self.shift_stats = {"proposed": 0, "accepted": 0, "rejected": 0}
         self.fixed_placement = dict(fixed_placement) if fixed_placement is not None else None
         if self.fixed_placement is not None:
             link_ids = {link.link_id for link in base_cluster.links}
@@ -72,6 +88,47 @@ class Simulator:
         pending_wait: Dict[str, float] = {}
         total_wait: Dict[str, float] = {}
         applied_shift: Dict[str, float] = {}
+        shift_changes: Dict[str, int] = {}
+        last_shift_change: Dict[str, float] = {}
+
+        def current_link_score(jobs, link):
+            copies = [Job(j.job_id, j.name, j.phases, applied_shift[j.job_id]) for j in jobs]
+            return score_link(copies, link, score_window_ms=self.score_window_ms) if len(copies) > 1 else 1.0
+
+        def current_cluster_score():
+            scores = [current_link_score(self.active_cluster.link_jobs[link.link_id], link)
+                      for link in self.base_cluster.links
+                      if len(self.active_cluster.link_jobs[link.link_id]) > 1]
+            return sum(scores) / len(scores) if scores else 1.0
+
+        def select_shifts(score, shifts, jobs, key, keep_score_fn):
+            added = {j.job_id: ((shifts.get(j.job_id, applied_shift[j.job_id]) % j.iteration_time
+                                - applied_shift[j.job_id]) % j.iteration_time)
+                     for j in jobs}
+            if not any(delay > 1e-9 for delay in added.values()):
+                return score, shifts
+            self.shift_stats["proposed"] += 1
+            if self.shift_policy == "compatibility":
+                accept = True
+            elif self.shift_policy == "cooldown":
+                accept = self.current_time - last_shift_change.get(key, float("-inf")) >= self.cooldown_ms
+            else:
+                keep_score = keep_score_fn()
+                remaining = {j.job_id: max(0.0, 1.0 - progress[j.job_id]) * j.iteration_time * j.total_iterations
+                             for j in jobs}
+                estimate = estimate_shift_change(remaining, pending_wait, added,
+                                                 current_score=keep_score, proposed_score=score,
+                                                 penalty=self.penalty_factor)
+                accept = estimate.gain_ms > self.min_gain_ms
+            if accept:
+                self.shift_stats["accepted"] += 1
+                last_shift_change[key] = self.current_time
+                return score, shifts
+            self.shift_stats["rejected"] += 1
+            # Recompute the score of the retained offsets. Never keep the
+            # proposal's improved score after rejecting its waits.
+            keep_score = keep_score_fn() if self.shift_policy == "cooldown" else keep_score
+            return keep_score, {j.job_id: applied_shift[j.job_id] for j in jobs}
 
         def apply_shifts(shifts):
             for jid, shift in shifts.items():
@@ -82,6 +139,8 @@ class Simulator:
                 delay = (target - applied_shift[jid]) % job.iteration_time
                 pending_wait[jid] += delay
                 total_wait[jid] += delay
+                if delay > 1e-9:
+                    shift_changes[jid] += 1
                 applied_shift[jid] = target
                 job.time_shift = target
 
@@ -133,7 +192,8 @@ class Simulator:
                         "arrival_time": job.arrival_time,
                         "completion_time": self.current_time,
                         "turnaround_time": self.current_time - job.arrival_time,
-                        "shift_wait_ms": total_wait.pop(jid)
+                        "shift_wait_ms": total_wait.pop(jid),
+                        "shift_changes": shift_changes.pop(jid)
                     })
                     
                     # Remove from link and update remaining jobs on that link
@@ -144,6 +204,9 @@ class Simulator:
                         link_obj = next(l for l in self.base_cluster.links if l.link_id == link_id)
                         score, shifts = _link_plan(rem_jobs, link_obj, optimize=self.use_cassini,
                                                    score_window_ms=self.score_window_ms)
+                        score, shifts = select_shifts(
+                            score, shifts, rem_jobs, link_id,
+                            lambda: current_link_score(rem_jobs, link_obj))
                         apply_shifts(shifts)
                         slowdown = 1.0 + (1.0 - score) * self.penalty_factor
                         for rj in rem_jobs:
@@ -159,6 +222,7 @@ class Simulator:
                     pending_wait[job.job_id] = 0.0
                     total_wait[job.job_id] = 0.0
                     applied_shift[job.job_id] = 0.0
+                    shift_changes[job.job_id] = 0
                     if not self.use_cassini:
                         job.time_shift = 0.0
                     
@@ -189,6 +253,10 @@ class Simulator:
                             if score >= 1.0:
                                 break
                                 
+                    affected = self.active_cluster.link_jobs[best_link.link_id] + [job]
+                    best_score, best_shifts = select_shifts(
+                        best_score, best_shifts, affected, best_link.link_id,
+                        lambda: current_link_score(affected, best_link))
                     apply_shifts(best_shifts)
                     self.active_cluster.link_jobs[best_link.link_id].append(job)
                     self.job_to_link[job.job_id] = best_link.link_id
@@ -224,7 +292,8 @@ class Simulator:
                         "arrival_time": job.arrival_time,
                         "completion_time": self.current_time,
                         "turnaround_time": self.current_time - job.arrival_time,
-                        "shift_wait_ms": total_wait.pop(jid)
+                        "shift_wait_ms": total_wait.pop(jid),
+                        "shift_changes": shift_changes.pop(jid)
                     })
                     placement_changed = True
                     
@@ -236,6 +305,7 @@ class Simulator:
                     pending_wait[job.job_id] = 0.0
                     total_wait[job.job_id] = 0.0
                     applied_shift[job.job_id] = 0.0
+                    shift_changes[job.job_id] = 0
                     if not self.use_cassini:
                         job.time_shift = 0.0
                     placement_changed = True
@@ -267,6 +337,8 @@ class Simulator:
                                                    score_window_ms=self.score_window_ms)
                         
                     if self.use_cassini:
+                        score, shifts = select_shifts(
+                            score, shifts, jobs_list, "global", current_cluster_score)
                         apply_shifts(shifts)
                     slowdown_factor = 1.0 + (1.0 - score) * self.penalty_factor
                     for jid, job in self.active_jobs.items():
