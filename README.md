@@ -67,6 +67,16 @@ Use `--plot-window 3000` to show more time. Use `--plot-jobs 12` to show more jo
 These display limits do not change the simulation or the saved event data.
 The bandwidth plot uses the same link under every policy.
 
+## Rebuild the README visuals
+
+```bat
+cassini.bat docs
+```
+
+This command generates current PNG plots and GIF animations in `docs/images/`.
+The small synthetic examples use the exact grid solver. `manifest.json` records
+parameters, results, package versions, and source hashes.
+
 ## Experiments and saved data
 
 ```bat

@@ -1,0 +1,86 @@
+{
+  "command": "cassini.bat docs",
+  "source": "synthetic examples from the current simulator",
+  "profile": {
+    "compute_ms": 50,
+    "communication_ms": 50,
+    "demand_gbps": 50,
+    "link_capacity_gbps": 50,
+    "solver": "exact",
+    "resolution_ms": 1
+  },
+  "aligned": {
+    "iterations": 10,
+    "jitter_fraction": 0,
+    "plot_window_ms": 600
+  },
+  "jitter": {
+    "iterations": 100,
+    "jitter_fraction": 0.04,
+    "seed": 42,
+    "drift_threshold": 0.05,
+    "plot_window_ms": 3000
+  },
+  "correction_action": "delay to the next nominal phase start; simulation assumption",
+  "summaries": {
+    "aligned": {
+      "uncoordinated": {
+        "mean_jct_ms": 1500.0,
+        "mean_wait_ms": 0.0,
+        "adjustments": 0
+      },
+      "cassini": {
+        "mean_jct_ms": 1025.0,
+        "mean_wait_ms": 25.0,
+        "adjustments": 0
+      }
+    },
+    "jitter": {
+      "uncoordinated": {
+        "mean_jct_ms": 13947.861136576033,
+        "mean_wait_ms": 0.0,
+        "adjustments": 0
+      },
+      "static-shifts": {
+        "mean_jct_ms": 11047.795214523603,
+        "mean_wait_ms": 25.0,
+        "adjustments": 0
+      },
+      "cassini": {
+        "mean_jct_ms": 12378.2572784088,
+        "mean_wait_ms": 2219.560753483266,
+        "adjustments": 47
+      }
+    }
+  },
+  "affinity_graph": {
+    "compatibility_score": 1.0,
+    "link_shifts_ms": {
+      "L1": {
+        "A": 0.0,
+        "B": 50.0
+      },
+      "L2": {
+        "B": 0.0,
+        "C": 50.0
+      }
+    },
+    "global_shifts_ms": {
+      "A": 0.0,
+      "B": 50.0,
+      "C": 0.0
+    }
+  },
+  "source_sha256": {
+    "src/scheduler/simulator.py": "bd7396028aeccd7dfedf7ce1f034a4df5fef54d67d19610994e56d6afb8cdb9c",
+    "src/math_engine/optimizer.py": "711a5723421fb81f925391eecd34072f3945987eec84ae21cd51cc222c9886ca",
+    "src/math_engine/graph.py": "d19eb08ad5e57e5132482fcd477714e4f42b2873bd4305af903dbb23ab02114f",
+    "src/scheduler/evaluator.py": "e4db658b5c9c6cb457969689bc55d54e72268d5b7e93fbe2edd10d04b17293c6",
+    "src/utils/comparison_plots.py": "e95a916752391ce9d850b832400777e8ce46c5183c2f4e01873b042377027047",
+    "src/utils/readme_visuals.py": "cbdc3675d5ad62392ca60f14ac3d49a388d5bba8a545e1057e715a635922866c"
+  },
+  "versions": {
+    "matplotlib": "3.9.0",
+    "pillow": "10.3.0"
+  }
+}

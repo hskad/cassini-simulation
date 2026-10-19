@@ -194,6 +194,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Run Cassini phase scheduling checks and plots.")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("test", help="Run all unit tests.")
+    docs = commands.add_parser("docs", help="Rebuild README PNG plots and GIF animations.")
+    docs.add_argument("--out", default=str(ROOT / "docs" / "images"), help="Folder for the README images.")
     for command in ["demo", "experiment"]:
         p = commands.add_parser(command, help="Run a comparison and save plots.")
         p.add_argument("--capacity", type=positive_float, default=50.0, help="Link capacity in Gbps.")
@@ -224,6 +226,10 @@ def main(argv=None):
         result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover(str(ROOT / "tests")))
         return 0 if result.wasSuccessful() else 1
     try:
+        if args.command == "docs":
+            from src.utils.readme_visuals import build_readme_visuals
+            build_readme_visuals(args.out)
+            return 0
         return run_comparison(args)
     except (ValueError, OSError, KeyError) as error:
         out = Path(args.out).resolve()
