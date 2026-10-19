@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import numpy as np
 
-COLORS = {"compute": "#3677B5", "communicate": "#DD8841", "wait": "#B6B9BE"}
+from src.utils.plot_style import (PHASE_COLORS as COLORS, POLICY_COLORS,
+                                  CYAN, MAGENTA, YELLOW, TEXT, dark_figure)
 
 
 def _save(fig, path):
@@ -13,19 +14,19 @@ def _save(fig, path):
     plt.close(fig)
 
 
+@dark_figure
 def plot_comparison(simulations, out, window=600, max_jobs=8):
-    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10,
-                         "axes.spines.top": False, "axes.spines.right": False})
     names = list(simulations)
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), layout="constrained")
     for name, sim in simulations.items():
         values = np.sort([r["turnaround_time"] for r in sim.completed_jobs])
-        axes[0].step(np.r_[values[0], values], np.r_[0, np.arange(1, len(values)+1) / len(values)], where="post", label=name)
+        axes[0].step(np.r_[values[0], values], np.r_[0, np.arange(1, len(values)+1) / len(values)], where="post", label=name,
+                     color=POLICY_COLORS[name], linewidth=2.6)
     axes[0].set(xlabel="Job completion time (ms)", ylabel="Cumulative fraction of jobs",
                 title="Completion time includes all waits", ylim=(0, 1.05))
     axes[0].legend()
     waits = [np.mean([r["wait_time"] for r in sim.completed_jobs]) for sim in simulations.values()]
-    axes[1].bar(names, waits, color=["#3677B5", "#DD8841", "#4A8A61"][:len(names)])
+    axes[1].bar(names, waits, color=[POLICY_COLORS[name] for name in names])
     axes[1].set(ylabel="Mean waiting time per job (ms)", title="Cost of alignment and correction")
     axes[1].tick_params(axis="x", labelsize=9)
     for ax in axes:
@@ -52,7 +53,7 @@ def plot_comparison(simulations, out, window=600, max_jobs=8):
             left, right = max(start, row["start"]), min(stop, row["end"])
             color = COLORS.get(row["type"], "#DD8841")
             ax.broken_barh([(left, right-left)], (jobs.index(row["job_id"])-0.3, 0.6),
-                          facecolors=color, edgecolors="white", linewidth=0.3)
+                          facecolors=color, edgecolors="#101216", linewidth=0.3)
         ax.set(yticks=range(len(jobs)), yticklabels=jobs, title=name, xlim=(start, stop))
         ax.invert_yaxis()
         ax.grid(axis="x", alpha=0.15)
@@ -76,9 +77,9 @@ def plot_comparison(simulations, out, window=600, max_jobs=8):
                 xs.extend([max(start, row["start"]), min(stop, row["end"])])
                 demand.extend([row["demand_gbps"]]*2)
                 served.extend([row["served_gbps"]]*2)
-            ax.plot(xs, demand, "--", color="#C85050", label="Requested")
-            ax.plot(xs, served, color="#3677B5", label="Served")
-            ax.axhline(first.capacities[lid], linestyle=":", color="#222222", label="Capacity")
+            ax.plot(xs, demand, "--", color=MAGENTA, label="Requested")
+            ax.plot(xs, served, color=CYAN, label="Served")
+            ax.axhline(first.capacities[lid], linestyle=":", color=TEXT, label="Capacity")
             ax.set(title=name, ylabel="Bandwidth (Gbps)", xlim=(start, stop), ylim=(0, None))
             ax.grid(alpha=0.15)
         axes[0, 0].legend(loc="upper right", ncol=3, fontsize=8)
@@ -86,7 +87,7 @@ def plot_comparison(simulations, out, window=600, max_jobs=8):
         fig.suptitle(f"Requested and served bandwidth | link {lid}")
         _save(fig, out / "bandwidth.png")
 
-    fig, axes = plt.subplots(len(names), 1, figsize=(12, 2.5*len(names)), sharex=True,
+    fig, axes = plt.subplots(len(names), 1, figsize=(12, 2.5*len(names)), sharex=True, sharey=True,
                              layout="constrained", squeeze=False)
     for ax, (name, sim) in zip(axes[:, 0], simulations.items()):
         for jid in jobs:
@@ -98,12 +99,12 @@ def plot_comparison(simulations, out, window=600, max_jobs=8):
                         ".-", markersize=4, label=jid)
         if sim.drift_threshold is not None:
             for sign in [-1, 1]:
-                ax.axhline(sign * 100 * sim.drift_threshold, color="#555555", linestyle=":", linewidth=1)
+                ax.axhline(sign * 100 * sim.drift_threshold, color=TEXT, linestyle=":", linewidth=1)
         adjustments = [r for r in sim.adjustments if start <= r["time"] <= stop]
         if adjustments:
             ax.scatter([r["time"] for r in adjustments],
                        [100*r["phase_error_ms"]/r["period_ms"] for r in adjustments],
-                       marker="x", color="black", s=45, zorder=5, label="Correction")
+                       marker="x", color=YELLOW, s=45, zorder=5, label="Correction")
         ax.set(title=name, ylabel="Phase error (%)", xlim=(start, stop))
         ax.grid(alpha=0.15)
         if ax.get_legend_handles_labels()[0]:

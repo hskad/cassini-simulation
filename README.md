@@ -7,13 +7,14 @@ The corrected engine executes each phase. It applies time-shifts as waits and
 shares bandwidth when transfers overlap. Job completion time (JCT) includes
 compute, communication, and all waits.
 
-The animation compares two jobs on one 50 Gbps link.
-Blue shows compute, orange shows communication, and grey shows waiting.
+The animation shows the circular phase-alignment method. One profile stays fixed,
+while the other rotates to reduce overlapping communication.
 
-![Executed job phases with and without Cassini shifts](docs/images/phase-alignment.gif)
+![Circular communication profiles rotate from overlap to a compatible offset](docs/images/geometric-alignment.gif)
 
-The view covers the first 600 ms. The full run contains 10 iterations per job.
-These are synthetic examples from the corrected simulator.
+Each profile has 141 ms of compute and 114 ms of communication on a 50 Gbps link.
+The solver finds the 114 ms offset shown in the animation. These are periodic
+profiles; the animation shows the geometric method, not elapsed training time.
 
 ## Start in WSL
 
@@ -171,14 +172,14 @@ immediately across all jobs.
 
 ### One shift across several links
 
-In this example, B uses both links. A shares L1 with B, and C shares L2 with B.
-The graph traversal gives each job one global shift: A = 0 ms, B = 50 ms,
-and C = 0 ms.
+This example uses five jobs and three shared links. The animation follows the
+BFS traversal. Yellow marks the current node or edge. The values above the jobs
+show their calculated global shifts.
 
-![Affinity graph traversal from local link shifts to global job shifts](docs/images/affinity-traversal.gif)
+![BFS traversal highlights jobs and shared links while calculating global shifts](docs/images/affinity-traversal.gif)
 
-The edge labels show local shifts for each link. The right column shows the
-global shifts. All three jobs have a 100 ms nominal iteration time.
+The edge labels show local shifts in milliseconds. Each job has an 80 ms compute
+phase and a 20 ms communication phase. The graph has no cycles.
 
 The network uses max-min bandwidth sharing with a demand cap for each phase.
 A transfer must fit the capacity of every link on its path. Compute with no
@@ -204,7 +205,7 @@ It is not a new research contribution or an exact reproduction of the original a
 
 This run uses 100 iterations per job, uniform compute jitter of +/-4%, and seed 42.
 The plot shows the first 3,000 ms. Crosses mark correction triggers. Dotted lines
-show the 5% threshold. Each panel uses its own vertical scale.
+show the 5% threshold. All panels use the same vertical scale.
 
 ![Communication phase error with no shifts, static shifts, and drift correction](docs/images/drift.png)
 

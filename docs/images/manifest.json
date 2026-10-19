@@ -54,30 +54,53 @@
     }
   },
   "affinity_graph": {
+    "jobs": 5,
+    "links": 3,
+    "compute_ms": 80,
+    "communication_ms": 20,
+    "period_ms": 100,
     "compatibility_score": 1.0,
     "link_shifts_ms": {
       "L1": {
-        "A": 0.0,
-        "B": 50.0
+        "j1": 0.0,
+        "j2": 20.0,
+        "j3": 40.0
       },
       "L2": {
-        "B": 0.0,
-        "C": 50.0
+        "j2": 0.0,
+        "j4": 20.0
+      },
+      "L3": {
+        "j3": 0.0,
+        "j5": 20.0
       }
     },
     "global_shifts_ms": {
-      "A": 0.0,
-      "B": 50.0,
-      "C": 0.0
+      "j1": 0.0,
+      "j2": 20.0,
+      "j3": 40.0,
+      "j4": 40.0,
+      "j5": 60.0
     }
+  },
+  "geometric": {
+    "compute_ms": 141,
+    "communication_ms": 114,
+    "period_ms": 255.0,
+    "capacity_gbps": 50,
+    "shift_b_ms": 114,
+    "score_before": 0.5529411764705883,
+    "score_after": 1.0
   },
   "source_sha256": {
     "src/scheduler/simulator.py": "bd7396028aeccd7dfedf7ce1f034a4df5fef54d67d19610994e56d6afb8cdb9c",
     "src/math_engine/optimizer.py": "711a5723421fb81f925391eecd34072f3945987eec84ae21cd51cc222c9886ca",
     "src/math_engine/graph.py": "d19eb08ad5e57e5132482fcd477714e4f42b2873bd4305af903dbb23ab02114f",
     "src/scheduler/evaluator.py": "e4db658b5c9c6cb457969689bc55d54e72268d5b7e93fbe2edd10d04b17293c6",
-    "src/utils/comparison_plots.py": "e95a916752391ce9d850b832400777e8ce46c5183c2f4e01873b042377027047",
-    "src/utils/readme_visuals.py": "a9a867fa2a07d1f47d40472bfcd94d25b7e12cd7b6d6513b0f12d91ae54db3e9"
+    "src/utils/comparison_plots.py": "b879158f1ca143b7e06e56a625e5c66b854c11a981b85af7fdd8f64904b930dc",
+    "src/utils/readme_visuals.py": "e052a52b03b1e39a83341d2427b444961462000f83020aa16ceb58060a67f9a6",
+    "src/utils/plot_style.py": "e1d43186c8be1eb8e978e851d37db2fc6a870dbae6ad431211da12f72d34778d",
+    "src/utils/readme_animations.py": "1284b4cbb736323761138f2faf70ab56346e8bfee0973f4c5f67e034172697cc"
   },
   "versions": {
     "matplotlib": "3.9.0",
