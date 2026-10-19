@@ -41,6 +41,32 @@ def digest(value):
                                      allow_nan=False).encode()).hexdigest()
 
 
+def source_metadata(extra_sources=()):
+    """Record the code and inputs used by either policy experiment runner."""
+    sources = ["src/scheduler/simulator.py", "src/scheduler/evaluator.py",
+               "src/scheduler/shift_policy.py", "src/math_engine/optimizer.py",
+               "src/math_engine/graph.py", "src/core/models.py", "src/core/trace_loader.py",
+               "experiments/shift_policy_experiment.py", "data/models/real_models.json",
+               "data/traces/philly_cluster_trace.json", "data/traces/philly_2000_jobs.json",
+               "data/traces/philly_10000_jobs.json"]
+    sources.extend(path.relative_to(ROOT).as_posix()
+                   for path in sorted((ROOT / "src/scheduler/policies").glob("*.py")))
+    sources.extend(extra_sources)
+    source_commit = os.environ.get("CASSINI_SOURCE_COMMIT")
+    if source_commit is None:
+        revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                                  capture_output=True, text=True)
+        source_commit = revision.stdout.strip() if revision.returncode == 0 else None
+    status = subprocess.run(["git", "status", "--porcelain", "--", *sources],
+                            cwd=ROOT, capture_output=True, text=True)
+    return {
+        "source_commit": source_commit,
+        "source_tree_dirty": bool(status.stdout.strip()) if status.returncode == 0 else None,
+        "source_sha256": {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in sources},
+        "versions": {p: importlib.metadata.version(p) for p in ("numpy", "matplotlib", "pillow", "networkx")},
+    }
+
+
 def build_workload(name, seed, num_jobs=None):
     """Existing inputs retain their original phase and bandwidth settings."""
     rng = random.Random(seed)
@@ -244,6 +270,7 @@ def main(argv=None):
         parser.error("Choose distinct policies including compatibility and at least one alternative")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.plot_dir.mkdir(parents=True, exist_ok=True)
+    provenance = source_metadata()
     runs, examples = [], {}
     for name in args.workloads:
         for seed in args.seeds:
@@ -260,23 +287,8 @@ def main(argv=None):
                                    for p in args.policies if p not in ("uncoordinated", "compatibility")), flush=True)
     summary = aggregate(runs)
     figures = plot_results(summary, examples, args.plot_dir, args.seeds[0])
-    sources = ["src/scheduler/simulator.py", "src/scheduler/evaluator.py",
-               "src/scheduler/shift_policy.py", "src/math_engine/optimizer.py",
-               "src/math_engine/graph.py", "src/core/models.py", "src/core/trace_loader.py",
-               "experiments/shift_policy_experiment.py", "data/models/real_models.json",
-               "data/traces/philly_cluster_trace.json", "data/traces/philly_2000_jobs.json",
-               "data/traces/philly_10000_jobs.json"]
-    sources.extend(str(path.relative_to(ROOT)).replace(os.sep, "/")
-                   for path in sorted((ROOT / "src/scheduler/policies").glob("*.py")))
-    source_commit = os.environ.get("CASSINI_SOURCE_COMMIT")
-    if source_commit is None:
-        revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                                  capture_output=True, text=True)
-        source_commit = revision.stdout.strip() if revision.returncode == 0 else None
     manifest = {
-        "source_commit": source_commit,
-        "source_sha256": {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in sources},
-        "versions": {p: importlib.metadata.version(p) for p in ("numpy", "matplotlib", "pillow", "networkx")},
+        **provenance,
         "workloads": args.workloads, "seeds": args.seeds, "policies": args.policies,
         "num_jobs": args.num_jobs,
         "min_gain_ms": args.min_gain_ms, "cooldown_ms": args.cooldown_ms,

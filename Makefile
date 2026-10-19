@@ -2,7 +2,7 @@
 
 PYTHON ?= python
 
-.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload large-scale scale-10k validate-baseline shift-policy clean-png clean
+.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload large-scale scale-10k validate-baseline shift-policy remaining-work clean-png clean
 
 help:
 	@echo "CASSINI Simulation - Available Targets:"
@@ -18,6 +18,7 @@ help:
 	@echo "  make scale-10k          - Run 10,000-job ultra-scale cluster experiment"
 	@echo "  make validate-baseline  - Run both micro and macro baseline tests"
 	@echo "  make shift-policy       - Compare shift decision policies on shared routes"
+	@echo "  make remaining-work     - Test errors in remaining-work estimates"
 	@echo "  make test               - Run unit tests"
 	@echo "  make clean-png          - Delete generated PNG files (Preserves GIF files)"
 	@echo "  make clean              - Delete generated PNGs and pycache (Preserves GIF files)"
@@ -64,3 +65,6 @@ clean: clean-png
 
 shift-policy:
 	$(PYTHON) experiments/shift_policy_experiment.py
+
+remaining-work:
+	$(PYTHON) experiments/remaining_work_experiment.py

@@ -202,6 +202,28 @@ Run a single error setting without replacing the published figures:
 python3 experiments/shift_policy_experiment.py --workloads short --seeds 7 19 42 --policies compatibility benefit --remaining-work-scale 0.5 --output-dir output/remaining-work-low --plot-dir output/remaining-work-low/plots
 ```
 
+Sweep all five error settings with the same jobs and routes for each seed:
+
+```bash
+make PYTHON=python3 remaining-work
+# Quick check:
+python3 experiments/remaining_work_experiment.py --workloads short --seeds 42 --num-jobs 20 --output-dir output/remaining-work-smoke --plot-dir output/remaining-work-smoke/plots
+```
+
+The default sweep uses `macro`, `sample`, `short`, and `2000`, seeds 7, 19, and
+42, and scales 0.5, 0.75, 1.0, 1.25, and 1.5. `--scales` selects other positive
+multipliers and must include 1.0 for the accurate-estimate comparison. Vanilla
+completion records must remain identical across all scales for each workload
+and seed. Each pair must also have the same input and placement hashes.
+
+Raw completion records are grouped by scale in `output/remaining-work/`.
+The plot and `remaining_work_results.json` go to `visualizations/remaining_work/`.
+The manifest records the code commit, source hashes, whether source files had
+uncommitted changes, package versions, settings, and all paired results.
+The graph shows mean and P95 JCT reductions versus vanilla. Shaded bands show
+the min–max range across seeds, not a confidence interval. It also records JCT
+changes relative to the accurate benefit rule, waiting time, and shift counts.
+
 ## Possible future experiments
 
 Future work can compare this simplified model with additional baseline policies:
