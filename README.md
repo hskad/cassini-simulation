@@ -354,6 +354,14 @@ A `Makefile` provides command shortcuts for WSL:
 
 ## Baseline Scheduler Architecture & Comparative Formulation
 
+For controlled comparisons, `make_fixed_placement(jobs, links, seed)` creates
+one seeded random job-to-link map before execution. Pass it as
+`fixed_placement=...` to both simulators. Routes stay fixed despite different
+completion times; `use_cassini` controls only shift optimization. Completion
+records include `link_id` for checking paired routes. Without a supplied map,
+the simulator retains its joint placement/shift search for standalone demos.
+
+
 ### Placement and runtime model
 
 The uncoordinated policy uses zero phase shifts. It is a simplified placement policy, not an implementation of Kubernetes, Slurm, Themis, or Tiresias. Each job is assigned to one primary bottleneck link; GPU admission queues and full network routes are not modeled.

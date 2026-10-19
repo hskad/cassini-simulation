@@ -11,6 +11,18 @@ class PlacementCandidate:
     cluster: Cluster
     compatibility_score: float = 0.0
 
+def make_fixed_placement(jobs: List[Job], links: List[Link], seed: int = 42) -> Dict[str, str]:
+    """Choose each job's link once, without consulting runtime or shift policy."""
+    link_ids = sorted(link.link_id for link in links)
+    if not link_ids or len(link_ids) != len(set(link_ids)):
+        raise ValueError("Fixed placement requires nonempty, uniquely named links.")
+    ordered = sorted(jobs, key=lambda job: (job.arrival_time, job.job_id))
+    if len({job.job_id for job in ordered}) != len(ordered):
+        raise ValueError("Fixed placement requires unique job IDs.")
+    rng = random.Random(seed)
+    return {job.job_id: rng.choice(link_ids) for job in ordered}
+
+
 def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candidates: int = 5) -> List[PlacementCandidate]:
     """
     Simulates a scheduler (like Themis) by generating N placement candidates.

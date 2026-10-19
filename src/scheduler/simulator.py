@@ -1,8 +1,8 @@
 import heapq
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from src.core.models import Job, Link, Cluster
-from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
+from src.scheduler.evaluator import PlacementCandidate, generate_mock_candidates, evaluate_placements
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS, get_score_window, optimize_link, score_link
 
 @dataclass(order=True)
@@ -33,8 +33,14 @@ def _link_plan(jobs: List[Job], link: Link, optimize: bool, *,
 
 class Simulator:
     def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0, use_cassini: bool = True, incremental: bool = False, *,
-                 score_window_ms: float = DEFAULT_SCORE_WINDOW_MS):
+                 score_window_ms: float = DEFAULT_SCORE_WINDOW_MS,
+                 fixed_placement: Optional[Dict[str, str]] = None):
         get_score_window([], score_window_ms=score_window_ms)
+        self.fixed_placement = dict(fixed_placement) if fixed_placement is not None else None
+        if self.fixed_placement is not None:
+            link_ids = {link.link_id for link in base_cluster.links}
+            if any(link not in link_ids for link in self.fixed_placement.values()):
+                raise ValueError("Fixed placement references an unknown link.")
         self.base_cluster = base_cluster
         self.score_window_ms = score_window_ms
         self.penalty_factor = penalty_factor
@@ -54,6 +60,8 @@ class Simulator:
         )
 
     def add_job_arrival(self, job: Job):
+        if self.fixed_placement is not None and job.job_id not in self.fixed_placement:
+            raise ValueError(f"Fixed placement has no link for job {job.job_id!r}.")
         heapq.heappush(self.events, Event(time=job.arrival_time, event_type='arrival', job=job))
         
     def run_simulation(self):
@@ -119,6 +127,8 @@ class Simulator:
                     del applied_shift[jid]
                     self.completed_jobs.append({
                         "job_id": job.job_id,
+                        "link_id": (self.fixed_placement[jid] if self.fixed_placement is not None
+                                    else self.job_to_link.get(jid)),
                         "name": job.name,
                         "arrival_time": job.arrival_time,
                         "completion_time": self.current_time,
@@ -152,10 +162,16 @@ class Simulator:
                     if not self.use_cassini:
                         job.time_shift = 0.0
                     
-                    # Candidate links: evaluate top least-loaded links
-                    sorted_links = sorted(self.base_cluster.links, key=lambda l: len(self.active_cluster.link_jobs[l.link_id]))
-                    candidate_links = sorted_links[:min(4, len(sorted_links))]
-                    
+                    if self.fixed_placement is not None:
+                        candidate_links = [link for link in self.base_cluster.links
+                                           if link.link_id == self.fixed_placement[job.job_id]]
+                    else:
+                        # Legacy joint placement/shift search, used only when
+                        # no shared placement map is supplied.
+                        sorted_links = sorted(self.base_cluster.links,
+                                              key=lambda link: len(self.active_cluster.link_jobs[link.link_id]))
+                        candidate_links = sorted_links[:min(4, len(sorted_links))]
+
                     best_link = candidate_links[0]
                     # Heavy traffic can give every candidate a score below -1.
                     best_score = float('-inf')
@@ -202,6 +218,8 @@ class Simulator:
                     del applied_shift[jid]
                     self.completed_jobs.append({
                         "job_id": job.job_id,
+                        "link_id": (self.fixed_placement[jid] if self.fixed_placement is not None
+                                    else self.job_to_link.get(jid)),
                         "name": job.name,
                         "arrival_time": job.arrival_time,
                         "completion_time": self.current_time,
@@ -224,8 +242,16 @@ class Simulator:
                     
                 if placement_changed and self.active_jobs:
                     jobs_list = list(self.active_jobs.values())
+                    if self.fixed_placement is not None:
+                        link_jobs = {link.link_id: [] for link in self.base_cluster.links}
+                        for job in jobs_list:
+                            link_jobs[self.fixed_placement[job.job_id]].append(job)
+                        candidates = [PlacementCandidate("fixed", Cluster(
+                            self.base_cluster.servers, self.base_cluster.links, link_jobs))]
+                    else:
+                        candidates = generate_mock_candidates(
+                            self.base_cluster, jobs_list, num_candidates=5 if self.use_cassini else 1)
                     if self.use_cassini:
-                        candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=5)
                         try:
                             winning_candidate, shifts = evaluate_placements(candidates, score_window_ms=self.score_window_ms)
                             self.active_cluster = winning_candidate.cluster
@@ -235,7 +261,6 @@ class Simulator:
                             shifts = {}
                     else:
                         from src.scheduler.evaluator import score_candidate
-                        candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=1)
                         winning_candidate = candidates[0]
                         self.active_cluster = winning_candidate.cluster
                         score, _ = score_candidate(winning_candidate, optimize=False,
