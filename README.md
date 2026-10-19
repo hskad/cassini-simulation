@@ -36,7 +36,7 @@ Use `cassini.bat --help` or `cassini.bat demo --help` to see the options.
 ## Demos and plots
 
 ```bat
-cassini.bat demo --scenario aligned --iterations 10
+cassini.bat demo --scenario aligned --iterations 10 --solver exact
 cassini.bat demo --scenario partial --out output/partial
 cassini.bat demo --scenario multi-link --out output/multi-link
 cassini.bat demo --scenario dynamic --out output/dynamic
@@ -153,8 +153,16 @@ an error. Set `--score-horizon` to request a finite window explicitly.
 A score of one in that window does not establish compatibility for all time.
 
 `--resolution` sets the time grid for shift search. The first job is held fixed.
-The search is exhaustive on that grid for two jobs. For more jobs it is greedy.
-It does not guarantee the global optimum of the paper's joint formulation.
+The default `--solver greedy` fixes one later job at a time. It does not guarantee
+the global optimum for more than two jobs.
+
+Use `--solver exact` for small validation cases. It checks the joint combinations
+of relative grid shifts. A complete search gives the best score on that grid,
+with the first job fixed at zero. A score of one permits an early stop.
+The exact search rejects more than 20,000 combinations. It never switches to a
+heuristic silently. The console and `parameters.json` state the selected solver.
+A finite score window still cannot establish periodic compatibility.
+
 The affinity graph must have no cycles. Unsupported cyclic routes are rejected
 before optimization. Job IDs and link IDs use separate namespaces. Graph demo
 inputs also use a graph with no cycles.

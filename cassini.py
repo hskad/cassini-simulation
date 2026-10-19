@@ -148,11 +148,12 @@ def run_comparison(args):
     print("Workload source:", provenance["kind"])
     print("Score:", "full common period" if args.score_horizon is None
           else f"finite {args.score_horizon:g} ms window; no periodic guarantee")
+    print("Shift solver:", args.solver)
     for name, use_cassini, threshold in policies:
         print(f"Running {name}...", flush=True)
         sim = Simulator(cluster, use_cassini=use_cassini, record_history=not args.no_history,
                         score_horizon=args.score_horizon, resolution=args.resolution,
-                        compute_jitter=args.jitter, seed=args.seed, drift_threshold=threshold)
+                        compute_jitter=args.jitter, seed=args.seed, drift_threshold=threshold, solver=args.solver)
         for job in copy.deepcopy(jobs):
             sim.add_job_arrival(job)
         sim.run_simulation()
@@ -175,7 +176,7 @@ def run_comparison(args):
         "provenance": provenance, "placement": "fixed routes; identical across policies",
         "network_model": "fluid max-min sharing with per-phase demand caps",
         "correction_action": "delay to the next nominal phase start; simulation assumption",
-        "shift_solver": "greedy time grid", "units": {"time": "ms", "bandwidth": "Gbps"}})
+        "shift_solver": args.solver + " time grid", "units": {"time": "ms", "bandwidth": "Gbps"}})
     write_json(out / "summary.json", summaries)
     write_csv(out / "summary.csv", summaries)
     print(f"{'Policy':<18} {'Mean JCT (ms)':>15} {'P95 JCT (ms)':>15} {'Mean wait (ms)':>16} {'Adjustments':>12}")
@@ -202,6 +203,7 @@ def main(argv=None):
         p.add_argument("--drift-threshold", type=drift_fraction, default=0.05, help="Fraction of nominal iteration time.")
         p.add_argument("--include-static", action="store_true", help="Also run shifts without drift correction.")
         p.add_argument("--score-horizon", type=positive_float, help="Explicit finite scoring window in ms.")
+        p.add_argument("--solver", choices=["greedy", "exact"], default="greedy", help="Exact searches joint grid combinations, up to 20,000 trials.")
         p.add_argument("--resolution", type=positive_float, default=1.0, help="Shift search grid in ms.")
         p.add_argument("--plot-window", type=positive_float, default=600.0, help="Timeline and bandwidth plot window in ms.")
         p.add_argument("--plot-jobs", type=positive_int, default=8, help="Maximum jobs shown on timelines.")

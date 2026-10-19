@@ -83,5 +83,30 @@ class TestExactProfiles(unittest.TestCase):
             score_link(jobs, Link("L", 50))
         self.assertLessEqual(score_link(jobs, Link("L", 50), horizon=2000), 1)
 
+class TestJointSearch(unittest.TestCase):
+    def jobs(self):
+        masks = [[3, 0], [5, 2, 1], [4, 1, 7]]
+        return [Job(str(i), str(i), [Phase("communicate" if t in slots else "compute",
+                    1, 50 if t in slots else 0) for t in range(8)]) for i, slots in enumerate(masks)]
+
+    def test_joint_search_finds_a_feasible_schedule_missed_by_greedy(self):
+        jobs = self.jobs()
+        optimize_link(jobs, Link("L", 50), method="greedy")
+        self.assertAlmostEqual(score_link(jobs, Link("L", 50)), 0.875)
+        optimize_link(jobs, Link("L", 50), method="exact")
+        self.assertAlmostEqual(score_link(jobs, Link("L", 50)), 1)
+
+    def test_exact_budget_does_not_silently_select_greedy(self):
+        jobs = self.jobs()
+        jobs[0].time_shift = 2
+        with self.assertRaises(ProfileLimitError):
+            optimize_link(jobs, Link("L", 50), method="exact", max_trials=10)
+        self.assertEqual(jobs[0].time_shift, 2)
+
+    def test_exact_grid_retains_fractional_shifts(self):
+        jobs = [Job(str(i),str(i),[Phase("compute",0.25,0),Phase("communicate",0.25,50)]) for i in range(2)]
+        optimize_link(jobs, Link("L",50), resolution=0.125, method="exact")
+        self.assertAlmostEqual(score_link(jobs,Link("L",50)),1)
+
 if __name__ == '__main__':
     unittest.main()

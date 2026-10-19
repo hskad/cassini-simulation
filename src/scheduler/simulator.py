@@ -84,7 +84,7 @@ class Simulator:
                  use_cassini: bool = True, incremental: bool = False, *,
                  record_history: bool = False, score_horizon: Optional[float] = None,
                  resolution: float = 1.0, compute_jitter: float = 0.0,
-                 seed: int = 42, drift_threshold: Optional[float] = 0.05):
+                 seed: int = 42, drift_threshold: Optional[float] = 0.05, solver: str = "greedy"):
         if penalty_factor is not None:
             warnings.warn("penalty_factor is obsolete. Link capacity now determines communication time.",
                           DeprecationWarning, stacklevel=2)
@@ -92,6 +92,9 @@ class Simulator:
             raise ValueError("Compute jitter must be in [0, 1).")
         if drift_threshold is not None and (not math.isfinite(drift_threshold) or not 0 < drift_threshold < 0.5):
             raise ValueError("Drift threshold must be in (0, 0.5), or None.")
+        if solver not in ("greedy", "exact"):
+            raise ValueError("Shift solver must be greedy or exact.")
+        self.solver = solver
         self.compute_jitter = compute_jitter
         self.seed = seed
         self.drift_threshold = drift_threshold
@@ -165,7 +168,7 @@ class Simulator:
         if not self.use_cassini or not self.states:
             return
         candidate = PlacementCandidate("fixed routes", self.active_cluster)
-        _, shifts = evaluate_placements([candidate], horizon=self.score_horizon, resolution=self.resolution)
+        _, shifts = evaluate_placements([candidate], horizon=self.score_horizon, resolution=self.resolution, solver=self.solver)
         planned = {jid: replace(state.job, time_shift=shifts.get(jid, state.job.time_shift))
                    for jid, state in self.states.items()}
         link_scores = {link.link_id: score_link(

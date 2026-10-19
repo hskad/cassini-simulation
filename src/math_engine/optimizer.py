@@ -1,5 +1,6 @@
-﻿"""Periodic bandwidth profiles and a discrete, greedy shift search."""
+"""Periodic bandwidth profiles and a discrete, greedy shift search."""
 import math
+import itertools
 from fractions import Fraction
 from typing import List, Optional
 import numpy as np
@@ -104,11 +105,16 @@ def score_link(jobs: List[Job], link: Link, horizon: Optional[float] = None,
 
 
 def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0,
-                  horizon: Optional[float] = None) -> None:
+                  horizon: Optional[float] = None, method: str = "greedy",
+                  max_trials: int = 20_000) -> None:
     """Hold the first job at zero and greedily search each later job's grid.
 
-    Two jobs: all grid shifts. More jobs: a heuristic, not a global optimum.
+    method="exact" searches all relative grid combinations, with the first
+    job fixed at zero. method="greedy" fixes each job in sequence. Both modes
+    stop with an error when their explicit trial budget is exceeded.
     """
+    if method not in ("greedy", "exact"):
+        raise ValueError("Shift solver must be greedy or exact.")
     if not math.isfinite(resolution) or resolution <= 0:
         raise ValueError("Resolution must be finite and positive.")
     for job in jobs:
@@ -117,9 +123,25 @@ def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0,
         return
     score_link(jobs, link, horizon)
     counts = [math.ceil(j.iteration_time / resolution) for j in jobs[1:]]
-    if sum(counts) > 20_000:
-        raise ProfileLimitError("The shift search exceeds 20,000 trials. Increase resolution.")
+    trials = math.prod(counts) if method == "exact" else sum(counts)
+    if trials > max_trials:
+        raise ProfileLimitError(
+            f"The {method} shift search needs {trials} trials; the limit is {max_trials}. "
+            "Increase resolution, use fewer jobs, or select the greedy solver explicitly.")
     jobs[0].time_shift = 0.0
+    if method == "exact":
+        best_score, best_shifts = -math.inf, None
+        for combination in itertools.product(*(range(count) for count in counts)):
+            for job, step in zip(jobs[1:], combination):
+                job.time_shift = step * resolution
+            score = score_link(jobs, link, horizon)
+            if score > best_score + 1e-12:
+                best_score, best_shifts = score, combination
+            if score >= 1.0 - 1e-12:
+                break
+        for job, step in zip(jobs[1:], best_shifts):
+            job.time_shift = step * resolution
+        return
     for index, job in enumerate(jobs[1:], 1):
         best_score, best_shift = -math.inf, 0.0
         for step in range(counts[index - 1]):

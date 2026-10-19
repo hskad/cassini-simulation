@@ -42,7 +42,7 @@ def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candida
         
     return candidates
 
-def score_candidate(candidate: PlacementCandidate, optimize: bool = True, horizon: Optional[float] = None, resolution: float = 1.0) -> Tuple[float, Dict[str, Dict[str, float]]]:
+def score_candidate(candidate: PlacementCandidate, optimize: bool = True, horizon: Optional[float] = None, resolution: float = 1.0, solver: str = "greedy") -> Tuple[float, Dict[str, Dict[str, float]]]:
     """
     Evaluates a single placement candidate by running the link optimizer on all its links.
     Returns a tuple of (overall_compatibility_score, link_optimal_shifts).
@@ -59,7 +59,7 @@ def score_candidate(candidate: PlacementCandidate, optimize: bool = True, horizo
             
             if optimize:
                 # optimize_link modifies time_shift in-place for jobs_copy
-                optimize_link(jobs_copy, link, resolution=resolution, horizon=horizon)
+                optimize_link(jobs_copy, link, resolution=resolution, horizon=horizon, method=solver)
             
             link_score = score_link(jobs_copy, link, horizon)
 
@@ -75,7 +75,7 @@ def score_candidate(candidate: PlacementCandidate, optimize: bool = True, horizo
     avg_score = total_score / num_links_scored
     return avg_score, link_optimal_shifts
 
-def evaluate_placements(candidates: List[PlacementCandidate], horizon: Optional[float] = None, resolution: float = 1.0) -> Tuple[PlacementCandidate, Dict[str, float]]:
+def evaluate_placements(candidates: List[PlacementCandidate], horizon: Optional[float] = None, resolution: float = 1.0, solver: str = "greedy") -> Tuple[PlacementCandidate, Dict[str, float]]:
     """
     Evaluates all placement candidates and returns the winning candidate 
     along with the globally safe time-shifts.
@@ -86,7 +86,7 @@ def evaluate_placements(candidates: List[PlacementCandidate], horizon: Optional[
         graph = build_affinity_graph(candidate.cluster, {})
         if has_cycle(graph):
             continue
-        score, link_shifts = score_candidate(candidate, horizon=horizon, resolution=resolution)
+        score, link_shifts = score_candidate(candidate, horizon=horizon, resolution=resolution, solver=solver)
         graph = build_affinity_graph(candidate.cluster, link_shifts)
         candidate.compatibility_score = score
         valid_candidates.append((candidate, graph))
