@@ -42,5 +42,45 @@ class TestSimulator(unittest.TestCase):
         
         self.assertEqual(len(sim.completed_jobs), 2)
 
+    def test_heavy_traffic_matches_runtime_formula(self):
+        # Constant traffic has score 2 - job_count on one 50-Gbps link.
+        # With four jobs and penalty=1, each job must take 400 ms.
+        for count in (4, 8):
+            for penalty in (1.0, 1.5):
+                for enabled in (False, True):
+                    for incremental in (False, True):
+                        with self.subTest(jobs=count, penalty=penalty,
+                                          cassini=enabled, incremental=incremental):
+                            sim = Simulator(Cluster([], [Link("link", 50)]),
+                                            penalty_factor=penalty, use_cassini=enabled,
+                                            incremental=incremental)
+                            for index in range(count):
+                                sim.add_job_arrival(Job(str(index), "Constant traffic", [
+                                    Phase("communicate", 100, 50)
+                                ]))
+                            sim.run_simulation()
+                            expected = 100 * (1 + penalty * (count - 1))
+                            self.assertEqual(len(sim.completed_jobs), count)
+                            for row in sim.completed_jobs:
+                                self.assertAlmostEqual(row["turnaround_time"], expected)
+
+    def test_choose_best_link_when_all_candidate_scores_below_minus_one(self):
+        # After seven arrivals, the links hold three and four jobs. The eighth
+        # arrival gives scores -2 (50 Gbps) and -1.125 (80 Gbps). It must use
+        # the 80-Gbps link even though neither candidate has a score above -1.
+        for enabled in (False, True):
+            with self.subTest(cassini=enabled):
+                sim = Simulator(Cluster([], [Link("small", 50), Link("large", 80)]),
+                                penalty_factor=1, use_cassini=enabled, incremental=True)
+                for index in range(8):
+                    sim.add_job_arrival(Job(str(index), "Constant traffic", [
+                        Phase("communicate", 100, 50)
+                    ]))
+                sim.run_simulation()
+                # Three jobs share 50 Gbps; five share 80 Gbps. Under this
+                # model their completion times are 300 and 312.5 ms.
+                times = sorted(row["turnaround_time"] for row in sim.completed_jobs)
+                self.assertEqual(times, [300.0] * 3 + [312.5] * 5)
+
 if __name__ == '__main__':
     unittest.main()

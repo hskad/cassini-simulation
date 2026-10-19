@@ -125,7 +125,8 @@ class Simulator:
                     candidate_links = sorted_links[:min(4, len(sorted_links))]
                     
                     best_link = candidate_links[0]
-                    best_score = -1.0
+                    # Heavy traffic can give every candidate a score below -1.
+                    best_score = float('-inf')
                     best_shift = 0.0
                     
                     for cand_link in candidate_links:

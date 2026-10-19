@@ -55,6 +55,22 @@ use the shared default limit of 600 ms at a 1 ms sampling resolution. Both
 policies use this setting. The results manifest also records the actual windows
 observed during each run and the custom-window command checks.
 
+### Heavy-traffic score selection
+
+The incremental placement search now accepts valid scores below -1. Previously,
+its initial best score was -1, so heavy traffic could leave that placeholder
+in place instead of selecting the actual best candidate. This could select the
+wrong link and underestimate the completion time.
+
+The fast runtime formula is unchanged. For four simultaneous jobs that each
+request a 50 Gbps link continuously for 100 ms, the score is -2. With penalty
+1, the formula gives `100 * (1 + (1 - (-2))) = 400 ms` per job under both
+policies. Regression tests check this result and selection between overloaded
+links.
+
+The experiment results below currently record the shared-window update; they
+are being rerun with this selection correction.
+
 ---
 
 ## Core Concepts Modeled
