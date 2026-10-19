@@ -167,9 +167,10 @@ def plot_results(summary, examples, plot_dir, cdf_seed):
         errors = np.array([[m - r["min_gain_percent"] for m, r in zip(means, rows)],
                            [r["max_gain_percent"] - m for m, r in zip(means, rows)]])
         bars = ax.bar(x + offset, means, width * 0.92, color=COLORS[policy], label=LABELS[policy],
-                      yerr=errors, capsize=4, error_kw={"elinewidth": 1})
-        for bar, value in zip(bars, means):
-            ax.annotate(f"{value:+.2f}%", (bar.get_x() + bar.get_width() / 2, value),
+                      yerr=errors, capsize=4, error_kw={"elinewidth": 1, "ecolor": "#dddddd"})
+        for bar, value, row in zip(bars, means, rows):
+            label_y = row["max_gain_percent"] if value >= 0 else row["min_gain_percent"]
+            ax.annotate(f"{value:+.2f}%", (bar.get_x() + bar.get_width() / 2, label_y),
                         xytext=(0, 8 if value >= 0 else -14), textcoords="offset points",
                         ha="center", fontsize=8)
     ax.axhline(0, color="white", linewidth=0.8)

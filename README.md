@@ -421,8 +421,9 @@ selection rule. Both policies use the same traffic model and wait accounting.
 
 The control policy `shift_policy="cooldown"` accepts changes at most once per
 `cooldown_ms` (default 100 ms), per link in incremental mode or across the
-cluster in global mode. It is checked at arrival/completion events. The score control changes offsets only if compatibility strictly improves,
-without considering waiting cost. These decision policies require fixed placement. Completion records include `shift_changes`,
+cluster in global mode. It is checked at arrival/completion events. The score
+control changes offsets only if compatibility strictly improves, without
+considering waiting cost. These decision policies require fixed placement. Completion records include `shift_changes`,
 and `Simulator.shift_stats` reports proposed, accepted, and rejected plans.
 
 Run all five policies on the same inputs and routes:
@@ -443,7 +444,8 @@ Raw completion records go to `output/shift-policy/`. Two plots and a settings,
 source, and results manifest go to `visualizations/` with the `shift_policy_`
 prefix. Other experiment figures are preserved. Use `--output-dir` and
 `--plot-dir` for separate runs. Bar whiskers show the range across seeds, not
-a confidence interval; CDFs use the first requested seed. The manifest also
+a confidence interval; labels report the mean and whiskers show both ends
+of that range. CDFs use the first requested seed. The manifest also
 reports waiting, shift counts, and whole-simulation wall time.
 
 The estimate holds current scores fixed over the remaining work. It uses
