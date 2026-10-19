@@ -104,6 +104,8 @@ score estimate, including during waits.
 All 28 tests pass. Tests cover one and 100 iterations, arrivals during a wait,
 changes while a job is running, repeated plans, wraparound, both policies, and
 both runtime modes. The experiment results are being rerun for this change.
+A negative JCT reduction means Cassini takes longer; plot annotations also
+support negative values.
 
 ---
 

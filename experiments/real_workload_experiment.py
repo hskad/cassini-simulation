@@ -198,7 +198,7 @@ def main():
     for idx, m in enumerate(models_sorted):
         sp = model_speedups[m][2]
         c_val = model_speedups[m][1]
-        ax.text(c_val + 20, idx + bar_height/2, f"+{sp:.1f}% speedup", va='center', fontsize=9.5, color='#00ffcc', fontweight='bold')
+        ax.text(c_val + 20, idx + bar_height/2, f"{sp:+.1f}% JCT reduction", va='center', fontsize=9.5, color='#00ffcc', fontweight='bold')
 
     breakdown_path = os.path.join(out_dir, "real_workload_model_breakdown.png")
     plt.tight_layout()
