@@ -17,7 +17,8 @@ pattern when a window ends partway through a cycle. The optimizer uses the same
 rule when comparing candidate shifts. The fast runtime formula and placement
 policies are unchanged.
 
-All eight experiment PNGs below were regenerated in WSL after this correction.
+All eight experiment PNGs below were regenerated in WSL using the shared
+scoring window described below.
 The numerical results and figure hashes are recorded in
 [the results manifest](visualizations/readme_results.json), together with the
 source hashes, settings, and package versions. The existing GIFs illustrate
@@ -49,9 +50,10 @@ workers. For example:
 python3 experiments/large_scale_2000_jobs.py --score-window-ms 1200
 ```
 
-The fast runtime formula is unchanged. The tables and figures below currently
-record the preceding periodic-shift correction; they are being rerun with the
-shared window.
+The fast runtime formula is unchanged. All current tables and figures below
+use the shared default limit of 600 ms at a 1 ms sampling resolution. Both
+policies use this setting. The results manifest also records the actual windows
+observed during each run and the custom-window command checks.
 
 ---
 
@@ -204,17 +206,17 @@ python experiments/macro_test.py
 
 ```text
 --- Results Summary ---
-Average JCT (CASSINI): 1130.19ms
-Average JCT (Random) : 1355.48ms
-Mean JCT reduction  : 16.6%
+Average JCT (CASSINI): 1122.49ms
+Average JCT (Random) : 1335.87ms
+Mean JCT reduction  : 16.0%
 ```
 
 #### How to Interpret the CDF Graph:
 - **X-Axis (Job Completion Time in ms)**: Total turnaround time from job arrival to completion. Lower values (further left) represent faster completions.
 - **Y-Axis (Cumulative Probability)**: The proportion of all 50 cluster jobs completed (from 0% to 100%).
 - **Shifted Left is Better**:
-  - **Median JCT (P50)**: Cassini reaches the median at 1162.66 ms; the random baseline reaches it at 1386.44 ms.
-  - **Tail JCT (P90)**: 90% of jobs have estimated JCT below 1730.28 ms with Cassini and 2050.06 ms with the baseline.
+  - **Median JCT (P50)**: Cassini reaches the median at 1152.63 ms; the random baseline reaches it at 1377.14 ms.
+  - **Tail JCT (P90)**: 90% of jobs have estimated JCT below 1712.02 ms with Cassini and 2036.53 ms with the baseline.
   - **Model behavior**: Reduced communication overlap lowers the penalty used to estimate job duration.
 
 Custom cluster experiments can be passed directly via CLI:
@@ -246,10 +248,10 @@ python experiments/real_workload_experiment.py
 
 | Metric (ms) | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| Mean JCT | 4389.20 | 4052.20 | 7.7% |
-| Median (P50) | 4473.15 | 4110.17 | 8.1% |
-| P90 JCT | 5634.62 | 5222.91 | 7.3% |
-| P95 JCT | 5836.77 | 5402.94 | 7.4% |
+| Mean JCT | 4430.71 | 3918.65 | 11.6% |
+| Median (P50) | 4512.14 | 3966.57 | 12.1% |
+| P90 JCT | 5673.16 | 5070.72 | 10.6% |
+| P95 JCT | 5877.58 | 5246.77 | 10.7% |
 
 Run with custom cluster parameters or stochastic Philly distribution:
 ```bash
@@ -278,22 +280,22 @@ python experiments/large_scale_2000_jobs.py
 
 | Metric (minutes) | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| Mean JCT | 13.84 | 8.42 | 39.2% |
-| Median (P50) | 10.71 | 6.52 | 39.1% |
-| P90 JCT | 27.55 | 16.47 | 40.2% |
-| P95 JCT | 34.76 | 20.66 | 40.6% |
+| Mean JCT | 12.06 | 7.70 | 36.1% |
+| Median (P50) | 9.41 | 6.05 | 35.7% |
+| P90 JCT | 23.91 | 15.16 | 36.6% |
+| P95 JCT | 30.30 | 18.52 | 38.9% |
 
 Mean JCT by model (minutes):
 
 | Model | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| BERT-Base | 11.45 | 6.97 | 39.1% |
-| BERT-Large | 24.45 | 14.59 | 40.3% |
-| DLRM | 6.98 | 4.52 | 35.2% |
-| GPT-2-Medium | 22.57 | 14.05 | 37.7% |
-| ResNet-50 | 9.90 | 5.87 | 40.8% |
-| VGG-16 | 20.05 | 12.20 | 39.1% |
-| ViT-Base | 9.40 | 5.69 | 39.4% |
+| BERT-Base | 9.99 | 6.36 | 36.3% |
+| BERT-Large | 21.36 | 13.39 | 37.3% |
+| DLRM | 6.08 | 4.17 | 31.4% |
+| GPT-2-Medium | 19.77 | 12.67 | 35.9% |
+| ResNet-50 | 8.57 | 5.44 | 36.5% |
+| VGG-16 | 17.39 | 11.09 | 36.2% |
+| ViT-Base | 8.26 | 5.28 | 36.0% |
 
 ---
 
@@ -318,23 +320,23 @@ make scale-10k
 
 | Metric (minutes) | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| Mean JCT | 17.04 | 8.29 | 51.3% |
-| Median (P50) | 13.19 | 6.46 | 51.0% |
-| P90 JCT | 33.01 | 15.87 | 51.9% |
-| P95 JCT | 42.82 | 20.07 | 53.1% |
-| P99 JCT | 65.00 | 30.68 | 52.8% |
+| Mean JCT | 13.02 | 7.61 | 41.6% |
+| Median (P50) | 10.11 | 5.97 | 40.9% |
+| P90 JCT | 25.28 | 14.47 | 42.8% |
+| P95 JCT | 32.49 | 18.44 | 43.2% |
+| P99 JCT | 49.06 | 28.15 | 42.6% |
 
 Mean JCT by model (minutes):
 
 | Model | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| BERT-Base | 14.60 | 7.05 | 51.7% |
-| BERT-Large | 31.10 | 14.80 | 52.4% |
-| DLRM | 8.84 | 4.51 | 49.0% |
-| GPT-2-Medium | 28.00 | 14.07 | 49.7% |
-| ResNet-50 | 11.79 | 5.71 | 51.6% |
-| VGG-16 | 24.78 | 12.08 | 51.3% |
-| ViT-Base | 12.45 | 5.94 | 52.2% |
+| BERT-Base | 11.11 | 6.49 | 41.6% |
+| BERT-Large | 23.96 | 13.61 | 43.2% |
+| DLRM | 6.69 | 4.17 | 37.6% |
+| GPT-2-Medium | 21.32 | 12.60 | 40.9% |
+| ResNet-50 | 9.03 | 5.30 | 41.3% |
+| VGG-16 | 18.90 | 10.99 | 41.9% |
+| ViT-Base | 9.50 | 5.49 | 42.2% |
 
 ---
 
@@ -388,7 +390,7 @@ In the current simulation framework, the baseline is an **Uncoordinated FIFO Clu
 2. **Contention & Congestion Dynamics**:
    - Because AllReduce gradient exchanges are periodic, uncoordinated jobs sharing a physical switch/link experience periodic bursts of overlapping traffic.
    - When communication bursts collide, total instantaneous bandwidth demand exceeds link capacity $C$.
-   - The simulator computes the uncoordinated compatibility score $S_{\text{uncoord}}$ over the unified circle perimeter $\text{LCM}(T_1, \dots, T_k)$:
+   - The simulator computes the uncoordinated compatibility score $S_{\text{uncoord}}$ over the shared scoring window described above (the sampled common period, capped at 600 ms by default):
      $$S = 1.0 - \frac{\text{Total Over-Capacity Area}}{\text{Total Requested Communication Area}}$$
    - Communication phases are dilated by a contention-induced slowdown factor:
      $$\text{Slowdown} = 1.0 + (1.0 - S_{\text{uncoord}}) \times \text{penalty}$$
@@ -429,9 +431,9 @@ The following major enhancements and empirical expansions have been implemented 
 | **Empirical ML Model Profiling** | None (hardcoded synthetic values) | [`data/models/real_models.json`](data/models/real_models.json) with 7 architectures | Grounded in A100 micro-benchmarks from USENIX NSDI '24 & MLPerf |
 | **Trace Ingestion Engine** | None | [`src/core/trace_loader.py`](src/core/trace_loader.py) with dynamic bandwidth scaling ($T_{\text{comm}} \propto 1/B$) | Realistic multi-tenant trace generation and unit test suite |
 | **Incremental Placement Engine** | Batch-only (all jobs reshuffled every tick) | Added `incremental=True` mode in [`Simulator`](src/scheduler/simulator.py) | Simulation runtime reduced by **>95%** (sub-minute execution) |
-| **Phase 2 Real Workload** | None | 60-job snapshot experiment with empirical models | Current fast-model mean JCT reduction: 7.7% |
-| **Phase 3 Large-Scale Experiment** | None | 2,000-job production cluster trace (~2 weeks) | 39.2% estimated mean JCT reduction over the workload's 5.5M iterations |
-| **Phase 4 Ultra-Scale Workload** | None | 10,000-job multi-core parallel simulation (~1.5 months) | **51.3% estimated mean JCT reduction** and **52.8% P99 reduction** across the workload's 27.8M iterations |
+| **Phase 2 Real Workload** | None | 60-job snapshot experiment with empirical models | Current fast-model mean JCT reduction: 11.6% |
+| **Phase 3 Large-Scale Experiment** | None | 2,000-job production cluster trace (~2 weeks) | 36.1% estimated mean JCT reduction over the workload's 5.5M iterations |
+| **Phase 4 Ultra-Scale Workload** | None | 10,000-job multi-core parallel simulation (~1.5 months) | **41.6% estimated mean JCT reduction** and **42.6% P99 reduction** across the workload's 27.8M iterations |
 | **CLI & Automation** | Basic targets | `make real-workload`, `make large-scale`, `make scale-10k` | One-command execution for all scales |
 
 ---

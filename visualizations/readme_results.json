@@ -1,7 +1,14 @@
 {
   "model": "fast compatibility-score runtime estimator",
-  "source_commit": "e83a57d8f24f195bd97b83bb19109f8ca2ad8799",
-  "correction": "shift one sampled job cycle before repeating and truncating; optimizer uses periodic slices",
+  "source_commit": "7ed19f9603fa25aa54bb199e77471a750d0b4999",
+  "correction": "shared scoring-window rule for optimization, placement evaluation, and both runtime modes",
+  "scoring": {
+    "limit_ms": 600,
+    "resolution_ms": 1,
+    "rule": "min(sampled common period, limit), rounded down to the sampling grid",
+    "window_scope": "per-link active job set; same rule under both policies",
+    "estimate": "finite-window estimate when the common period exceeds the limit"
+  },
   "runtime_formula": "nominal_iteration_time * (1 + penalty * (1 - compatibility_score))",
   "shift_waits_charged": false,
   "seed": 42,
@@ -12,47 +19,69 @@
     "networkx": "3.7"
   },
   "source_sha256": {
-    "src/math_engine/optimizer.py": "4d90210b6d1b0572134d1d22d3ae91b29ec7f3dad30f031527bf783b36cf9232",
+    "src/math_engine/optimizer.py": "f7438f56f733953f1870750d5f3166a9e3f7d6c2a7a16a9b4287382fa5987b39",
     "src/math_engine/graph.py": "341a25015ce9ad0dd087b147504c75daff979f180b1eb28b790e69508cec2988",
-    "src/scheduler/evaluator.py": "5d61d7ceaff6ebea37669d71c7b79fb255b3e96ad270721a885cc197d3f1c285",
-    "src/scheduler/simulator.py": "4064b27146d8679d97bcfe13e36b8f9de86167296c0deae5dc71e3963fa362f7",
+    "src/scheduler/evaluator.py": "9c47c94a75766b8a5d72dd9c3f749e5dd8333df9b9f8ab70493955cfa344e561",
+    "src/scheduler/simulator.py": "30a79ebef3f5eb63631f14ee64b2bdb62526bb0998570fcfb43a3e10586e97a8",
     "src/core/models.py": "53dca27c5a433d3a6ae500defed53240d9f387a62f4bb80f4df83d05271a906d",
     "src/core/trace_loader.py": "7b312933253f0dedc8e39f9570547304e04e2050d2374e0e8f9054ebf9ab5bd2",
     "data/models/real_models.json": "eb8ade72e9bf82d99bdcb9fe0f81919e57328f8cc9daaca618e5496940303421",
     "data/traces/philly_cluster_trace.json": "f960d67357b3e01289b4cd65e12a30d25564b4bfb0d863f95e80814cce550e66",
     "data/traces/philly_2000_jobs.json": "ba23d1f90f461dea4c37c552e7a59d0ec52ca9741071606e23c029f91f12906e",
     "data/traces/philly_10000_jobs.json": "f7b76bee95906218dbfb010e8c2cf5d7236223fbba1ef486bc59699e4e2459fd",
-    "experiments/micro_test.py": "ef2365ae3fe21564b992aed0e938455f7259acb1b088ead771cde56e17c6f119",
-    "experiments/macro_test.py": "820a5468be1ef2f4b2b46743217f97c32115886c2d360ce392b27bff2a332242",
-    "experiments/real_workload_experiment.py": "55a55303f61cc1381a36040b01cab7a67fd8c0c390e837d7caea633a543c32d8",
-    "experiments/large_scale_2000_jobs.py": "73905fadf589115e122ee82dd6777ad673755aef3632c5deafeaafaa3d029e00",
-    "experiments/scale_10000_jobs.py": "b368916aaff3f43f530446615f2e8491164ae1c6c872022252510f246b48f0a3"
+    "experiments/micro_test.py": "ff24518fc4830b9e8cf64490f3d71a4d7648db9cc0d9ac3c1f105c2a31e044cb",
+    "experiments/macro_test.py": "6812ca206beae081e317ac3be2a420c9bbb69cf2471d24cee0a1b661469e88b4",
+    "experiments/real_workload_experiment.py": "386351a0cf65d8d0f437f08ea854f0b25ee6a61dee075498759adecc186d51e8",
+    "experiments/large_scale_2000_jobs.py": "0c62a9ff726078d63594c9ff012a5384562751b6bf94c7e2f421afb436ead3c7",
+    "experiments/scale_10000_jobs.py": "0ff8597121b601c0b66d3ba8f062c40de1a4aa7b67fecccef7b83ae72f6667d9"
   },
   "runs": [
     {
       "case": "micro",
       "command": "python3 experiments/micro_test.py",
-      "wall_seconds": 1.0180501659999983
+      "wall_seconds": 1.000375997999999
     },
     {
       "case": "macro",
       "command": "python3 experiments/macro_test.py",
-      "wall_seconds": 2.430531650999999
+      "wall_seconds": 2.2642993679999996
     },
     {
       "case": "sample",
       "command": "python3 experiments/real_workload_experiment.py",
-      "wall_seconds": 8.433846969000001
+      "wall_seconds": 8.567930776
     },
     {
       "case": "2000",
       "command": "python3 experiments/large_scale_2000_jobs.py",
-      "wall_seconds": 11.836984516000001
+      "wall_seconds": 11.216130511
     },
     {
       "case": "10000",
       "command": "python3 experiments/scale_10000_jobs.py",
-      "wall_seconds": 43.493233856
+      "wall_seconds": 42.787930456
+    }
+  ],
+  "custom_window_checks": [
+    {
+      "command": "python3 experiments/micro_test.py --score-window-ms 1200",
+      "passed": true
+    },
+    {
+      "command": "python3 experiments/macro_test.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "passed": true
+    },
+    {
+      "command": "python3 experiments/real_workload_experiment.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "passed": true
+    },
+    {
+      "command": "python3 experiments/large_scale_2000_jobs.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "passed": true
+    },
+    {
+      "command": "python3 experiments/scale_10000_jobs.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "passed": true
     }
   ],
   "results": {
@@ -61,14 +90,40 @@
         "case": "macro",
         "policy": "baseline",
         "jobs": 50,
-        "mean_jct_ms": 1355.4780592340016,
-        "p50_jct_ms": 1386.4370136317134,
-        "p90_jct_ms": 2050.062805224917,
-        "p95_jct_ms": 2304.909104196728,
-        "p99_jct_ms": 2502.0622159133636,
-        "simulation_seconds": 0.08758130699999711,
+        "mean_jct_ms": 1335.8725042569383,
+        "p50_jct_ms": 1377.1376200066752,
+        "p90_jct_ms": 2036.5309701314907,
+        "p95_jct_ms": 2242.189040533782,
+        "p99_jct_ms": 2428.198290543755,
+        "simulation_seconds": 0.07069491600000077,
         "penalty": 1.5,
         "incremental": false,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          40.0,
+          50.0,
+          55.0,
+          60.0,
+          70.0,
+          80.0,
+          120.0,
+          150.0,
+          180.0,
+          200.0,
+          240.0,
+          280.0,
+          300.0,
+          350.0,
+          360.0,
+          400.0,
+          420.0,
+          440.0,
+          450.0,
+          520.0,
+          550.0,
+          560.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -92,14 +147,43 @@
         "case": "macro",
         "policy": "cassini",
         "jobs": 50,
-        "mean_jct_ms": 1130.186831370251,
-        "p50_jct_ms": 1162.6620980106618,
-        "p90_jct_ms": 1730.2766029668207,
-        "p95_jct_ms": 1921.232422288094,
-        "p99_jct_ms": 2102.3094795543575,
-        "simulation_seconds": 1.4671597960000007,
+        "mean_jct_ms": 1122.4888245367729,
+        "p50_jct_ms": 1152.6272282712125,
+        "p90_jct_ms": 1712.0178112704393,
+        "p95_jct_ms": 1907.7258062758465,
+        "p99_jct_ms": 2088.846821660539,
+        "simulation_seconds": 1.2274182819999986,
         "penalty": 1.5,
         "incremental": false,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          40.0,
+          50.0,
+          55.0,
+          60.0,
+          70.0,
+          80.0,
+          120.0,
+          150.0,
+          180.0,
+          200.0,
+          225.0,
+          240.0,
+          280.0,
+          300.0,
+          350.0,
+          360.0,
+          400.0,
+          420.0,
+          440.0,
+          450.0,
+          495.0,
+          520.0,
+          550.0,
+          560.0,
+          585.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -120,11 +204,11 @@
         }
       },
       "reduction_percent": {
-        "mean_jct_ms": 16.620794879635728,
-        "p50_jct_ms": 16.140287183684073,
-        "p90_jct_ms": 15.598849042237607,
-        "p95_jct_ms": 16.646065617513674,
-        "p99_jct_ms": 15.976930302393724
+        "mean_jct_ms": 15.973356666911664,
+        "p50_jct_ms": 16.30268380398863,
+        "p90_jct_ms": 15.934604659613834,
+        "p95_jct_ms": 14.916816923621765,
+        "p99_jct_ms": 13.975443035470713
       }
     },
     "sample": {
@@ -132,14 +216,25 @@
         "case": "sample",
         "policy": "baseline",
         "jobs": 60,
-        "mean_jct_ms": 4389.198141072735,
-        "p50_jct_ms": 4473.150875996049,
-        "p90_jct_ms": 5634.6249347294115,
-        "p95_jct_ms": 5836.774151739156,
-        "p99_jct_ms": 6102.53769146858,
-        "simulation_seconds": 0.17864697799999973,
+        "mean_jct_ms": 4430.707568990283,
+        "p50_jct_ms": 4512.140708706633,
+        "p90_jct_ms": 5673.162367868551,
+        "p95_jct_ms": 5877.577226553346,
+        "p99_jct_ms": 6139.83603927381,
+        "simulation_seconds": 0.09144873199999992,
         "penalty": 1.5,
         "incremental": false,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          100.0,
+          117.0,
+          123.0,
+          157.0,
+          255.0,
+          303.0,
+          325.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -163,14 +258,25 @@
         "case": "sample",
         "policy": "cassini",
         "jobs": 60,
-        "mean_jct_ms": 4052.2042002238395,
-        "p50_jct_ms": 4110.166328521539,
-        "p90_jct_ms": 5222.90719400076,
-        "p95_jct_ms": 5402.943058319688,
-        "p99_jct_ms": 5697.98721450862,
-        "simulation_seconds": 7.077688080999998,
+        "mean_jct_ms": 3918.654876306454,
+        "p50_jct_ms": 3966.5739756186945,
+        "p90_jct_ms": 5070.724874741085,
+        "p95_jct_ms": 5246.770058961877,
+        "p99_jct_ms": 5549.605310628375,
+        "simulation_seconds": 6.890845707,
         "penalty": 1.5,
         "incremental": false,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          100.0,
+          117.0,
+          123.0,
+          157.0,
+          255.0,
+          303.0,
+          325.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -191,11 +297,11 @@
         }
       },
       "reduction_percent": {
-        "mean_jct_ms": 7.6778019587544275,
-        "p50_jct_ms": 8.11473964409222,
-        "p90_jct_ms": 7.306923628421123,
-        "p95_jct_ms": 7.432720234518603,
-        "p99_jct_ms": 6.629217178380177
+        "mean_jct_ms": 11.556905634386547,
+        "p50_jct_ms": 12.09108421719234,
+        "p90_jct_ms": 10.619077228240979,
+        "p95_jct_ms": 10.73243520717428,
+        "p99_jct_ms": 9.613135022987422
       }
     },
     "2000": {
@@ -203,14 +309,25 @@
         "case": "2000",
         "policy": "baseline",
         "jobs": 2000,
-        "mean_jct_ms": 830466.571483778,
-        "p50_jct_ms": 642364.5028846994,
-        "p90_jct_ms": 1653072.9811495873,
-        "p95_jct_ms": 2085574.226378968,
-        "p99_jct_ms": 3046178.3686277573,
-        "simulation_seconds": 2.1255606400000033,
+        "mean_jct_ms": 723703.1649281485,
+        "p50_jct_ms": 564457.7052138447,
+        "p90_jct_ms": 1434617.9763575485,
+        "p95_jct_ms": 1818059.149281208,
+        "p99_jct_ms": 2570585.110694114,
+        "simulation_seconds": 1.0953819840000065,
         "penalty": 1.5,
         "incremental": true,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          72.0,
+          100.0,
+          126.0,
+          198.0,
+          234.0,
+          252.0,
+          504.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -250,14 +367,26 @@
         "case": "2000",
         "policy": "cassini",
         "jobs": 2000,
-        "mean_jct_ms": 505012.62650630344,
-        "p50_jct_ms": 390934.27112247935,
-        "p90_jct_ms": 988204.9049601696,
-        "p95_jct_ms": 1239395.0496051607,
-        "p99_jct_ms": 1824897.3225466448,
-        "simulation_seconds": 8.395241832000004,
+        "mean_jct_ms": 462281.9913730644,
+        "p50_jct_ms": 362878.5865531162,
+        "p90_jct_ms": 909706.772425872,
+        "p95_jct_ms": 1111397.8141799918,
+        "p99_jct_ms": 1609780.9142280417,
+        "simulation_seconds": 8.559186509999996,
         "penalty": 1.5,
         "incremental": true,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          72.0,
+          99.0,
+          100.0,
+          126.0,
+          198.0,
+          234.0,
+          252.0,
+          504.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -294,11 +423,11 @@
         }
       },
       "reduction_percent": {
-        "mean_jct_ms": 39.18928902773202,
-        "p50_jct_ms": 39.14136454195544,
-        "p90_jct_ms": 40.2201284378293,
-        "p95_jct_ms": 40.57295904749298,
-        "p99_jct_ms": 40.092236838753315
+        "mean_jct_ms": 36.122706963847364,
+        "p50_jct_ms": 35.711996983788225,
+        "p90_jct_ms": 36.588918623786526,
+        "p95_jct_ms": 38.86899583991001,
+        "p99_jct_ms": 37.37686772046363
       }
     },
     "10000": {
@@ -306,14 +435,25 @@
         "case": "10000",
         "policy": "baseline",
         "jobs": 10000,
-        "mean_jct_ms": 1022628.7129125706,
-        "p50_jct_ms": 791270.6818504194,
-        "p90_jct_ms": 1980730.089107559,
-        "p95_jct_ms": 2569222.6574756536,
-        "p99_jct_ms": 3899725.8435844546,
-        "simulation_seconds": 11.982572413,
+        "mean_jct_ms": 781095.4918782134,
+        "p50_jct_ms": 606624.561222476,
+        "p90_jct_ms": 1516849.156057436,
+        "p95_jct_ms": 1949405.4092205719,
+        "p99_jct_ms": 2943742.3393131713,
+        "simulation_seconds": 6.180294846999999,
         "penalty": 1.5,
         "incremental": true,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          72.0,
+          100.0,
+          126.0,
+          198.0,
+          234.0,
+          252.0,
+          504.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -353,14 +493,26 @@
         "case": "10000",
         "policy": "cassini",
         "jobs": 10000,
-        "mean_jct_ms": 497585.9659671162,
-        "p50_jct_ms": 387674.91918097064,
-        "p90_jct_ms": 951953.3212945301,
-        "p95_jct_ms": 1204159.654332653,
-        "p99_jct_ms": 1840687.3192011917,
-        "simulation_seconds": 41.71251564800001,
+        "mean_jct_ms": 456350.91838545504,
+        "p50_jct_ms": 358391.72452862374,
+        "p90_jct_ms": 867943.5099674077,
+        "p95_jct_ms": 1106303.0838620283,
+        "p99_jct_ms": 1688770.5815474023,
+        "simulation_seconds": 40.713560186,
         "penalty": 1.5,
         "incremental": true,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          72.0,
+          99.0,
+          100.0,
+          126.0,
+          198.0,
+          234.0,
+          252.0,
+          504.0,
+          600.0
+        ],
         "link_capacities_gbps": {
           "L0": 50.0,
           "L1": 50.0,
@@ -397,23 +549,22 @@
         }
       },
       "reduction_percent": {
-        "mean_jct_ms": 51.34246088691066,
-        "p50_jct_ms": 51.0060301647501,
-        "p90_jct_ms": 51.93927095218493,
-        "p95_jct_ms": 53.13136248316525,
-        "p99_jct_ms": 52.79957122551688
+        "mean_jct_ms": 41.57552781566837,
+        "p50_jct_ms": 40.9203406129173,
+        "p90_jct_ms": 42.779840269460344,
+        "p95_jct_ms": 43.24920416095696,
+        "p99_jct_ms": 42.631847937431125
       }
     }
   },
   "figures": {
     "micro_test_circular.png": "bd24e8e1b33d7ede4667d183f89188cc00a7028708de38b782dae87003bac8d1",
-    "macro_test_cdf.png": "811ec05c62aebaa3b2af96c87c32ebcc44bda908e48bda5e16fcb273fdd9768a",
-    "real_workload_cdf.png": "7622b885381e3909f79a1dd6a12ab9c7910cca4e97f17379d68cada0da69d07b",
-    "real_workload_model_breakdown.png": "1131f076c4fc663c242c0c9e70e8cdd85bdfceeada5aafe0b33b620a8dff2f01",
-    "large_scale_2000_jobs_cdf.png": "d9b073490053e908c6bbce51a7d6f44d8595dd49c81d97cc5f0b6caf1156f48f",
-    "large_scale_2000_jobs_breakdown.png": "190b4e43b24466bd39af273e866112ddb053e78d0dcd679fb49963834795e2c6",
-    "scale_10000_jobs_cdf.png": "74efd7b2ff6e4d11dd5f3e9f2dee0dc3d9f2b397de7b73b16d1da194d6e0b69d",
-    "scale_10000_jobs_breakdown.png": "c257428e927c9fab0b191f6cd47df6d676117ade17aeadbc19f0ca1c43547155"
-  },
-  "plot_note": "60-job figures rendered from saved per-job completions after moving the legend and reserving annotation space."
+    "macro_test_cdf.png": "2c36a3973e1963d11c4b2d491fb5b25479175ae5688d2cf635cc722f48dcbbe9",
+    "real_workload_cdf.png": "c05310ce75f121d338fbacfebb47cd75158dd7860e8940b1fc997c8e5bd3003f",
+    "real_workload_model_breakdown.png": "41cda36d7aa5ba8b407a8050c160b1ff504868d74c7199e0288c2a5bf7906239",
+    "large_scale_2000_jobs_cdf.png": "2dfb80482f8464c474bd1fba4fa1ca722465eeee19a7aca859646f8796b97af6",
+    "large_scale_2000_jobs_breakdown.png": "45f8d7c8ba7164844d36dd756a792ce2cc4ce50b107b44b0a58f98dcd8897f07",
+    "scale_10000_jobs_cdf.png": "f7a79d5182952cd5dfcc2c6052cda990f02d42589f724922fb517cd0cdd5c2d9",
+    "scale_10000_jobs_breakdown.png": "d14825d4795f1f1fadb23fb11d529f0638badeca97caf4eeefab49bf28d996dd"
+  }
 }
