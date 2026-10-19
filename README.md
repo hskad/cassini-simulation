@@ -316,15 +316,37 @@ Rajasekaran, Ghobadi, and Akella,
 *CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*.
 The local reference is arXiv:2308.00852v1, dated 1 August 2023.
 
-## Optional files
+## Project layout
 
-- `output/` contains generated runs and can be deleted. Commands recreate it.
-- `visualizations/readme/` contains the current README figures.
-- `visualizations/archive/` contains the old figures for reference.
-- `examples/` and `experiments/` provide separate demos and older entry points.
-  The main `cassini.py` utility does not require those scripts.
+```text
+.
+|-- cassini.py             Main command-line utility
+|-- Makefile               Short commands for WSL/Linux
+|-- requirements.txt       Python packages
+|-- data/
+|   |-- models/            Model parameters and source notes
+|   `-- traces/            Input workloads and source notes
+|-- src/
+|   |-- core/              Job, phase, link, and input models
+|   |-- math_engine/       Compatibility scores, shifts, and affinity graphs
+|   |-- scheduler/         Placement checks and phase simulation
+|   `-- visualization/     All plot and animation code
+|-- tests/                 Automated checks
+|-- examples/              Small examples of individual components
+|-- experiments/           Experiment entry points
+|-- visualizations/
+|   |-- readme/            Current README PNGs, GIFs, and manifest
+|   `-- archive/           Original figures from the previous runtime model
+`-- output/                Local run results; excluded from Git
+    `-- <run>/             status.json, data/, and plots/
+```
 
-Keep `visualizations/readme/` to display the figures in this README.
+Keep all saved README figures under `visualizations/readme/`. Keep generated run
+plots under `output/<run>/plots/`. The plot code is in `src/visualization/`.
+The old animation scripts were replaced by the current README animation module.
+
+You can delete `output/` when you no longer need the results. Commands recreate
+it. The main utility does not require the scripts in `examples/` or `experiments/`.
 
 ## Older entry points
 

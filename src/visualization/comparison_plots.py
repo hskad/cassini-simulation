@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import numpy as np
 
-from src.utils.plot_style import (PHASE_COLORS as COLORS, POLICY_COLORS,
+from src.visualization.plot_style import (PHASE_COLORS as COLORS, POLICY_COLORS,
                                   CYAN, MAGENTA, YELLOW, TEXT, dark_figure)
 
 

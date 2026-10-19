@@ -193,7 +193,7 @@ def run_comparison(args):
     for row in summaries:
         print(f"{row['policy']:<18} {row['mean_jct_ms']:>15.3f} {row['p95_jct_ms']:>15.3f} "
               f"{row['mean_wait_ms']:>16.3f} {row['adjustments']:>12}")
-    from src.utils.comparison_plots import plot_comparison
+    from src.visualization.comparison_plots import plot_comparison
     plot_comparison(simulations, out / "plots", args.plot_window, args.plot_jobs)
     write_json(out / "status.json", {"status": "complete", "workload_sha256": digest})
     print("Data:", out / "data")
@@ -238,7 +238,7 @@ def main(argv=None):
         return 0 if result.wasSuccessful() else 1
     try:
         if args.command == "docs":
-            from src.utils.readme_visuals import build_readme_visuals
+            from src.visualization.readme_visuals import build_readme_visuals
             build_readme_visuals(args.out)
             return 0
         return run_comparison(args)

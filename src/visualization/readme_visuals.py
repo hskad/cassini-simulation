@@ -12,9 +12,9 @@ import PIL
 
 from src.core.models import Cluster, Job, Link, Phase
 from src.scheduler.simulator import Simulator
-from src.utils.comparison_plots import plot_comparison
-from src.utils.readme_animations import geometric_animation, affinity_animation
-from src.utils.readme_workload import build_workload_figures
+from src.visualization.comparison_plots import plot_comparison
+from src.visualization.readme_animations import geometric_animation, affinity_animation
+from src.visualization.readme_workload import build_workload_figures
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -51,7 +51,7 @@ def build_readme_visuals(out):
     noisy_jobs = _jobs(iterations=100)
     jitter = _simulate(noisy_jobs, Cluster([], [Link("L1", 50)], {"L1": noisy_jobs}),
                        jitter=0.04, include_static=True)
-    # Only the selected figures enter Git. Temporary plots remain outside docs.
+    # Only the selected figures enter Git. Other plots use a temporary folder.
     with tempfile.TemporaryDirectory() as scratch:
         scratch = Path(scratch)
         plot_comparison(aligned, scratch, window=600, max_jobs=2)
@@ -74,9 +74,9 @@ def build_readme_visuals(out):
         } for name, sim in simulations.items()}
     sources = ["src/scheduler/simulator.py", "src/math_engine/optimizer.py",
                "src/math_engine/graph.py", "src/scheduler/evaluator.py",
-               "src/utils/comparison_plots.py", "src/utils/readme_visuals.py",
-               "src/utils/plot_style.py", "src/utils/readme_animations.py",
-               "src/utils/readme_workload.py", "data/models/real_models.json"]
+               "src/visualization/comparison_plots.py", "src/visualization/readme_visuals.py",
+               "src/visualization/plot_style.py", "src/visualization/readme_animations.py",
+               "src/visualization/readme_workload.py", "data/models/real_models.json"]
     manifest = {
         "command": "python3 cassini.py docs", "source": "synthetic examples from the current simulator",
         "profile": {"compute_ms": 50, "communication_ms": 50, "demand_gbps": 50,

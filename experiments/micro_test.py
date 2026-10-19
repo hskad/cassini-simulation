@@ -8,7 +8,7 @@ if PROJECT_ROOT not in sys.path:
 
 from src.core.models import Phase, Job, Link
 from src.math_engine.optimizer import optimize_link, hyperperiod, score_link
-from src.utils.visualizer import plot_circular_alignment
+from src.visualization.profiles import plot_circular_alignment
 
 def main():
     parser = argparse.ArgumentParser(description="Micro-Test (Geometric example (Figure 3 concept))")

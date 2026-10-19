@@ -14,7 +14,7 @@ from src.core.models import Cluster, Job, Link, Phase
 from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph
 from src.math_engine.optimizer import discretize_phases, optimize_link, score_link, hyperperiod
 from src.scheduler.evaluator import PlacementCandidate, score_candidate
-from src.utils.plot_style import (BACKGROUND, PANEL, TEXT, MUTED, CYAN, MAGENTA,
+from src.visualization.plot_style import (BACKGROUND, PANEL, TEXT, MUTED, CYAN, MAGENTA,
                                   YELLOW, GRID, dark_figure)
 
 

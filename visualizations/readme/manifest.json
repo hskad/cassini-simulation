@@ -159,15 +159,15 @@
     "src/math_engine/optimizer.py": "711a5723421fb81f925391eecd34072f3945987eec84ae21cd51cc222c9886ca",
     "src/math_engine/graph.py": "d19eb08ad5e57e5132482fcd477714e4f42b2873bd4305af903dbb23ab02114f",
     "src/scheduler/evaluator.py": "e4db658b5c9c6cb457969689bc55d54e72268d5b7e93fbe2edd10d04b17293c6",
-    "src/utils/comparison_plots.py": "b879158f1ca143b7e06e56a625e5c66b854c11a981b85af7fdd8f64904b930dc",
-    "src/utils/readme_visuals.py": "a6daa84aa1a32900c72931b5cc246f26ffa900c4b7614798620bfd721dbdf732",
-    "src/utils/plot_style.py": "e1d43186c8be1eb8e978e851d37db2fc6a870dbae6ad431211da12f72d34778d",
-    "src/utils/readme_animations.py": "1284b4cbb736323761138f2faf70ab56346e8bfee0973f4c5f67e034172697cc",
-    "src/utils/readme_workload.py": "4e5002dce774b70b55a70ff82b97a71757de47065293aa6be9df09a9ff2713c2",
+    "src/visualization/comparison_plots.py": "acddba8572bd7194b74664325806c27bf30a8edc87f6d957a8b82ebe05261c2c",
+    "src/visualization/readme_visuals.py": "0b8d9e5871fdd53f12ab53edd2f7e0cd04d6df6e1cfcbeb7bd57c89e386c16db",
+    "src/visualization/plot_style.py": "e1d43186c8be1eb8e978e851d37db2fc6a870dbae6ad431211da12f72d34778d",
+    "src/visualization/readme_animations.py": "8b79cb1b8195f2282e1735500fafb67083a692df34697a1d586eef827bf661fc",
+    "src/visualization/readme_workload.py": "f3ca443c59b670422dfa67cc6ffb407efd40327eadc279d7030f215994f430f4",
     "data/models/real_models.json": "6d4366f6ea9ab4cc5f3c21b5551b00f918aa7202d8c37ced8ca6adc37bbc5b6d"
   },
   "versions": {
-    "matplotlib": "3.9.0",
-    "pillow": "10.3.0"
+    "matplotlib": "3.11.2",
+    "pillow": "13.0.0"
   }
 }

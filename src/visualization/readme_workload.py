@@ -15,7 +15,7 @@ import numpy as np
 from src.core.models import Cluster, Link
 from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
-from src.utils.plot_style import (POLICY_COLORS, CYAN, MAGENTA, TEXT, MUTED,
+from src.visualization.plot_style import (POLICY_COLORS, CYAN, MAGENTA, TEXT, MUTED,
                                   dark_figure)
 
 
