@@ -17,8 +17,8 @@ pattern when a window ends partway through a cycle. The optimizer uses the same
 rule when comparing candidate shifts. The fast runtime formula and placement
 policies are unchanged.
 
-All eight experiment PNGs below were regenerated in WSL using the shared
-scoring window described below.
+All eight experiment PNGs below were regenerated in WSL after the heavy-traffic
+score-selection fix, using the shared scoring window described below.
 The numerical results and figure hashes are recorded in
 [the results manifest](visualizations/readme_results.json), together with the
 source hashes, settings, and package versions. The existing GIFs illustrate
@@ -68,8 +68,13 @@ request a 50 Gbps link continuously for 100 ms, the score is -2. With penalty
 policies. Regression tests check this result and selection between overloaded
 links.
 
-The experiment results below currently record the shared-window update; they
-are being rerun with this selection correction.
+All five experiment commands were rerun in WSL after this correction. The
+default workload results and all eight PNGs are unchanged: these workloads do
+not expose the corrected error. The heavy-traffic tests do expose it: the
+four-job case previously gave 300 ms instead of 400 ms in incremental mode.
+All 26 tests pass. The results manifest records the new source commit and
+regression checks. The fast runtime model remains an estimate, not a
+phase-by-phase network simulation.
 
 ---
 

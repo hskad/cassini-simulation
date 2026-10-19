@@ -1,7 +1,7 @@
 {
   "model": "fast compatibility-score runtime estimator",
-  "source_commit": "7ed19f9603fa25aa54bb199e77471a750d0b4999",
-  "correction": "shared scoring-window rule for optimization, placement evaluation, and both runtime modes",
+  "source_commit": "38764ede28a230eecc62269bc6af10fd2f9fda9e",
+  "correction": "select the actual best incremental placement score, including valid scores below -1; retain shared scoring windows and fast runtime formula",
   "scoring": {
     "limit_ms": 600,
     "resolution_ms": 1,
@@ -22,7 +22,7 @@
     "src/math_engine/optimizer.py": "f7438f56f733953f1870750d5f3166a9e3f7d6c2a7a16a9b4287382fa5987b39",
     "src/math_engine/graph.py": "341a25015ce9ad0dd087b147504c75daff979f180b1eb28b790e69508cec2988",
     "src/scheduler/evaluator.py": "9c47c94a75766b8a5d72dd9c3f749e5dd8333df9b9f8ab70493955cfa344e561",
-    "src/scheduler/simulator.py": "30a79ebef3f5eb63631f14ee64b2bdb62526bb0998570fcfb43a3e10586e97a8",
+    "src/scheduler/simulator.py": "be262839dbfc6953bca59ce33a21c9cabd824b340573e451563eb99cdcdaa64c",
     "src/core/models.py": "53dca27c5a433d3a6ae500defed53240d9f387a62f4bb80f4df83d05271a906d",
     "src/core/trace_loader.py": "7b312933253f0dedc8e39f9570547304e04e2050d2374e0e8f9054ebf9ab5bd2",
     "data/models/real_models.json": "eb8ade72e9bf82d99bdcb9fe0f81919e57328f8cc9daaca618e5496940303421",
@@ -39,27 +39,27 @@
     {
       "case": "micro",
       "command": "python3 experiments/micro_test.py",
-      "wall_seconds": 1.000375997999999
+      "wall_seconds": 1.0949606260000024
     },
     {
       "case": "macro",
       "command": "python3 experiments/macro_test.py",
-      "wall_seconds": 2.2642993679999996
+      "wall_seconds": 2.107440604000004
     },
     {
       "case": "sample",
       "command": "python3 experiments/real_workload_experiment.py",
-      "wall_seconds": 8.567930776
+      "wall_seconds": 7.892911525000002
     },
     {
       "case": "2000",
       "command": "python3 experiments/large_scale_2000_jobs.py",
-      "wall_seconds": 11.216130511
+      "wall_seconds": 9.258898439999996
     },
     {
       "case": "10000",
       "command": "python3 experiments/scale_10000_jobs.py",
-      "wall_seconds": 42.787930456
+      "wall_seconds": 43.654501955000015
     }
   ],
   "custom_window_checks": [
@@ -91,11 +91,7 @@
         "policy": "baseline",
         "jobs": 50,
         "mean_jct_ms": 1335.8725042569383,
-        "p50_jct_ms": 1377.1376200066752,
-        "p90_jct_ms": 2036.5309701314907,
-        "p95_jct_ms": 2242.189040533782,
-        "p99_jct_ms": 2428.198290543755,
-        "simulation_seconds": 0.07069491600000077,
+        "simulation_seconds": 0.03873822399999938,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
@@ -141,18 +137,18 @@
           "L13": 50.0,
           "L14": 50.0,
           "L15": 50.0
-        }
+        },
+        "p50_jct_ms": 1377.1376200066752,
+        "p90_jct_ms": 2036.5309701314907,
+        "p95_jct_ms": 2242.189040533782,
+        "p99_jct_ms": 2428.198290543755
       },
       "cassini": {
         "case": "macro",
         "policy": "cassini",
         "jobs": 50,
         "mean_jct_ms": 1122.4888245367729,
-        "p50_jct_ms": 1152.6272282712125,
-        "p90_jct_ms": 1712.0178112704393,
-        "p95_jct_ms": 1907.7258062758465,
-        "p99_jct_ms": 2088.846821660539,
-        "simulation_seconds": 1.2274182819999986,
+        "simulation_seconds": 1.2234839089999952,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
@@ -201,7 +197,11 @@
           "L13": 50.0,
           "L14": 50.0,
           "L15": 50.0
-        }
+        },
+        "p50_jct_ms": 1152.6272282712125,
+        "p90_jct_ms": 1712.0178112704393,
+        "p95_jct_ms": 1907.7258062758465,
+        "p99_jct_ms": 2088.846821660539
       },
       "reduction_percent": {
         "mean_jct_ms": 15.973356666911664,
@@ -217,11 +217,7 @@
         "policy": "baseline",
         "jobs": 60,
         "mean_jct_ms": 4430.707568990283,
-        "p50_jct_ms": 4512.140708706633,
-        "p90_jct_ms": 5673.162367868551,
-        "p95_jct_ms": 5877.577226553346,
-        "p99_jct_ms": 6139.83603927381,
-        "simulation_seconds": 0.09144873199999992,
+        "simulation_seconds": 0.07430757900000629,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
@@ -252,18 +248,18 @@
           "L13": 50.0,
           "L14": 50.0,
           "L15": 50.0
-        }
+        },
+        "p50_jct_ms": 4512.140708706633,
+        "p90_jct_ms": 5673.162367868551,
+        "p95_jct_ms": 5877.577226553346,
+        "p99_jct_ms": 6139.83603927381
       },
       "cassini": {
         "case": "sample",
         "policy": "cassini",
         "jobs": 60,
         "mean_jct_ms": 3918.654876306454,
-        "p50_jct_ms": 3966.5739756186945,
-        "p90_jct_ms": 5070.724874741085,
-        "p95_jct_ms": 5246.770058961877,
-        "p99_jct_ms": 5549.605310628375,
-        "simulation_seconds": 6.890845707,
+        "simulation_seconds": 6.606611135999998,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
@@ -294,7 +290,11 @@
           "L13": 50.0,
           "L14": 50.0,
           "L15": 50.0
-        }
+        },
+        "p50_jct_ms": 3966.5739756186945,
+        "p90_jct_ms": 5070.724874741085,
+        "p95_jct_ms": 5246.770058961877,
+        "p99_jct_ms": 5549.605310628375
       },
       "reduction_percent": {
         "mean_jct_ms": 11.556905634386547,
@@ -310,11 +310,7 @@
         "policy": "baseline",
         "jobs": 2000,
         "mean_jct_ms": 723703.1649281485,
-        "p50_jct_ms": 564457.7052138447,
-        "p90_jct_ms": 1434617.9763575485,
-        "p95_jct_ms": 1818059.149281208,
-        "p99_jct_ms": 2570585.110694114,
-        "simulation_seconds": 1.0953819840000065,
+        "simulation_seconds": 1.180815367000008,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -361,18 +357,18 @@
           "L29": 50.0,
           "L30": 50.0,
           "L31": 50.0
-        }
+        },
+        "p50_jct_ms": 564457.7052138447,
+        "p90_jct_ms": 1434617.9763575485,
+        "p95_jct_ms": 1818059.149281208,
+        "p99_jct_ms": 2570585.110694114
       },
       "cassini": {
         "case": "2000",
         "policy": "cassini",
         "jobs": 2000,
         "mean_jct_ms": 462281.9913730644,
-        "p50_jct_ms": 362878.5865531162,
-        "p90_jct_ms": 909706.772425872,
-        "p95_jct_ms": 1111397.8141799918,
-        "p99_jct_ms": 1609780.9142280417,
-        "simulation_seconds": 8.559186509999996,
+        "simulation_seconds": 6.563874976000008,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -420,7 +416,11 @@
           "L29": 50.0,
           "L30": 50.0,
           "L31": 50.0
-        }
+        },
+        "p50_jct_ms": 362878.5865531162,
+        "p90_jct_ms": 909706.772425872,
+        "p95_jct_ms": 1111397.8141799918,
+        "p99_jct_ms": 1609780.9142280417
       },
       "reduction_percent": {
         "mean_jct_ms": 36.122706963847364,
@@ -436,11 +436,7 @@
         "policy": "baseline",
         "jobs": 10000,
         "mean_jct_ms": 781095.4918782134,
-        "p50_jct_ms": 606624.561222476,
-        "p90_jct_ms": 1516849.156057436,
-        "p95_jct_ms": 1949405.4092205719,
-        "p99_jct_ms": 2943742.3393131713,
-        "simulation_seconds": 6.180294846999999,
+        "simulation_seconds": 5.832424959999997,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -487,18 +483,18 @@
           "L29": 50.0,
           "L30": 50.0,
           "L31": 50.0
-        }
+        },
+        "p50_jct_ms": 606624.561222476,
+        "p90_jct_ms": 1516849.156057436,
+        "p95_jct_ms": 1949405.4092205719,
+        "p99_jct_ms": 2943742.3393131713
       },
       "cassini": {
         "case": "10000",
         "policy": "cassini",
         "jobs": 10000,
         "mean_jct_ms": 456350.91838545504,
-        "p50_jct_ms": 358391.72452862374,
-        "p90_jct_ms": 867943.5099674077,
-        "p95_jct_ms": 1106303.0838620283,
-        "p99_jct_ms": 1688770.5815474023,
-        "simulation_seconds": 40.713560186,
+        "simulation_seconds": 41.888693184000005,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -546,7 +542,11 @@
           "L29": 50.0,
           "L30": 50.0,
           "L31": 50.0
-        }
+        },
+        "p50_jct_ms": 358391.72452862374,
+        "p90_jct_ms": 867943.5099674077,
+        "p95_jct_ms": 1106303.0838620283,
+        "p99_jct_ms": 1688770.5815474023
       },
       "reduction_percent": {
         "mean_jct_ms": 41.57552781566837,
@@ -566,5 +566,32 @@
     "large_scale_2000_jobs_breakdown.png": "45f8d7c8ba7164844d36dd756a792ce2cc4ce50b107b44b0a58f98dcd8897f07",
     "scale_10000_jobs_cdf.png": "f7a79d5182952cd5dfcc2c6052cda990f02d42589f724922fb517cd0cdd5c2d9",
     "scale_10000_jobs_breakdown.png": "d14825d4795f1f1fadb23fb11d529f0638badeca97caf4eeefab49bf28d996dd"
+  },
+  "regression_checks": {
+    "four_continuous_jobs_50gbps_100ms_penalty_1": {
+      "expected_jct_ms": 400,
+      "policies": [
+        "baseline",
+        "cassini"
+      ],
+      "modes": [
+        "global",
+        "incremental"
+      ],
+      "passed": true
+    },
+    "overloaded_candidate_selection_below_minus_one": {
+      "expected_sorted_jct_ms": [
+        300,
+        300,
+        300,
+        312.5,
+        312.5,
+        312.5,
+        312.5,
+        312.5
+      ],
+      "passed": true
+    }
   }
 }
