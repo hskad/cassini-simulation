@@ -88,6 +88,75 @@ hashes, the source commit, working-file hashes, and canonical Git-blob hashes.
 Source content is checked against its commit after normalizing checkout line
 endings. Existing baseline figures and simulator behaviour are preserved.
 
+## Initial findings
+
+The WSL run tested 21 synthetic cases and 84 shift plans using source commit
+`2e8df9a`. All 44 regression tests pass. A second check directly enumerated every
+integer millisecond of each evaluation interval and matched all phase-event
+integrals. The [results manifest](visualizations/lcm_scoring/lcm_results.json)
+includes this validation record.
+
+The table reports averages across seeds 7, 19, and 42. All score differences
+are **percentage points**, not JCT reductions. Positive optimism means the
+selection score overstates the later full-period score. A positive reference
+gap means worse shift quality; a negative gap means better than the greedy
+full-window reference.
+
+| Periods (ms) | LCM (ms) | 600 ms optimism | 1,200 ms optimism | 6,000 ms optimism | 600 ms gap to full search |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 40 / 60 | 120 | 0.000 | 0.000 | 0.000 | 0.000 |
+| 80 / 120 / 160 | 480 | 0.000 | 0.000 | 0.000 | 0.000 |
+| 100 / 140 | 700 | +1.389 | 0.000 | 0.000 | 0.000 |
+| 96 / 104 | 1,248 | +1.875 | +1.209 | 0.000 | +0.027 |
+| 100 / 101 | 10,100 | +6.898 | +6.343 | +1.032 | 0.000 |
+| 80 / 100 / 140 | 2,800 | +2.562 | +1.206 | 0.000 | -0.029 |
+| 96 / 100 / 104 | 31,200 | +8.424 | +2.198 | +1.343 | +0.008 |
+
+<p align="center">
+  <img src="visualizations/lcm_scoring/lcm_score_error.png" alt="Score optimism and shift-quality gaps for bounded scoring windows" width="950"/>
+</p>
+
+The 600 ms score is optimistic in 15 of 21 cases. The six short-period controls
+use the complete LCM and agree with the exact check. Score error is much larger
+than the loss in selected-shift quality: the largest individual 600 ms gap to
+the full-window search is only 0.0802 percentage points in this test set.
+
+For the 100/101 ms pair with seed 42, the 600 ms window reports a 17.5-point
+gain over zero shifts. The later full-period gain is zero. All integer shifts
+give the same full-period offered-load distribution for this coprime pair.
+This is a score-estimation problem, even though choosing a different fixed
+shift cannot improve that full-period average.
+
+Larger windows reduce the mean score error here, but do not ensure better
+greedy decisions. For the 80/100/140 ms family, the 600 ms search slightly
+outperforms the full-window greedy reference on average, while the 1,200 ms
+search is slightly worse. The reference is not a global optimizer for three jobs.
+
+<p align="center">
+  <img src="visualizations/lcm_scoring/lcm_cost.png" alt="Analytical LCM growth and measured optimizer time and traced allocation" width="1100"/>
+</p>
+
+For the 96/100/104 ms family, the local median selection time is 0.38 ms with
+the 600 ms limit and 2.92 ms with the full 31,200 ms window. Median peak traced
+allocation is 11.48 KiB and 489.70 KiB, respectively. These are local benchmark
+measurements, not general runtime guarantees. Analytical byte counts in the
+manifest describe a hypothetical dense per-job float32 profile matrix; actual
+optimizer allocations are measured separately.
+
+## Next experiment
+
+The main observed problem is optimistic score estimation, rather than a large
+shift-quality loss. A useful next comparison is several short windows spread
+over time, using the same sample budget as the 600 ms prefix. It should improve
+score accuracy without the cost of constructing full-period arrays. This remains
+a hypothesis to test, not an implemented scoring improvement.
+
+The current diagnostic assumes stationary profiles repeating indefinitely.
+Finite jobs can benefit over a shorter useful interval even when the full-LCM
+average is unchanged. These findings do not establish production performance
+or invalidate the paper's measured results. JCT claims require a separate
+execution check that accounts for job lifetimes and shift waits.
+
 ## Related work
 
 [GCD+ (ECRTS 2022)](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ECRTS.2022.11)
