@@ -5,6 +5,7 @@ import hashlib
 import importlib.metadata
 import json
 import math
+import os
 import random
 import statistics
 import subprocess
@@ -27,11 +28,11 @@ from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
 from src.scheduler.simulator import Simulator
 
-POLICIES = ("uncoordinated", "compatibility", "cooldown", "benefit")
+POLICIES = ("uncoordinated", "compatibility", "score", "cooldown", "benefit")
 LABELS = {"uncoordinated": "Uncoordinated", "compatibility": "Vanilla model",
-          "cooldown": "Cooldown control", "benefit": "Benefit rule"}
+          "score": "Score control", "cooldown": "Cooldown control", "benefit": "Benefit rule"}
 COLORS = {"uncoordinated": "#ff007f", "compatibility": "#00ddbb",
-          "cooldown": "#ffbd59", "benefit": "#69aaff"}
+          "score": "#cf99ff", "cooldown": "#ffbd59", "benefit": "#69aaff"}
 
 
 def digest(value):
@@ -77,12 +78,12 @@ def build_workload(name, seed, num_jobs=None):
 
 
 def run_case(name, seed, *, num_jobs=None, min_gain_ms=0, cooldown_ms=100,
-             score_window_ms=DEFAULT_SCORE_WINDOW_MS, output_dir=None):
+             score_window_ms=DEFAULT_SCORE_WINDOW_MS, output_dir=None, policies=POLICIES):
     jobs, cluster, incremental = build_workload(name, seed, num_jobs)
     placement = make_fixed_placement(jobs, cluster.links, seed)
     input_hash = digest([asdict(job) for job in jobs])
     results, completed = {}, {}
-    for policy in POLICIES:
+    for policy in policies:
         sim = Simulator(cluster, penalty_factor=1.5, use_cassini=policy != "uncoordinated",
                         incremental=incremental, fixed_placement=placement,
                         shift_policy=policy if policy != "uncoordinated" else "compatibility",
@@ -105,6 +106,7 @@ def run_case(name, seed, *, num_jobs=None, min_gain_ms=0, cooldown_ms=100,
             "workload": name, "seed": seed, "policy": policy, "jobs": len(times),
             "input_sha256": input_hash, "placement_sha256": digest(placement),
             "incremental": incremental, "penalty": 1.5, "score_window_ms": score_window_ms,
+            "min_gain_ms": min_gain_ms, "cooldown_ms": cooldown_ms,
             "mean_jct_ms": statistics.mean(times),
             "p50_jct_ms": float(np.percentile(times, 50)),
             "p95_jct_ms": float(np.percentile(times, 95)),
@@ -117,7 +119,7 @@ def run_case(name, seed, *, num_jobs=None, min_gain_ms=0, cooldown_ms=100,
             path.write_text(json.dumps({**results[policy], "completions": sim.completed_jobs},
                                        indent=2, allow_nan=False) + "\n", encoding="utf-8")
     reference = results["compatibility"]
-    for policy in POLICIES:
+    for policy in policies:
         verify_paired_placement(completed["compatibility"], completed[policy], placement)
         results[policy]["mean_jct_gain_percent"] = (
             100 * (reference["mean_jct_ms"] - results[policy]["mean_jct_ms"])
@@ -134,6 +136,8 @@ def aggregate(runs):
         summary[name] = {}
         for policy in POLICIES:
             rows = [r for r in runs if r["workload"] == name and r["policy"] == policy]
+            if not rows:
+                continue
             gains = [r["mean_jct_gain_percent"] for r in rows]
             summary[name][policy] = {
                 "seeds": len(rows), "mean_gain_percent": statistics.mean(gains),
@@ -152,19 +156,24 @@ def plot_results(summary, examples, plot_dir, cdf_seed):
     names = list(summary)
     x = np.arange(len(names))
     fig, ax = plt.subplots(figsize=(max(8, len(names) * 2), 5))
-    for offset, policy in ((-0.18, "cooldown"), (0.18, "benefit")):
+    compared = [p for p in ("score", "cooldown", "benefit") if p in summary[names[0]]]
+    if not compared:
+        compared = ["uncoordinated"]
+    width = 0.75 / len(compared)
+    for index, policy in enumerate(compared):
+        offset = (index - (len(compared) - 1) / 2) * width
         rows = [summary[name][policy] for name in names]
         means = np.array([r["mean_gain_percent"] for r in rows])
         errors = np.array([[m - r["min_gain_percent"] for m, r in zip(means, rows)],
                            [r["max_gain_percent"] - m for m, r in zip(means, rows)]])
-        bars = ax.bar(x + offset, means, 0.34, color=COLORS[policy], label=LABELS[policy],
+        bars = ax.bar(x + offset, means, width * 0.92, color=COLORS[policy], label=LABELS[policy],
                       yerr=errors, capsize=4, error_kw={"elinewidth": 1})
         for bar, value in zip(bars, means):
             ax.annotate(f"{value:+.2f}%", (bar.get_x() + bar.get_width() / 2, value),
                         xytext=(0, 8 if value >= 0 else -14), textcoords="offset points",
-                        ha="center", fontsize=9)
+                        ha="center", fontsize=8)
     ax.axhline(0, color="white", linewidth=0.8)
-    ax.set_xticks(x, [f"{name}\n(n={summary[name]['benefit']['seeds']})" for name in names])
+    ax.set_xticks(x, [f"{name}\n(n={summary[name][compared[0]]['seeds']})" for name in names])
     ax.set_ylabel("Mean JCT reduction vs vanilla model (%)")
     ax.set_title("Shift decisions on identical routes\nBars: mean paired gain; whiskers: range across seeds")
     ax.grid(axis="y", alpha=0.2)
@@ -179,7 +188,7 @@ def plot_results(summary, examples, plot_dir, cdf_seed):
     rows = math.ceil(len(names) / columns)
     fig, axes = plt.subplots(rows, columns, figsize=(12, rows * 3.8), squeeze=False)
     for ax, name in zip(axes.flat, names):
-        for policy in POLICIES:
+        for policy in examples[name]:
             times = np.sort([r["turnaround_time"] for r in examples[name][policy]])
             ax.plot(times, np.arange(1, len(times) + 1) / len(times),
                     color=COLORS[policy], label=LABELS[policy], linewidth=1.5)
@@ -190,7 +199,7 @@ def plot_results(summary, examples, plot_dir, cdf_seed):
     for ax in list(axes.flat)[len(names):]:
         ax.set_visible(False)
     handles, labels = axes.flat[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=9)
+    fig.legend(handles, labels, loc="lower center", ncol=len(examples[names[0]]), fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 0.97))
     fig.suptitle("Same arrivals, profiles, and routes; shift waits included", y=0.995)
     cdf = plot_dir / "shift_policy_cdf.png"
@@ -204,6 +213,7 @@ def main(argv=None):
     parser.add_argument("--workloads", nargs="+", choices=("macro", "sample", "short", "2000", "10000"),
                         default=["macro", "sample", "short"])
     parser.add_argument("--seeds", nargs="+", type=int, default=[7, 19, 42])
+    parser.add_argument("--policies", nargs="+", choices=POLICIES, default=list(POLICIES))
     parser.add_argument("--num-jobs", type=int, help="Limit each workload for a quick check")
     parser.add_argument("--min-gain-ms", type=float, default=0)
     parser.add_argument("--cooldown-ms", type=float, default=100)
@@ -221,6 +231,9 @@ def main(argv=None):
         parser.error("--score-window-ms must be finite and at least 1 ms")
     if len(set(args.seeds)) != len(args.seeds) or len(set(args.workloads)) != len(args.workloads):
         parser.error("Seeds and workloads must not contain duplicates")
+    if ("compatibility" not in args.policies or len(args.policies) < 2
+            or len(set(args.policies)) != len(args.policies)):
+        parser.error("Choose distinct policies including compatibility and at least one alternative")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.plot_dir.mkdir(parents=True, exist_ok=True)
     runs, examples = [], {}
@@ -230,12 +243,12 @@ def main(argv=None):
             results, completed = run_case(
                 name, seed, num_jobs=args.num_jobs, min_gain_ms=args.min_gain_ms,
                 cooldown_ms=args.cooldown_ms, score_window_ms=args.score_window_ms,
-                output_dir=args.output_dir)
+                output_dir=args.output_dir, policies=args.policies)
             runs.extend(results.values())
             if seed == args.seeds[0]:
                 examples[name] = completed
             print("  " + ", ".join(f"{LABELS[p]}: {results[p]['mean_jct_gain_percent']:+.3f}%"
-                                   for p in ("cooldown", "benefit")), flush=True)
+                                   for p in args.policies if p not in ("uncoordinated", "compatibility")), flush=True)
     summary = aggregate(runs)
     figures = plot_results(summary, examples, args.plot_dir, args.seeds[0])
     sources = ["src/scheduler/simulator.py", "src/scheduler/evaluator.py",
@@ -244,12 +257,17 @@ def main(argv=None):
                "experiments/shift_policy_experiment.py", "data/models/real_models.json",
                "data/traces/philly_cluster_trace.json", "data/traces/philly_2000_jobs.json",
                "data/traces/philly_10000_jobs.json"]
+    source_commit = os.environ.get("CASSINI_SOURCE_COMMIT")
+    if source_commit is None:
+        revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                                  capture_output=True, text=True)
+        source_commit = revision.stdout.strip() if revision.returncode == 0 else None
     manifest = {
-        "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                                                 text=True).strip(),
+        "source_commit": source_commit,
         "source_sha256": {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in sources},
         "versions": {p: importlib.metadata.version(p) for p in ("numpy", "matplotlib", "pillow", "networkx")},
-        "workloads": args.workloads, "seeds": args.seeds, "num_jobs": args.num_jobs,
+        "workloads": args.workloads, "seeds": args.seeds, "policies": args.policies,
+        "num_jobs": args.num_jobs,
         "min_gain_ms": args.min_gain_ms, "cooldown_ms": args.cooldown_ms,
         "score_window_ms": args.score_window_ms, "shift_waits_charged": True,
         "placement": "shared seeded fixed routes; independently verified for every run",
@@ -262,7 +280,9 @@ def main(argv=None):
         json.dumps(manifest, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     print("\nMean paired JCT reduction vs vanilla model (range across seeds):")
     for name in args.workloads:
-        for policy in ("cooldown", "benefit"):
+        for policy in args.policies:
+            if policy in ("uncoordinated", "compatibility"):
+                continue
             row = summary[name][policy]
             print(f"  {name:>6} {LABELS[policy]:>17}: {row['mean_gain_percent']:+.3f}% "
                   f"[{row['min_gain_percent']:+.3f}, {row['max_gain_percent']:+.3f}]")

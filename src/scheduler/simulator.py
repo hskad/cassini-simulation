@@ -40,7 +40,7 @@ class Simulator:
                  shift_policy: str = "compatibility", min_gain_ms: float = 0.0,
                  cooldown_ms: float = 100.0):
         get_score_window([], score_window_ms=score_window_ms)
-        if shift_policy not in ("compatibility", "benefit", "cooldown"):
+        if shift_policy not in ("compatibility", "benefit", "cooldown", "score"):
             raise ValueError("Unknown shift policy.")
         if not math.isfinite(min_gain_ms) or min_gain_ms < 0:
             raise ValueError("Minimum mean gain must be finite and nonnegative.")
@@ -110,6 +110,9 @@ class Simulator:
             self.shift_stats["proposed"] += 1
             if self.shift_policy == "compatibility":
                 accept = True
+            elif self.shift_policy == "score":
+                keep_score = keep_score_fn()
+                accept = score > keep_score + 1e-9
             elif self.shift_policy == "cooldown":
                 accept = self.current_time - last_shift_change.get(key, float("-inf")) >= self.cooldown_ms
             else:

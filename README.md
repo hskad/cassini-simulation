@@ -421,11 +421,11 @@ selection rule. Both policies use the same traffic model and wait accounting.
 
 The control policy `shift_policy="cooldown"` accepts changes at most once per
 `cooldown_ms` (default 100 ms), per link in incremental mode or across the
-cluster in global mode. It is checked at arrival/completion events. Both new
-policies require fixed placement. Completion records include `shift_changes`,
+cluster in global mode. It is checked at arrival/completion events. The score control changes offsets only if compatibility strictly improves,
+without considering waiting cost. These decision policies require fixed placement. Completion records include `shift_changes`,
 and `Simulator.shift_stats` reports proposed, accepted, and rejected plans.
 
-Run all four policies on the same inputs and routes:
+Run all five policies on the same inputs and routes:
 
 ```bash
 make PYTHON=python3 shift-policy
@@ -433,7 +433,7 @@ python3 experiments/shift_policy_experiment.py --workloads macro sample short 20
 ```
 
 The default command compares uncoordinated scheduling, the vanilla model,
-a cooldown control, and the benefit rule on `macro`, `sample`, and a generated
+a score control, a cooldown control, and the benefit rule on `macro`, `sample`, and a generated
 `short` workload. `--min-gain-ms`, `--cooldown-ms`, `--score-window-ms`, and
 `--num-jobs` control the experiment. Stored traces use the seed for placement;
 `macro` and `short` also use it to generate jobs. The `short` case has 200 jobs,
@@ -481,7 +481,7 @@ Future work can compare this simplified model with additional baseline policies:
 
 ## Unit Testing
 
-Run the regression tests (46 tests, including shift-policy and identical-route checks):
+Run the regression tests (47 tests, including shift-policy and identical-route checks):
 ```bash
 python -m unittest discover tests
 ```

@@ -34,6 +34,13 @@ class TestShiftPolicy(unittest.TestCase):
             self.assertTrue(all(row["shift_changes"] == 0 for row in new.completed_jobs))
             self.assertEqual(new.shift_stats, {"proposed": 1, "accepted": 0, "rejected": 1})
 
+    def test_score_control_separates_score_retention_from_wait_cost(self):
+        for incremental in (False, True):
+            score = self.run_pair("score", incremental=incremental, penalty=0.25)
+            benefit = self.run_pair("benefit", incremental=incremental, penalty=0.25)
+            self.assertEqual(sorted(r["turnaround_time"] for r in score.completed_jobs), [100, 150])
+            self.assertEqual(sorted(r["turnaround_time"] for r in benefit.completed_jobs), [112.5, 112.5])
+
     def test_long_jobs_accept_the_same_shift(self):
         for incremental in (False, True):
             old = self.run_pair("compatibility", incremental=incremental, iterations=10, penalty=0.25)
