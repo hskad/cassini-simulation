@@ -483,7 +483,7 @@ Future work can compare this simplified model with additional baseline policies:
 
 ## Unit Testing
 
-Run the regression tests (47 tests, including shift-policy and identical-route checks):
+Run the regression tests (48 tests, including shift-policy and identical-route checks):
 ```bash
 python -m unittest discover tests
 ```

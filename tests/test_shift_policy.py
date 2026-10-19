@@ -83,6 +83,37 @@ class TestShiftPolicy(unittest.TestCase):
             self.assertEqual(rows["b"]["shift_changes"], 1)
             self.assertGreaterEqual(sim.shift_stats["rejected"], 1)
 
+    def test_benefit_rejection_preserves_an_existing_wait(self):
+        for incremental in (False, True):
+            changed = False
+            def plan(jobs, link, *args, **kwargs):
+                nonlocal changed
+                if len(jobs) < 2:
+                    return
+                changed = changed or any(j.job_id == "trigger" for j in jobs)
+                for job in jobs:
+                    job.time_shift = (70 if changed else 40) if job.job_id == "b" else 0
+            sim = Simulator(Cluster([], [Link("link", 50)]), penalty_factor=1.5,
+                            incremental=incremental, shift_policy="benefit",
+                            fixed_placement={j: "link" for j in ("a", "b", "trigger")})
+            for name in ("a", "b"):
+                sim.add_job_arrival(Job(name, name, [Phase("compute", 50, 0),
+                                                      Phase("communicate", 50, 50)]))
+            sim.add_job_arrival(Job("trigger", "trigger", [Phase("compute", 5, 0)], arrival_time=10))
+            with patch("src.scheduler.simulator.optimize_link", side_effect=plan), \
+                 patch("src.scheduler.evaluator.optimize_link", side_effect=plan):
+                sim.run_simulation()
+            rows = {r["job_id"]: r for r in sim.completed_jobs}
+            # The accepted 40-ms offset gives score .9 and work factor 1.15.
+            # The proposed 70-ms offset has a worse score and is rejected.
+            # b waits through t=40; a finishes at 115. b then runs its nominal
+            # remaining work without contention, finishing at 149.7826 ms.
+            self.assertEqual(rows["b"]["shift_wait_ms"], 40)
+            self.assertEqual(rows["b"]["shift_changes"], 1)
+            self.assertAlmostEqual(rows["a"]["completion_time"], 115, places=4)
+            self.assertAlmostEqual(rows["b"]["completion_time"], 115 + 100 - 75 / 1.15, places=4)
+            self.assertGreaterEqual(sim.shift_stats["rejected"], 1)
+
     def test_invalid_options(self):
         cluster = Cluster([], [Link("link", 50)])
         for kwargs in ({"shift_policy": "bad"}, {"shift_policy": "benefit"},
