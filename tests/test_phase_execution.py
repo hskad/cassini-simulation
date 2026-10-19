@@ -86,6 +86,33 @@ class TestPhaseExecution(unittest.TestCase):
         self.assertEqual(shift, 0)
         self.assertEqual(score, 1)
 
+    def test_unrelated_arrival_preserves_alignment_and_pending_wait(self):
+        pair = [make_job("A", iterations=10), make_job("B", iterations=10)]
+        control = self.run_jobs(pair, cassini=True, routes={"L": pair})
+        extra = make_job("C", arrival=25, compute=5, comm=5)
+        changed = self.run_jobs(pair + [extra], cassini=True,
+            links=[Link("L", 50), Link("X", 50)], routes={"L": pair, "X": [extra]})
+        expected = {r["job_id"]: r for r in control.completed_jobs}
+        actual = {r["job_id"]: r for r in changed.completed_jobs if r["job_id"] in expected}
+        self.assertEqual(actual, expected)
+        self.assertEqual(actual["B"]["wait_time"], 50)
+        for update in changed.schedule_history:
+            if 0 < update["time"] < 1000:
+                self.assertEqual(update["updated_jobs"], [])
+
+    def test_disjoint_group_changes_do_not_realign_running_jobs(self):
+        pair = [make_job("A", iterations=10), make_job("B", iterations=10)]
+        other = [make_job(jid, arrival=25, compute=5, comm=5, iterations=2)
+                 for jid in ["C", "D"]]
+        control = self.run_jobs(pair, cassini=True, routes={"L": pair})
+        changed = self.run_jobs(pair + other, cassini=True,
+            links=[Link("L", 50), Link("X", 50)], routes={"L": pair, "X": other})
+        expected = {r["job_id"]: r for r in control.completed_jobs}
+        actual = {r["job_id"]: r for r in changed.completed_jobs if r["job_id"] in expected}
+        self.assertEqual(actual, expected)
+        arrival = next(r for r in changed.schedule_history if r["time"] == 25)
+        self.assertEqual(arrival["updated_jobs"], ["C", "D"])
+
     def test_invalid_jobs_are_rejected(self):
         sim = Simulator(Cluster([], [Link("L", 50)]))
         sim.add_job_arrival(make_job("A"))

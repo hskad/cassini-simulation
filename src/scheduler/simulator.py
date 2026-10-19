@@ -118,6 +118,7 @@ class Simulator:
         self.job_to_links: Dict[str, Tuple[str, ...]] = {}
         self._ids = set()
         self._last_segment = {}
+        self._scheduled_groups = set()
         self.capacities = {link.link_id: link.capacity for link in base_cluster.links}
         if len(self.capacities) != len(base_cluster.links):
             raise ValueError("Link IDs must be unique.")
@@ -169,6 +170,31 @@ class Simulator:
             return
         candidate = PlacementCandidate("fixed routes", self.active_cluster)
         _, shifts = evaluate_placements([candidate], horizon=self.score_horizon, resolution=self.resolution, solver=self.solver)
+        # A schedule belongs to one connected group of jobs and shared links.
+        # Events in another group must not reset its phase origins or waits.
+        remaining = set(shifts)
+        groups, updates = set(), set()
+        while remaining:
+            pending = [min(remaining)]
+            members, edges = set(), set()
+            while pending:
+                jid = pending.pop()
+                if jid in members:
+                    continue
+                members.add(jid)
+                for lid in self.states[jid].links:
+                    neighbors = self.active_cluster.link_jobs[lid]
+                    if len(neighbors) > 1:
+                        for neighbor in neighbors:
+                            edges.add((neighbor.job_id, lid))
+                            if neighbor.job_id not in members:
+                                pending.append(neighbor.job_id)
+            remaining -= members
+            key = frozenset(edges)
+            groups.add(key)
+            if key not in self._scheduled_groups:
+                updates.update(members)
+        self._scheduled_groups = groups
         planned = {jid: replace(state.job, time_shift=shifts.get(jid, state.job.time_shift))
                    for jid, state in self.states.items()}
         link_scores = {link.link_id: score_link(
@@ -177,14 +203,15 @@ class Simulator:
         for jid, state in self.states.items():
             shared = [lid for lid in state.links if len(self.active_cluster.link_jobs[lid]) > 1]
             state.correct_drift = bool(shared) and all(link_scores[lid] >= 1 - EPS for lid in shared)
-            if jid in shifts:
+            if jid in updates:
                 state.origin = self.current_time + shifts[jid]
                 state.pending_alignment = True
                 state.job.time_shift = shifts[jid]
-            elif state.mode != "new":
+            elif jid not in shifts and state.mode != "new":
                 state.pending_alignment = False
         if self.record_history:
             self.schedule_history.append({"time": self.current_time, "shifts": shifts,
+                                          "updated_jobs": sorted(updates),
                                           "score_horizon_ms": self.score_horizon,
                                           "link_scores": link_scores})
 
