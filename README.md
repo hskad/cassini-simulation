@@ -1,213 +1,101 @@
 # Cassini simulation
 
-This project tests Cassini's phase scheduling in a Python fluid network model.
-It does not require GPUs, switches, or a packet simulator.
+A Python simulator for the phase-scheduling ideas in
+[*CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*](https://www.usenix.org/conference/nsdi24/presentation/rajasekaran).
+It models compute phases, bandwidth sharing, and scheduling delays without GPUs
+or a packet simulator. A command-line utility runs experiments and produces
+plots, event histories, and reproducible input snapshots.
 
-The corrected engine executes each phase. It applies time-shifts as waits and
-shares bandwidth when transfers overlap. Job completion time (JCT) includes
-compute, communication, and all waits.
-
-The animation shows the circular phase-alignment method. One profile stays fixed,
-while the other rotates to reduce overlapping communication.
+Cassini shifts periodic jobs so their communication phases overlap less:
 
 ![Circular communication profiles rotate from overlap to a compatible offset](visualizations/readme/geometric-alignment.gif)
 
-Each profile has 141 ms of compute and 114 ms of communication on a 50 Gbps link.
-The solver finds the 114 ms offset shown in the animation. These are periodic
-profiles; the animation shows the geometric method, not elapsed training time.
+The animation illustrates the geometric method, not elapsed training time. Each
+profile has 141 ms of compute and 114 ms of communication on a 50 Gbps link;
+the calculated offset is 114 ms.
 
-## Start in WSL
+**Explore:** [Quick start](#quick-start) · [Results](#results) ·
+[How it works](#how-it-works) · [Commands and outputs](#commands-and-outputs) ·
+[Data and scope](#data-and-scope)
 
-Use a WSL terminal and open this project folder. Python 3.10 or later is required.
-Create a Linux virtual environment and install the packages:
+## Quick start
+
+In a WSL/Linux terminal, open the project folder and use Python 3.10 or later:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
-```
 
-If Ubuntu cannot create the environment, install its venv package first:
-
-```bash
-sudo apt install python3-venv
-```
-
-Run the checks, then run the small demo:
-
-```bash
 python3 cassini.py test
 python3 cassini.py demo
 ```
 
-The Makefile provides the same entry points:
+On Ubuntu, install `python3-venv` with `sudo apt install python3-venv` if needed.
+The demo saves its plots to `output/demo/plots/` and data to `output/demo/data/`.
+Use `python3 cassini.py --help` or a subcommand's `--help` to see all options.
 
-```bash
-make test
-make demo
-make experiment
-make docs
-```
-
-Use `python3 cassini.py --help` or `python3 cassini.py demo --help` to see the options.
-
-## Demos and plots
-
-```bash
-python3 cassini.py demo --scenario aligned --iterations 10 --solver exact
-python3 cassini.py demo --scenario partial --out output/partial
-python3 cassini.py demo --scenario multi-link --out output/multi-link
-python3 cassini.py demo --scenario dynamic --out output/dynamic
-python3 cassini.py demo --jitter 0.04 --include-static --iterations 100 --plot-window 3000 --out output/jitter
-```
-
-| Scenario | What it checks |
-| --- | --- |
-| aligned | Two jobs can alternate communication on one link. |
-| partial | Communication demand prevents complete alignment. |
-| multi-link | Three jobs share two links. The affinity graph is a chain. |
-| dynamic | Jobs arrive while other jobs are running. |
-
-The jitter value `0.04` gives uniform compute variation between -4% and +4%.
-Each job receives the same compute samples under every policy.
-
-Each run saves these plots:
-
-| File | Content |
-| --- | --- |
-| `timeline.png` | Executed compute, communication, and waiting intervals. |
-| `bandwidth.png` | Requested bandwidth, served bandwidth, and link capacity. |
-| `jct.png` | Completion time distribution and mean waiting time. |
-| `drift.png` | Communication start error as a percentage of iteration time. |
-
-Timeline, bandwidth, and drift plots show the first 600 ms by default.
-Use `--plot-window 3000` to show more time. Use `--plot-jobs 12` to show more jobs.
-These display limits do not change the simulation or the saved event data.
-The bandwidth plot uses the same link under every policy.
-
-### Link bandwidth
-
-The aligned runtime demo uses 50 ms of compute and 50 ms of communication per
-job, for 10 iterations. Both jobs request the full 50 Gbps link during
-communication. Overlapping transfers share its capacity. With the calculated shift, their communication
-phases alternate. Served bandwidth stays within capacity in both cases.
-
-![Requested and served bandwidth on the same 50 Gbps link](visualizations/readme/bandwidth.png)
-
-### Completion time and waiting cost
-
-The full aligned example gives these results. Completion time includes the
-initial phase shift.
-
-| Policy | Mean JCT | Mean wait per job |
+| Command | Purpose | Make shortcut |
 | --- | --- | --- |
-| Uncoordinated | 1,500 ms | 0 ms |
-| Cassini | 1,025 ms | 25 ms |
+| `python3 cassini.py test` | Run automated checks. | `make test` |
+| `python3 cassini.py demo` | Run a small scheduling example. | `make demo` |
+| `python3 cassini.py showcase` | Run the constructed compatible workload below. | `make showcase` |
+| `python3 cassini.py benchmark` | Compare policies across fixed cases and noise seeds. | `make benchmark` |
+| `python3 cassini.py experiment` | Run generated jobs or a workload file. | `make experiment` |
+| `python3 cassini.py docs` | Rebuild all README plots and animations. | `make docs` |
 
-These values apply only to this synthetic example. They are not results from
-Themis, Pollux, or a GPU cluster.
+## Results
 
-## Rebuild the README visuals
+These are results from the fluid simulator, not a reproduction of the paper's
+GPU testbed. Every comparison uses identical jobs, arrivals, routes, link
+capacities, and compute-noise samples. Job completion time (JCT) includes
+compute, communication, initial alignment, and later correction waits.
+
+### Constructed compatible workload
+
+This synthetic workload is deliberately designed to benefit from phase
+interleaving. There are **56 jobs on seven 50 Gbps links**, with eight jobs per
+link. All jobs arrive together and compute for seven slots before communicating
+for one. Cassini can assign the eight transfers separate slots; uncoordinated
+jobs request bandwidth at the same time.
 
 ```bash
-python3 cassini.py docs
+python3 cassini.py showcase
 ```
 
-This command generates current PNG plots and GIF animations in `visualizations/readme/`.
-The geometric and graph examples use the exact grid solver. The larger workload
-uses the greedy solver and an explicit scoring window. `manifest.json` records
-parameters, results, package versions, and source hashes.
+![Completion times for a constructed workload with eight compatible jobs per link](visualizations/readme/compatible-cdf.png)
 
-## Experiments and saved data
+| Metric | Uncoordinated | Cassini | Reduction |
+| --- | --- | --- | --- |
+| Mean JCT | 56.22 s | 31.78 s | **43.47%** |
+| P95 JCT | 105.15 s | 60.37 s | **42.59%** |
 
-```bash
-python3 cassini.py experiment --jobs 20 --links 4 --iterations 20 --seed 42
-python3 cassini.py experiment --catalog --jobs 12 --score-horizon 2000 --out output/catalog
-python3 cassini.py experiment --trace data/traces/philly_cluster_trace.json --jobs 10 --score-horizon 2000 --out output/sample
-```
+The seven assumed timing profiles have periods of 40, 64, 80, 96, 120, 160, and
+200 ms. Jobs run for 200–400 iterations with seed 42 and no compute jitter.
+The default greedy solver uses a 1 ms grid and the full scoring period.
+Initial waits average 47.5 ms per job and are included in JCT.
+These profiles are constructed inputs, not measurements of ML models or a
+datacenter trace.
 
-The default experiment uses synthetic jobs with simple periodic profiles.
-The catalog command uses model parameters with the source limits listed below.
-The trace command reads the selected workload file.
+![Mean completion time for each constructed synthetic timing profile](visualizations/readme/compatible-breakdown.png)
 
-`--jobs` limits the number of loaded records. Trace iteration counts stay intact
-unless `--iterations` is set. That option overrides the count for every loaded job.
+The simulator validates the results against independent completion-time
+formulas, network-work totals, and link-capacity limits. Exact inputs and
+results are saved under `output/showcase/`.
 
-Each run has this layout:
+### Matched benchmark
 
-```text
-output/<run>/
-|-- status.json
-|-- plots/                 PNG plots
-`-- data/
-    |-- summary.csv
-    |-- summary.json
-    |-- parameters.json
-    |-- workload.json
-    |-- uncoordinated/     Policy event files and totals
-    |-- cassini/
-    `-- static-shifts/     Only with --include-static
-```
-
-The files have these uses:
-
-- `status.json`: whether the run completed or failed.
-- `data/summary.csv` and `data/summary.json`: mean, P50, and P95 JCT; waits; adjustment counts.
-- `data/parameters.json`: run options, units, source details, and a workload hash.
-- `data/workload.json`: the exact job inputs.
-- One folder per policy under `data/`: completions, phase events, link events, drift observations,
-  corrections, applied schedule targets, routes, and link totals.
-
-Use a separate `--out` folder to retain each experiment. A repeated run replaces
-its generated result files. Output files are excluded from Git.
-If that folder uses the previous flat layout, the command also removes its known
-old result files. It keeps unrelated files.
-
-Use `--no-history` for large runs. It saves aggregate data and the JCT plot.
-The detailed event files and the other plots are omitted.
-The engine executes all iterations; it no longer skips them through a score model.
-Large workloads can therefore take substantially longer than the old scripts.
-
-## Check the scheduling benefit
+The benchmark covers compatible and overloaded links, different periods,
+multi-link paths, already aligned arrivals, separate links, and compute jitter.
+It includes both static shifts and shifts with drift correction.
 
 ```bash
 python3 cassini.py benchmark --iterations 100 --seeds 0 1 2 3 4
-# Or use: make benchmark
 ```
-
-This command compares the same jobs and fixed routes under three policies:
-uncoordinated, shifts without correction, and Cassini with the stated correction
-rule. It includes aligned jobs, the VGG-16 timing profile from the catalog,
-an already aligned arrival, a multi-link chain,
-an overloaded link, different periods, separate links, and compute jitter.
-The jitter case uses every supplied seed. The deterministic cases run once.
-Cases are specified in `src/benchmark.py`; the command does not select cases
-based on their results.
-
-The benchmark checks network work, bandwidth limits, matched compute noise,
-and all elapsed job time. Five cases also have analytical completion-time checks.
-It saves every result to `output/benchmark/data/` and the comparison plot to
-`output/benchmark/plots/benchmark.png`. Negative reductions remain in the results.
-
-For the aligned pair, each job has 50 ms of compute and 50 ms of communication
-at 50 Gbps. With no shifts, both transfers share the link at 25 Gbps. Each
-iteration therefore takes 150 ms. Cassini delays the second job by 50 ms once,
-then the two jobs alternate their transfers. For `N` iterations:
-
-- Uncoordinated mean JCT: `150 N` ms.
-- Cassini mean JCT: `100 N + 25` ms, including the initial wait.
-
-At 100 iterations, these values are 15.00 s and 10.025 s: a 33.17% reduction.
-This result applies to the stated fluid model and compatible profiles. It is
-not a guarantee for every workload or a reproduction of the paper's testbed.
-The already aligned and separate-link cases check that no extra wait is added
-when no shift is needed.
 
 ![Matched scheduling results with all noise seeds, gains, and ties](visualizations/readme/benchmark.png)
 
-The default 100-iteration run gives these mean completion times:
-
-| Case | Uncoordinated | Cassini | Mean JCT reduction |
+| Case | Uncoordinated mean JCT | Cassini mean JCT | Reduction |
 | --- | --- | --- | --- |
 | Aligned pair | 15.000 s | 10.025 s | 33.17% |
 | VGG timing profile | 36.900 s | 25.557 s | 30.74% |
@@ -215,258 +103,247 @@ The default 100-iteration run gives these mean completion times:
 | Already aligned | 10.000 s | 10.000 s | 0% |
 | Separate links | 10.000 s | 10.000 s | 0% |
 
-For compute jitter, the bars average the percentage reduction from each seed.
-The dots show all five seeds. One seed gives a 0.65% increase in mean JCT with
-the current correction rule. Keeping this result shows the cost of that rule.
+Deterministic cases run once; the jitter case runs for every supplied seed.
+Its bars average the per-seed percentage reductions, and dots show all five
+seeds. One seed makes Cassini's mean JCT **0.65% longer**, so correction is not
+always beneficial. All cases and results are retained.
 
-## Constructed compatible workload
+The command checks network work, bandwidth limits, matched compute noise, and
+elapsed job time. Five cases also have analytical completion-time checks.
+Results are saved to `output/benchmark/data/` and the plot to
+`output/benchmark/plots/benchmark.png`.
 
-```bash
-python3 cassini.py showcase
-# Or use: make showcase
-```
+### Mixed-workload stress case
 
-This is a synthetic demonstration designed to favor phase interleaving. It is
-not a datacenter trace. It uses 56 jobs on seven 50 Gbps links, with eight jobs
-per link. All jobs arrive together. Each job computes for seven slots, then
-communicates for one slot. Cassini can place the eight transfers in separate
-slots. Uncoordinated jobs start their transfers together and share bandwidth.
-
-Seven assumed profiles use periods of 40, 64, 80, 96, 120, 160, and 200 ms.
-These names describe timing profiles, not measured ML models. Job lengths vary
-from 200 to 400 iterations with seed 42. Both policies use the same inputs,
-routes, and link rates. All alignment waits count towards completion time.
-The command saves the exact inputs and results under `output/showcase/`.
-
-![Completion times for a constructed workload with eight compatible jobs per link](visualizations/readme/compatible-cdf.png)
-
-| Metric | Uncoordinated | Cassini | Reduction |
-| --- | --- | --- | --- |
-| Mean JCT | 56.22 s | 31.78 s | 43.47% |
-| P95 JCT | 105.15 s | 60.37 s | 42.59% |
-
-The ratio of uncoordinated mean JCT to Cassini mean JCT is about 1.77.
-Cassini's initial waits average 47.5 ms per job. These waits are included above.
-
-![Mean completion time for each constructed synthetic timing profile](visualizations/readme/compatible-breakdown.png)
-
-The simulator checks these results against independent completion-time formulas.
-For a job with `N` iterations, compute time `c`, and transfer time `u`, the
-uncoordinated completion time is `N c + u sum(min(N, N_k))`, where `N_k` is the
-iteration count of each job on the same link. The jobs remain in step until they
-finish. For Cassini, completion time is `N (c + u) + s`, where `s` is the
-initial slot offset. Checks also verify network work and link capacity.
-This result applies to the stated constructed conditions.
-
-## Mixed-workload stress check
-
-The following figures use 56 synthetic jobs: eight jobs per catalog profile,
-six 50 Gbps links, and seed 42. Routes are fixed before either policy runs.
-Arrivals use a 7,000 ms window. Jobs contain 12 to 40 iterations and use no compute jitter.
-
-The scheduler uses the greedy solver and a 2,000 ms scoring window. These plots
-show the current simulation with the documented correction rule. They do not
-reproduce the paper's hardware results. Catalog source limits still apply.
+The mixed case uses 56 synthetic jobs across seven illustrative catalog profiles,
+six 50 Gbps links, seed 42, arrivals over 7,000 ms, and 12–40 iterations per job.
+Routes are fixed before either policy runs. Scheduling uses the greedy solver,
+a 2,000 ms scoring window, and no compute jitter.
 
 ![Completion time CDF for 56 synthetic jobs on six shared links](visualizations/readme/workload-cdf.png)
 
-Each step represents completed jobs. A curve further left has shorter completion
-times. In this short, mixed-profile example, mean JCT is 6.05 seconds for
-uncoordinated scheduling and 6.25 seconds for Cassini: about 3.3% longer.
-The model still has costs from alignment, correction, and finite-window scheduling.
+Here, Cassini's mean JCT is **6.25 s versus 6.05 s** for uncoordinated scheduling:
+about **3.3% longer**. Short jobs with mixed periods can lose more time to
+alignment and correction than they gain from reduced contention. A finite
+scoring window also limits the compatibility calculation.
 
 ![Mean completion time for each of seven illustrative model profiles](visualizations/readme/model-breakdown.png)
 
-The labels show percentage reduction in mean JCT. Negative values mean that
-completion took longer. Each comparison uses the same jobs and routes.
+For the CDF plots, a curve further left means shorter completion times. In the
+bar plots, a negative reduction means the policy took longer. Rebuild both
+workload comparisons with `python3 cassini.py docs`.
 
-## Policies and fair comparison
+## How it works
 
-The comparison uses the same jobs, arrivals, routes, capacities, and noise samples.
+### Interleave communication on a shared link
 
-- `uncoordinated`: no calculated phase shifts.
-- `cassini`: geometric shifts, affinity-graph traversal, and the drift trigger.
-- `static-shifts`: the same schedule with drift correction disabled.
-  Add `--include-static` to include this comparison.
+The runtime model executes every phase and shares bandwidth between overlapping
+transfers. Each transfer is capped by its requested rate and the capacity of
+every link on its path, using max-min sharing.
 
-The command assigns experiment routes before either policy runs. It assigns jobs
-in arrival order across the links using round-robin placement. Demos specify
-their routes directly, including paths that span several links. Both policies
-use the same saved route map, and routes stay fixed after arrival.
-This setup isolates phase scheduling. It does not reproduce Themis or Pollux
-resource allocation, placement search, or migration.
+This two-job example uses 50 ms of compute and 50 ms of communication per
+iteration, with each job requesting the full 50 Gbps link:
 
-At an arrival or departure, Cassini calculates a schedule for the active routes.
-A new schedule is applied only to a connected group whose jobs or shared links
-have changed. Events on other links keep that group's phase origins and pending
-waits intact.
-Within a changed group, the oldest job keeps its reference phase. Relative BFS
-shifts are translated to that reference. A job whose target phase is unchanged
-does not receive another alignment wait.
-The current phase arrangement is also a candidate. A solver proposal replaces
-it only if the group's mean compatibility score improves. This check prevents
-the approximate solver from replacing a better existing arrangement.
-A new job waits for its target start. An existing job applies the new target at
-its next iteration boundary. It can finish its current phase first.
-Every applied wait counts towards JCT. A new schedule need not take effect
-immediately across all jobs.
+```bash
+python3 cassini.py demo --scenario aligned --iterations 10 --solver exact
+```
 
-### One shift across several links
+![Requested and served bandwidth on the same 50 Gbps link](visualizations/readme/bandwidth.png)
 
-This example uses five jobs and three shared links. The animation follows the
-BFS traversal. Yellow marks the current node or edge. The values above the jobs
-show their calculated global shifts.
+Without shifts, both jobs share the link at 25 Gbps, giving a mean JCT of
+**1,500 ms**. Cassini delays one job by 50 ms so the transfers alternate, giving
+a mean JCT of **1,025 ms**, including the average **25 ms** initial wait.
+The plot uses the same link and capacity for both policies.
+
+### Coordinate shifts across links
+
+An affinity graph connects jobs to their shared links. Local link schedules
+are combined through a breadth-first traversal to assign each job a global shift.
 
 ![BFS traversal highlights jobs and shared links while calculating global shifts](visualizations/readme/affinity-traversal.gif)
 
-The edge labels show local shifts in milliseconds. Each job has an 80 ms compute
-phase and a 20 ms communication phase. The graph has no cycles.
+This acyclic example has five jobs, three links, and 80 ms compute / 20 ms
+communication profiles. Yellow marks the current traversal step; edge labels
+show local shifts and job labels show global shifts, all in milliseconds.
 
-The network uses max-min bandwidth sharing with a demand cap for each phase.
-A transfer must fit the capacity of every link on its path. Compute with no
-network demand proceeds independently. Transfer work equals nominal bandwidth
-times nominal phase duration, in Gbps ms. Divide that value by eight to obtain MB.
+### Handle compute drift
 
-## Drift correction assumption
-
-The supplied paper states that agents measure drift. Section 5.7 gives a trigger:
-communication starts differ by more than 5% of the ideal iteration time.
-
-The paper does not give a complete correction procedure. This simulation uses
-the following explicit assumption: for a compatible group, an agent delays a
-communication phase to its next nominal start when the trigger is exceeded.
-It checks phase error modulo the nominal iteration period. The threshold can be
-set with `--drift-threshold`. Corrections can cost almost one iteration.
-Their cost can exceed the gain from alignment.
-
-This is a model of the existing mechanism, with a stated action rule.
-It is not a new research contribution or an exact reproduction of the original agents.
-
-### Drift under compute variation
-
-This run uses 100 iterations per job, uniform compute jitter of +/-4%, and seed 42.
-The plot shows the first 3,000 ms. Crosses mark correction triggers. Dotted lines
-show the 5% threshold. All panels use the same vertical scale.
+The paper's Section 5.7 describes a trigger when communication starts differ by
+more than 5% of the ideal iteration time, but does not specify a complete
+correction procedure. **This simulator assumes a delay to the next nominal
+communication start**, applied only to compatible groups. Error is measured
+modulo the iteration period; `--drift-threshold` changes the trigger.
 
 ![Communication phase error with no shifts, static shifts, and drift correction](visualizations/readme/drift.png)
 
-In this run, correction gives lower phase error but higher mean JCT than static
-shifts. The correction waits have a cost. The settings and full run totals are
-saved in [the visual manifest](visualizations/readme/manifest.json).
+This example uses 100 iterations, ±4% uniform compute jitter, and seed 42. The
+first 3,000 ms are shown on a common vertical scale; crosses mark corrections
+and dotted lines mark the 5% threshold. Correction reduces phase error here,
+but produces higher mean JCT than static shifts. A correction can cost almost
+one iteration, and all such waits count towards JCT.
 
-## Scoring and solver limits
+<details>
+<summary><strong>Technical details: policies, scheduling, scoring, and analytical checks</strong></summary>
 
-The score follows Table 1: one minus integrated excess bandwidth, divided by
-link capacity and the measurement duration. Scores can be negative.
+**Policies and routes.** `uncoordinated` applies no calculated shifts.
+`static-shifts` applies geometric shifts without drift correction; enable it
+with `--include-static`. `cassini` adds the stated drift rule. Experiments assign
+routes once, round-robin in arrival order, before policy execution. Demos specify
+their routes directly, including multi-link paths. Routes remain fixed after
+admission, and the command verifies that policies use the same saved route map.
 
-By default, scoring covers the full least common multiple of the job periods.
-Fractional phase times are retained. Phase boundaries are integrated directly.
-Sampled arrays are used for profile plots only. All compatibility scores use
-the exact phase boundaries.
+**Schedule updates.** An arrival or departure updates only the connected group
+whose membership or shared links changed. The oldest incumbent preserves its
+reference phase; unchanged phase targets receive no additional alignment wait.
+The current arrangement is retained unless the proposed schedule improves the
+group's mean compatibility score. New jobs wait for their target start;
+existing jobs apply changed targets at their next iteration boundary.
 
-Large common periods can exceed the event budget. The program then stops with
-an error. Set `--score-horizon` to request a finite window explicitly.
-A score of one in that window does not establish compatibility for all time.
+**Compatibility.** Following Table 1 of the paper, the score is one minus
+integrated excess bandwidth divided by link capacity and measurement duration.
+Scores can be negative. Scoring integrates exact phase boundaries, preserving
+fractional times; sampled arrays are only used for profile plots. By default,
+the horizon is the full least common multiple of job periods. Exceeding the
+event budget produces an error. `--score-horizon` explicitly requests a finite
+window, whose score cannot establish compatibility for all time.
 
-`--resolution` sets the time grid for shift search. The first job is held fixed.
-The default `--solver greedy` fixes one later job at a time. It does not guarantee
-the global optimum for more than two jobs.
+**Solvers.** `--resolution` sets the shift-search grid. The default
+`--solver greedy` fixes jobs sequentially and does not guarantee a global
+optimum for more than two jobs. `--solver exact` searches joint combinations
+with the first job fixed at zero, stopping early if it finds a score of one.
+It rejects searches above 20,000 combinations rather than silently using a
+heuristic. Multi-link scheduling requires an acyclic affinity graph; cyclic
+routes are rejected before optimization. Job and link IDs have separate namespaces.
 
-Use `--solver exact` for small validation cases. It checks the joint combinations
-of relative grid shifts. A complete search gives the best score on that grid,
-with the first job fixed at zero. A score of one permits an early stop.
-The exact search rejects more than 20,000 combinations. It never switches to a
-heuristic silently. The console and `parameters.json` state the selected solver.
-A finite score window still cannot establish periodic compatibility.
+**Aligned-pair check.** For the 50 ms compute / 50 ms communication pair with
+`N` iterations, uncoordinated mean JCT is `150 N` ms and Cassini mean JCT is
+`100 N + 25` ms. The latter includes the initial wait.
 
-The affinity graph must have no cycles. Unsupported cyclic routes are rejected
-before optimization. Job IDs and link IDs use separate namespaces. Graph demo
-inputs also use a graph with no cycles.
+**Constructed-workload check.** Under the showcase conditions, let a job have
+`N` iterations, compute duration `c`, communication duration `u`, and initial
+slot offset `s`. Its uncoordinated JCT is `N c + u sum_k min(N, N_k)`, where
+`N_k` ranges over the iteration counts of all jobs on that link. Cassini JCT
+is `N (c + u) + s`. These formulas apply to the constructed synchronized
+profiles, not arbitrary workloads.
 
-## Data sources
+</details>
 
-The file names are retained for compatibility. They do not establish a source.
+## Commands and outputs
 
-| File | Status |
+Choose a demo with `--scenario aligned`, `partial`, `multi-link`, or `dynamic`.
+They cover alternating transfers, incomplete compatibility, a multi-link chain,
+and arrivals during execution, respectively.
+
+```bash
+# Compute variation, with static shifts included for comparison
+python3 cassini.py demo --jitter 0.04 --include-static --iterations 100 --plot-window 3000 --out output/jitter
+
+# Generated periodic jobs
+python3 cassini.py experiment --jobs 20 --links 4 --iterations 20 --seed 42
+
+# Catalog profiles or a saved workload
+python3 cassini.py experiment --catalog --jobs 12 --score-horizon 2000 --out output/catalog
+python3 cassini.py experiment --trace data/traces/philly_cluster_trace.json --jobs 10 --score-horizon 2000 --out output/sample
+```
+
+`--jobs` limits loaded records. Trace iteration counts are preserved unless
+`--iterations` overrides them. Jitter `0.04` means uniform compute variation
+from −4% to +4%, with identical samples under every policy.
+
+Runs save `status.json`, a `data/` directory, and a `plots/` directory under
+`output/<command>/`, or the path given by `--out`:
+
+| Output | Contents |
 | --- | --- |
-| `philly_2000_jobs.json` | Synthetic; generated locally with seed 42 and a 2.5-hour arrival parameter. |
-| `philly_10000_jobs.json` | Synthetic; generated locally with seed 42 and a 12.5-hour arrival parameter. |
-| `philly_cluster_trace.json` | Illustrative; no verified mapping to original production records. |
-| `real_models.json` | Illustrative parameters, except the source specified for VGG-16. |
+| `data/summary.csv`, `summary.json` | Mean, P50, and P95 JCT; waits; correction counts. |
+| `data/parameters.json`, `workload.json` | Options, units, provenance, input hashes, and exact jobs. |
+| `data/<policy>/` | Completions, phases, link events, drift, corrections, schedules, routes, and totals. |
+| `plots/jct.png` | Completion-time distribution and mean waits. |
+| `plots/timeline.png` | Executed compute, communication, and waiting intervals. |
+| `plots/bandwidth.png` | Requested bandwidth, served bandwidth, and capacity. |
+| `plots/drift.png` | Communication-start error relative to the iteration period. |
+
+The benchmark stores raw policy records together in `data/runs.json` and
+produces `plots/benchmark.png`. Timeline, bandwidth, and drift plots show the
+first 600 ms by default. `--plot-window` and `--plot-jobs` change display limits,
+not simulation results or saved events.
+
+Use distinct `--out` paths to retain runs: rerunning replaces known generated
+files in that folder while preserving unrelated files. `output/` is excluded
+from Git and can be deleted when results are no longer needed. For large runs,
+`--no-history` keeps aggregate data and the JCT plot, omitting detailed event
+histories and the other plots. Every iteration is still simulated.
+
+<details>
+<summary><strong>Larger presets and figure generation</strong></summary>
+
+| Command | Workload |
+| --- | --- |
+| `make macro-test` | 50 generated jobs on 16 links. |
+| `make sample-trace` | 60 illustrative trace records on 16 links. |
+| `make large-scale` | 2,000 synthetic trace records on 32 links. |
+| `make scale-10k` | 10,000 synthetic trace records on 32 links. |
+| `make micro-test` | Standalone circular-profile example in `output/micro/plots/`. |
+
+Trace presets retain the input iteration counts; large runs can take substantial
+time. For a quick trial, use `experiment --trace <file> --jobs 10 --iterations 5`.
+
+`python3 cassini.py docs` regenerates all nine README PNGs and GIFs under
+`visualizations/readme/`. The geometric and graph examples use the exact grid
+solver; the constructed and mixed workloads use the greedy solver. The mixed
+workload uses an explicit 2,000 ms scoring window. The
+[visual manifest](visualizations/readme/manifest.json) records parameters,
+results, package versions, and source hashes.
+
+</details>
+
+## Data and scope
+
+Filenames do not establish provenance. The supplied inputs have these limits:
+
+| File | Provenance |
+| --- | --- |
+| `data/traces/philly_2000_jobs.json` | Generated locally with seed 42 and a 2.5-hour arrival parameter. |
+| `data/traces/philly_10000_jobs.json` | Generated locally with seed 42 and a 12.5-hour arrival parameter. |
+| `data/traces/philly_cluster_trace.json` | Illustrative; no verified mapping to production records. |
+| `data/models/real_models.json` | Illustrative parameters, except the sourced VGG-16 profile. |
 
 The VGG-16 profile uses the 141 ms low-demand phase and 114 ms high-demand phase
-from Figure 16 of the supplied paper. Its testbed link rate is 50 Gbps.
-Scaling communication time inversely with bandwidth is a simulation assumption.
-Other model values lack verified benchmark sources.
+from Figure 16 of the supplied paper, with a 50 Gbps link. Inverse scaling of
+communication time with bandwidth is a simulation assumption; other catalog
+values lack verified benchmark sources.
 
-## Model boundaries
-
-This is a mathematical testbed. It does not model GPU admission, GPU memory,
-training accuracy, switch buffers, packet loss, ECN, PFC, or NCCL internals.
-Communication volume is derived from phase time and bandwidth.
-The catalog's gradient size and the workload's GPU count do not control execution.
-
-Existing examples show individual geometric and graph concepts.
-Use the main utility for current comparisons and plots.
-
-## Reference
-
-Rajasekaran, Ghobadi, and Akella,
-*CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*.
-The local reference is arXiv:2308.00852v1, dated 1 August 2023.
-The published paper is available from [USENIX NSDI 2024](https://www.usenix.org/conference/nsdi24/presentation/rajasekaran).
+This is a mathematical testbed for phase scheduling. It does not implement
+Themis/Pollux resource allocation, placement search, migration, GPU admission or
+memory constraints, training accuracy, switch buffers, packet loss, ECN, PFC,
+or NCCL internals. Communication work is phase duration × requested bandwidth
+in Gbps·ms (divide by eight for MB). Catalog gradient sizes and workload GPU
+counts do not control execution. The drift action described above is an
+explicit modeling assumption, not a verified reproduction of the original agents.
 
 ## Project layout
 
 ```text
 .
-|-- cassini.py             Main command-line utility
-|-- Makefile               Short commands for WSL/Linux
-|-- requirements.txt       Python packages
-|-- data/
-|   |-- models/            Model parameters and source notes
-|   `-- traces/            Input workloads and source notes
-|-- src/
-|   |-- benchmark.py       Matched cases and analytical checks
-|   |-- workloads.py       Constructed synthetic input cases
-|   |-- core/              Job, phase, link, and input models
-|   |-- math_engine/       Compatibility scores, shifts, and affinity graphs
-|   |-- scheduler/         Placement checks and phase simulation
-|   `-- visualization/     All plot and animation code
-|-- tests/                 Automated checks
-|-- examples/              Small examples of individual components
-|-- visualizations/
-|   `-- readme/            Current README PNGs, GIFs, and manifest
-`-- output/                Local run results; excluded from Git
-    `-- <run>/             status.json, data/, and plots/
+├── cassini.py              Command-line entry point
+├── Makefile                WSL/Linux shortcuts
+├── requirements.txt        Python dependencies
+├── data/                   Workloads, model parameters, and source notes
+├── src/
+│   ├── benchmark.py        Matched cases and analytical checks
+│   ├── workloads.py        Constructed synthetic workloads
+│   ├── core/               Job, phase, link, and input models
+│   ├── math_engine/        Compatibility, shift search, and affinity graphs
+│   ├── scheduler/          Phase simulation and schedule application
+│   └── visualization/      Plot and animation code
+├── tests/                  Automated checks
+├── examples/               Standalone component demonstrations
+├── visualizations/readme/  Versioned README figures and manifest
+└── output/<run>/           Local results: status.json, data/, plots/ (ignored)
 ```
 
-Keep all saved README figures under `visualizations/readme/`. Keep generated run
-plots under `output/<run>/plots/`. The plot code is in `src/visualization/`.
-The current README animation module replaces the old animation scripts.
-Old figures from the previous runtime model are available in Git history.
+## Reference
 
-You can delete `output/` when you no longer need the results. Commands recreate
-it. The main utility does not require the scripts in `examples/`.
-
-## Experiment presets
-
-The Makefile calls the main utility directly. Separate forwarding scripts are
-not required.
-
-| Command | Input |
-| --- | --- |
-| `make macro-test` | 50 synthetic jobs on 16 links. |
-| `make sample-trace` | The 60-job illustrative trace on 16 links. |
-| `make large-scale` | The 2,000-job synthetic trace on 32 links. |
-| `make scale-10k` | The 10,000-job synthetic trace on 32 links. |
-
-The trace presets keep the input iteration counts. Large runs can take
-considerable time. For a quick check, use the main utility with
-`--jobs 10 --iterations 5` and the required `--trace` file.
-The `sample-trace` preset replaces the old `real-workload` target. Its input has
-no verified production source.
-
-`examples/demo_geometric.py` shows the circular geometric example. Run it with
-`make micro-test`. It saves its plot under `output/micro/plots/`.
-It illustrates Figure 3's method; it does not reproduce a hardware experiment.
+Rajasekaran, Ghobadi, and Akella. *CASSINI: Network-Aware Job Scheduling in
+Machine Learning Clusters.* [NSDI 2024](https://www.usenix.org/conference/nsdi24/presentation/rajasekaran).
+The supplied local reference is arXiv:2308.00852v1, dated 1 August 2023.
