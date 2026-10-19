@@ -29,7 +29,7 @@ def main():
     print(f"  - {job2.name} (Arrives at 150ms, 15 iterations)")
     print(f"  - {job3.name} (Arrives at 300ms, 5 iterations)")
     
-    sim = Simulator(cluster, penalty_factor=0.5) # Example penalty
+    sim = Simulator(cluster)
     
     # Add jobs to the queue
     sim.add_job_arrival(job1)

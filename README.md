@@ -193,3 +193,15 @@ Rajasekaran, Ghobadi, and Akella,
 *CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*.
 The local reference is arXiv:2308.00852v1, dated 1 August 2023.
 
+
+## Older entry points
+
+The four cluster experiment scripts now call the main utility. They use the
+corrected phase engine and save results under `output/`. Their old penalty and
+parallel execution options have been removed. Run a script with `--help` for
+current options. Large scripts keep the original iteration counts and can take
+considerable time. Use `--jobs 10 --iterations 5` for a quick check.
+
+`experiments/micro_test.py` still shows the circular geometric example.
+It now scores phase boundaries and saves its plot under `output/micro/`.
+It illustrates Figure 3's method; it does not reproduce a hardware experiment.

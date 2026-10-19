@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from typing import List
 from src.core.models import Job, Link
-from src.math_engine.optimizer import discretize_phases, lcm
+from src.math_engine.optimizer import discretize_phases, hyperperiod
 
 def plot_link_alignment(jobs: List[Job], link: Link, title: str, filename: str, resolution: float = 1.0):
     """
@@ -15,11 +15,9 @@ def plot_link_alignment(jobs: List[Job], link: Link, title: str, filename: str, 
     fig, ax = plt.subplots(figsize=(10, 5))
     
     # Calculate LCM time
-    times = [int(job.iteration_time / resolution) for job in jobs]
-    lcm_steps = times[0]
-    for t in times[1:]:
-        lcm_steps = lcm(lcm_steps, t)
-    lcm_time = lcm_steps * resolution
+    lcm_time = hyperperiod(jobs)
+    if lcm_time / resolution > 200_000:
+        raise ValueError("The plot exceeds 200,000 samples. Increase resolution.")
     
     x = np.arange(0, lcm_time, resolution)
     y_arrays = []
@@ -68,14 +66,12 @@ def plot_circular_alignment(jobs: List[Job], link: Link, title: str, filename: s
     fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
     
     # Calculate LCM time
-    times = [int(job.iteration_time / resolution) for job in jobs]
-    lcm_steps = times[0]
-    for t in times[1:]:
-        lcm_steps = lcm(lcm_steps, t)
-    lcm_time = lcm_steps * resolution
+    lcm_time = hyperperiod(jobs)
+    if lcm_time / resolution > 200_000:
+        raise ValueError("The plot exceeds 200,000 samples. Increase resolution.")
     
     # Map the LCM time onto 2*pi radians
-    theta = np.linspace(0, 2 * np.pi, int(lcm_time / resolution), endpoint=False)
+    theta = np.linspace(0, 2 * np.pi, int(np.ceil(lcm_time / resolution)), endpoint=False)
     
     colors = ['#00ffcc', '#ff007f', '#e6e6fa', '#f0e68c']
     

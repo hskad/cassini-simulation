@@ -1,39 +1,19 @@
-# Makefile for CASSINI Simulation & Experiments
-
 PYTHON ?= python
 
-.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload large-scale scale-10k validate-baseline clean-png clean
+.PHONY: help test demo experiment micro-test macro-test real-workload large-scale scale-10k demo-link demo-affinity demo-evaluator demo-simulator demo-all validate-baseline
 
 help:
-	@echo "CASSINI Simulation - Available Targets:"
-	@echo "  make demo-link          - Run link optimizer demo"
-	@echo "  make demo-affinity      - Run affinity graph demo"
-	@echo "  make demo-evaluator     - Run placement evaluator demo"
-	@echo "  make demo-simulator     - Run time-based event simulator demo"
-	@echo "  make demo-all           - Run all 4 demo scripts"
-	@echo "  make micro-test         - Run Phase 1 Micro-Test (Fig 3 replica)"
-	@echo "  make macro-test         - Run Phase 1 Macro-Test (Fig 9 replica)"
-	@echo "  make real-workload      - Run real-world Philly trace cluster experiment"
-	@echo "  make large-scale        - Run 2,000-job production cluster experiment"
-	@echo "  make scale-10k          - Run 10,000-job ultra-scale cluster experiment"
-	@echo "  make validate-baseline  - Run both micro and macro baseline tests"
-	@echo "  make test               - Run unit tests"
-	@echo "  make clean-png          - Delete generated PNG files (Preserves GIF files)"
-	@echo "  make clean              - Delete generated PNGs and pycache (Preserves GIF files)"
+	@echo Run cassini.bat from Windows CMD, or use these make targets.
+	@echo test demo experiment micro-test macro-test real-workload large-scale scale-10k
 
-demo-link:
-	$(PYTHON) examples/demo_link_optimizer.py
+test:
+	$(PYTHON) cassini.py test
 
-demo-affinity:
-	$(PYTHON) examples/demo_affinity_graph.py
+demo:
+	$(PYTHON) cassini.py demo
 
-demo-evaluator:
-	$(PYTHON) examples/demo_evaluator.py
-
-demo-simulator:
-	$(PYTHON) examples/demo_simulator.py
-
-demo-all: demo-link demo-affinity demo-evaluator demo-simulator
+experiment:
+	$(PYTHON) cassini.py experiment
 
 micro-test:
 	$(PYTHON) experiments/micro_test.py
@@ -50,13 +30,19 @@ large-scale:
 scale-10k:
 	$(PYTHON) experiments/scale_10000_jobs.py
 
-validate-baseline: micro-test macro-test
+demo-link:
+	$(PYTHON) examples/demo_link_optimizer.py
 
-test:
-	$(PYTHON) -m unittest discover tests
+demo-affinity:
+	$(PYTHON) examples/demo_affinity_graph.py
 
-clean-png:
-	$(PYTHON) -c "import glob, os; [os.remove(f) for f in glob.glob('visualizations/**/*.png', recursive=True) + glob.glob('visualizations/*.png') + glob.glob('*.png') if os.path.exists(f) and not f.endswith('.gif')]; print('Cleaned PNG files. (Preserved all GIF files)')"
+demo-evaluator:
+	$(PYTHON) examples/demo_evaluator.py
 
-clean: clean-png
-	$(PYTHON) -c "import shutil, glob, os; [shutil.rmtree(p) for p in glob.glob('**/__pycache__', recursive=True) if os.path.exists(p)]"
+demo-simulator:
+	$(PYTHON) examples/demo_simulator.py
+
+demo-all: demo-link demo-affinity demo-evaluator demo-simulator
+
+validate-baseline: test demo
+
