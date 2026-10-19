@@ -11,10 +11,12 @@ import numpy as np
 import PIL
 
 from src.core.models import Cluster, Job, Link, Phase
+from src.benchmark import run_benchmarks
 from src.scheduler.simulator import Simulator
 from src.visualization.comparison_plots import plot_comparison
 from src.visualization.readme_animations import geometric_animation, affinity_animation
 from src.visualization.readme_workload import build_workload_figures
+from src.visualization.benchmark_plots import plot_benchmarks
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -59,6 +61,8 @@ def build_readme_visuals(out):
         plot_comparison(jitter, scratch, window=3000, max_jobs=2)
         (out / "drift.png").write_bytes((scratch / "drift.png").read_bytes())
     workload = build_workload_figures(out)
+    benchmark_rows, benchmark_inputs, _ = run_benchmarks()
+    plot_benchmarks(benchmark_rows, out / "benchmark.png")
     print("Building circular alignment animation...", flush=True)
     geometric = geometric_animation(out / "geometric-alignment.gif")
     print("Building affinity graph animation...", flush=True)
@@ -70,11 +74,13 @@ def build_readme_visuals(out):
             "mean_wait_ms": float(np.mean([r["wait_time"] for r in sim.completed_jobs])),
             "adjustments": len(sim.adjustments),
         } for name, sim in simulations.items()}
-    sources = ["src/scheduler/simulator.py", "src/math_engine/optimizer.py",
+    sources = ["cassini.py", "src/core/models.py", "src/core/trace_loader.py",
+               "src/benchmark.py", "src/scheduler/simulator.py", "src/math_engine/optimizer.py",
                "src/math_engine/graph.py", "src/scheduler/evaluator.py",
                "src/visualization/comparison_plots.py", "src/visualization/readme_visuals.py",
                "src/visualization/plot_style.py", "src/visualization/readme_animations.py",
                "src/visualization/readme_workload.py", "data/models/real_models.json"]
+    sources.append("src/visualization/benchmark_plots.py")
     manifest = {
         "command": "python3 cassini.py docs", "source": "synthetic examples from the current simulator",
         "profile": {"compute_ms": 50, "communication_ms": 50, "demand_gbps": 50,
@@ -84,8 +90,14 @@ def build_readme_visuals(out):
                    "drift_threshold": 0.05, "plot_window_ms": 3000},
         "correction_action": "delay to the next nominal phase start; simulation assumption",
         "summaries": summaries, "affinity_graph": graph, "geometric": geometric, "workload_comparison": workload,
+        "benchmark": {"iterations": 100, "jitter_seeds": [0, 1, 2, 3, 4],
+            "solver": "greedy", "score_horizon_ms": None, "drift_threshold": 0.05,
+            "validated_runs": len(benchmark_rows), "rows": benchmark_rows,
+            "workload_sha256": {f"{item['case']}/seed-{item['seed']}": item["workload_sha256"]
+                                for item in benchmark_inputs}},
         "source_sha256": {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in sources},
-        "versions": {"matplotlib": matplotlib.__version__, "pillow": PIL.__version__},
+        "versions": {"matplotlib": matplotlib.__version__, "pillow": PIL.__version__,
+                     "numpy": np.__version__},
     }
     (out/"manifest.json").write_text(json.dumps(manifest, indent=2)+"\n", encoding="utf-8")
     print("README visuals:", out)

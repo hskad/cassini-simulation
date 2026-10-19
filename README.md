@@ -203,6 +203,22 @@ not a guarantee for every workload or a reproduction of the paper's testbed.
 The already aligned and separate-link cases check that no extra wait is added
 when no shift is needed.
 
+![Matched scheduling results with all noise seeds, gains, and ties](visualizations/readme/benchmark.png)
+
+The default 100-iteration run gives these mean completion times:
+
+| Case | Uncoordinated | Cassini | Mean JCT reduction |
+| --- | --- | --- | --- |
+| Aligned pair | 15.000 s | 10.025 s | 33.17% |
+| VGG timing profile | 36.900 s | 25.557 s | 30.74% |
+| Multi-link chain | 12.000 s | 10.020 s | 16.50% |
+| Already aligned | 10.000 s | 10.000 s | 0% |
+| Separate links | 10.000 s | 10.000 s | 0% |
+
+For compute jitter, the bars average the percentage reduction from each seed.
+The dots show all five seeds. One seed gives a 0.65% increase in mean JCT with
+the current correction rule. Keeping this result shows the cost of that rule.
+
 ## Workload comparison
 
 The following figures use 56 synthetic jobs: eight jobs per catalog profile,
@@ -216,8 +232,9 @@ reproduce the paper's hardware results. Catalog source limits still apply.
 ![Completion time CDF for 56 synthetic jobs on six shared links](visualizations/readme/workload-cdf.png)
 
 Each step represents completed jobs. A curve further left has shorter completion
-times. In this example, Cassini's alignment and correction waits increase mean
-JCT from 6.05 seconds to 7.99 seconds.
+times. In this short, mixed-profile example, mean JCT is 6.05 seconds for
+uncoordinated scheduling and 6.25 seconds for Cassini: about 3.3% longer.
+The model still has costs from alignment, correction, and finite-window scheduling.
 
 ![Mean completion time for each of seven illustrative model profiles](visualizations/readme/model-breakdown.png)
 
@@ -358,6 +375,7 @@ Use the main utility for current comparisons and plots.
 Rajasekaran, Ghobadi, and Akella,
 *CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*.
 The local reference is arXiv:2308.00852v1, dated 1 August 2023.
+The published paper is available from [USENIX NSDI 2024](https://www.usenix.org/conference/nsdi24/presentation/rajasekaran).
 
 ## Project layout
 
