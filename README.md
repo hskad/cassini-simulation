@@ -7,6 +7,14 @@ The corrected engine executes each phase. It applies time-shifts as waits and
 shares bandwidth when transfers overlap. Job completion time (JCT) includes
 compute, communication, and all waits.
 
+The animation compares two jobs on one 50 Gbps link.
+Blue shows compute, orange shows communication, and grey shows waiting.
+
+![Executed job phases with and without Cassini shifts](docs/images/phase-alignment.gif)
+
+The view covers the first 600 ms. The full run contains 10 iterations per job.
+These are synthetic examples from the corrected simulator.
+
 ## Start from Windows CMD
 
 Open CMD in this folder. Install the packages once:
@@ -40,7 +48,7 @@ cassini.bat demo --scenario aligned --iterations 10 --solver exact
 cassini.bat demo --scenario partial --out output/partial
 cassini.bat demo --scenario multi-link --out output/multi-link
 cassini.bat demo --scenario dynamic --out output/dynamic
-cassini.bat demo --jitter 0.04 --include-static --iterations 100 --out output/jitter
+cassini.bat demo --jitter 0.04 --include-static --iterations 100 --plot-window 3000 --out output/jitter
 ```
 
 | Scenario | What it checks |
@@ -66,6 +74,29 @@ Timeline, bandwidth, and drift plots show the first 600 ms by default.
 Use `--plot-window 3000` to show more time. Use `--plot-jobs 12` to show more jobs.
 These display limits do not change the simulation or the saved event data.
 The bandwidth plot uses the same link under every policy.
+
+### Link bandwidth
+
+Both jobs request the full 50 Gbps link during communication. Overlapping
+transfers share its capacity. With the calculated shift, their communication
+phases alternate. Served bandwidth stays within capacity in both cases.
+
+![Requested and served bandwidth on the same 50 Gbps link](docs/images/bandwidth.png)
+
+### Completion time and waiting cost
+
+The full aligned example gives these results. Completion time includes the
+initial phase shift.
+
+| Policy | Mean JCT | Mean wait per job |
+| --- | --- | --- |
+| Uncoordinated | 1,500 ms | 0 ms |
+| Cassini | 1,025 ms | 25 ms |
+
+![Completion time distribution and the cost of alignment waits](docs/images/completion.png)
+
+These values apply only to this synthetic example. They are not results from
+Themis, Pollux, or a GPU cluster.
 
 ## Rebuild the README visuals
 
@@ -129,6 +160,17 @@ its next iteration boundary. It can finish its current phase first.
 Every applied wait counts towards JCT. A new schedule need not take effect
 immediately across all jobs.
 
+### One shift across several links
+
+In this example, B uses both links. A shares L1 with B, and C shares L2 with B.
+The graph traversal gives each job one global shift: A = 0 ms, B = 50 ms,
+and C = 0 ms.
+
+![Affinity graph traversal from local link shifts to global job shifts](docs/images/affinity-traversal.gif)
+
+The edge labels show local shifts for each link. The right column shows the
+global shifts. All three jobs have a 100 ms nominal iteration time.
+
 The network uses max-min bandwidth sharing with a demand cap for each phase.
 A transfer must fit the capacity of every link on its path. Compute with no
 network demand proceeds independently. Transfer work equals nominal bandwidth
@@ -148,6 +190,18 @@ Their cost can exceed the gain from alignment.
 
 This is a model of the existing mechanism, with a stated action rule.
 It is not a new research contribution or an exact reproduction of the original agents.
+
+### Drift under compute variation
+
+This run uses 100 iterations per job, uniform compute jitter of +/-4%, and seed 42.
+The plot shows the first 3,000 ms. Crosses mark correction triggers. Dotted lines
+show the 5% threshold. Each panel uses its own vertical scale.
+
+![Communication phase error with no shifts, static shifts, and drift correction](docs/images/drift.png)
+
+In this run, correction gives lower phase error but higher mean JCT than static
+shifts. The correction waits have a cost. The settings and full run totals are
+saved in [the visual manifest](docs/images/manifest.json).
 
 ## Scoring and solver limits
 
@@ -212,7 +266,6 @@ Use the main utility for current comparisons and plots.
 Rajasekaran, Ghobadi, and Akella,
 *CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*.
 The local reference is arXiv:2308.00852v1, dated 1 August 2023.
-
 
 ## Older entry points
 
