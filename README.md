@@ -1,3 +1,9 @@
+> The simulator now executes each phase and shares link bandwidth. It records
+> alignment waits and includes them in completion time. Routes stay fixed after
+> admission. Both policies use the same placement rule. Explicit routes can span
+> several links. GPU allocation, packet queues, and transport protocols are not
+> simulated. The old penalty factor no longer changes execution time.
+
 > Implementation correction in progress. Historical plots and speedup tables below
 > were produced by the previous score-based runtime model. Do not use them as
 > validated Cassini results.

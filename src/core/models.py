@@ -4,7 +4,7 @@ from typing import List, Dict
 @dataclass
 class Phase:
     """Represents a slice of time in a job's iteration."""
-    type: str  # "compute" (Up phase) or "communicate" (Down phase)
+    type: str  # "compute" (low network demand) or "communicate" (high network demand)
     duration: float  # Length of this phase in ms
     bandwidth_demand: float  # Network bandwidth required in Gbps
 

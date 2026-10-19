@@ -55,7 +55,7 @@ def traverse_affinity_graph(graph: AffinityGraph, jobs_map: Dict[str, Job]) -> D
     visited_U: Set[str] = set()
     
     # Process each connected component
-    for u in graph.U:
+    for u in sorted(graph.U):
         if u in visited_U:
             continue
             
