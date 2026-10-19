@@ -14,6 +14,7 @@ from src.core.models import Cluster, Job, Link, Phase
 from src.scheduler.simulator import Simulator
 from src.utils.comparison_plots import plot_comparison
 from src.utils.readme_animations import geometric_animation, affinity_animation
+from src.utils.readme_workload import build_workload_figures
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -54,10 +55,11 @@ def build_readme_visuals(out):
     with tempfile.TemporaryDirectory() as scratch:
         scratch = Path(scratch)
         plot_comparison(aligned, scratch, window=600, max_jobs=2)
-        for source, target in [("bandwidth.png", "bandwidth.png"), ("jct.png", "completion.png")]:
-            (out / target).write_bytes((scratch / source).read_bytes())
+        (out / "bandwidth.png").write_bytes((scratch / "bandwidth.png").read_bytes())
+        (out / "completion.png").unlink(missing_ok=True)
         plot_comparison(jitter, scratch, window=3000, max_jobs=2)
         (out / "drift.png").write_bytes((scratch / "drift.png").read_bytes())
+    workload = build_workload_figures(out)
     print("Building circular alignment animation...", flush=True)
     geometric = geometric_animation(out / "geometric-alignment.gif")
     (out / "phase-alignment.gif").unlink(missing_ok=True)
@@ -73,7 +75,8 @@ def build_readme_visuals(out):
     sources = ["src/scheduler/simulator.py", "src/math_engine/optimizer.py",
                "src/math_engine/graph.py", "src/scheduler/evaluator.py",
                "src/utils/comparison_plots.py", "src/utils/readme_visuals.py",
-               "src/utils/plot_style.py", "src/utils/readme_animations.py"]
+               "src/utils/plot_style.py", "src/utils/readme_animations.py",
+               "src/utils/readme_workload.py", "data/models/real_models.json"]
     manifest = {
         "command": "python3 cassini.py docs", "source": "synthetic examples from the current simulator",
         "profile": {"compute_ms": 50, "communication_ms": 50, "demand_gbps": 50,
@@ -82,7 +85,7 @@ def build_readme_visuals(out):
         "jitter": {"iterations": 100, "jitter_fraction": 0.04, "seed": 42,
                    "drift_threshold": 0.05, "plot_window_ms": 3000},
         "correction_action": "delay to the next nominal phase start; simulation assumption",
-        "summaries": summaries, "affinity_graph": graph, "geometric": geometric,
+        "summaries": summaries, "affinity_graph": graph, "geometric": geometric, "workload_comparison": workload,
         "source_sha256": {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in sources},
         "versions": {"matplotlib": matplotlib.__version__, "pillow": PIL.__version__},
     }
