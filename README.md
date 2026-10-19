@@ -19,14 +19,15 @@ policies are unchanged.
 
 All eight experiment PNGs below were regenerated in WSL after the heavy-traffic
 score-selection fix, using the shared scoring window described below.
+These figures await a refresh for the shift-wait accounting change.
 The numerical results and figure hashes are recorded in
 [the results manifest](visualizations/readme_results.json), together with the
 source hashes, settings, and package versions. The existing GIFs illustrate
 separate examples and are retained.
 
 These results use the fast compatibility-based runtime estimator. Completion
-times come from its penalty formula; transfers and phase-shift waits are not
-executed individually. The other model assumptions are unchanged.
+times come from its penalty formula plus explicitly charged shift waits;
+transfers are not executed individually. The other model assumptions are unchanged.
 
 To rebuild the experiment figures in WSL:
 
@@ -72,9 +73,37 @@ All five experiment commands were rerun in WSL after this correction. The
 default workload results and all eight PNGs are unchanged: these workloads do
 not expose the corrected error. The heavy-traffic tests do expose it: the
 four-job case previously gave 300 ms instead of 400 ms in incremental mode.
-All 26 tests pass. The results manifest records the new source commit and
+The 26 tests passed for that correction. The results manifest records the new source commit and
 regression checks. The fast runtime model remains an estimate, not a
 phase-by-phase network simulation.
+
+
+### Shift waiting time
+
+Both runtime modes now charge waiting time when a selected shift changes.
+For iteration period `T`, the additional wait is
+`(new_shift - previous_shift) % T`. An unchanged target adds no wait. A lower
+target requires a forward wait through the cycle; the simulator cannot move
+a job backward in time. Pending waits survive later scheduling events, and
+jobs make no progress during them. Each completion record includes
+`shift_wait_ms`, the total charged wait.
+
+The simulator applies the full selected plan, including changes to existing
+jobs. Candidate plans are evaluated without charging waits; only the selected
+plan is applied. Graph traversal uses placement order to choose a stable
+reference job. When a job becomes isolated, it retains its current offset.
+The uncoordinated policy keeps zero shifts and adds no shift wait.
+
+A fixed 10 ms shift adds 10 ms once, rather than once per iteration. If later
+plans change the target, the extra forward waits also contribute to completion
+time. The original compatibility-based work-rate formula is retained. The
+simulator still jumps between arrivals and completions; it does not execute
+individual iterations or network transfers. Contention remains a periodic
+score estimate, including during waits.
+
+All 28 tests pass. Tests cover one and 100 iterations, arrivals during a wait,
+changes while a job is running, repeated plans, wraparound, both policies, and
+both runtime modes. The experiment results are being rerun for this change.
 
 ---
 

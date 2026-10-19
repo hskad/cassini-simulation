@@ -38,8 +38,9 @@ class TestGraph(unittest.TestCase):
         # j2 shift: (tj1 - w(j1,l1) + w(l1,j2)) % 100 = (0 - 0 + 30) = 30.0
         # j3 shift: (tj2 - w(j2,l2) + w(l2,j3)) % 100 = (30 - 0 + 40) = 70.0
         
-        # Note: Since the BFS starts from an arbitrary node in a set, the absolute shifts might differ
-        # But the relative difference must be correct.
+        # Placement order chooses the reference deterministically, so waiting
+        # costs cannot change with Python's randomized string hashes.
+        self.assertEqual(global_shifts, {"j1": 0.0, "j2": 30.0, "j3": 70.0})
         
         # Let's verify relative differences
         diff_j2_j1 = (global_shifts["j2"] - global_shifts["j1"]) % 100

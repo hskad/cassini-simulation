@@ -1,6 +1,6 @@
 import heapq
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple
 from src.core.models import Job, Link, Cluster
 from src.scheduler.evaluator import generate_mock_candidates, evaluate_placements
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS, get_score_window, optimize_link, score_link
@@ -17,15 +17,19 @@ def eval_link_compatibility(jobs: List[Job], link: Link, optimize: bool = True, 
     Evaluates compatibility score of a link with a set of jobs.
     Returns (compatibility_score, optimal_shift_for_last_job).
     """
-    if len(jobs) <= 1:
-        return 1.0, 0.0
-    jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift) for j in jobs]
+    score, shifts = _link_plan(jobs, link, optimize, score_window_ms=score_window_ms)
+    return score, (shifts.get(jobs[-1].job_id, 0.0) if jobs else 0.0)
+
+
+def _link_plan(jobs: List[Job], link: Link, optimize: bool, *,
+               score_window_ms: float) -> Tuple[float, Dict[str, float]]:
+    """Return the score and the complete shift plan used to calculate it."""
+    jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift if optimize else 0.0)
+                 for j in jobs]
     if optimize:
         optimize_link(jobs_copy, link, score_window_ms=score_window_ms)
-    opt_shift = jobs_copy[-1].time_shift if optimize else 0.0
-    
-    score = score_link(jobs_copy, link, score_window_ms=score_window_ms)
-    return score, opt_shift
+    score = score_link(jobs_copy, link, score_window_ms=score_window_ms) if len(jobs) > 1 else 1.0
+    return score, {j.job_id: j.time_shift for j in jobs_copy}
 
 class Simulator:
     def __init__(self, base_cluster: Cluster, penalty_factor: float = 1.0, use_cassini: bool = True, incremental: bool = False, *,
@@ -57,6 +61,25 @@ class Simulator:
         progress: Dict[str, float] = {}
         expected_completion: Dict[str, float] = {}
         effective_iteration_time: Dict[str, float] = {}
+        pending_wait: Dict[str, float] = {}
+        total_wait: Dict[str, float] = {}
+        applied_shift: Dict[str, float] = {}
+
+        def apply_shifts(shifts):
+            for jid, shift in shifts.items():
+                job = self.active_jobs[jid]
+                target = shift % job.iteration_time if self.use_cassini else 0.0
+                # A phase can only move forward in time. Reusing the same
+                # target adds no wait; a lower target wraps to the next cycle.
+                delay = (target - applied_shift[jid]) % job.iteration_time
+                pending_wait[jid] += delay
+                total_wait[jid] += delay
+                applied_shift[jid] = target
+                job.time_shift = target
+
+        def completion_time(jid):
+            work = effective_iteration_time[jid] * self.active_jobs[jid].total_iterations
+            return self.current_time + pending_wait[jid] + max(0.0, 1.0 - progress[jid]) * work
         
         while self.events or self.active_jobs:
             next_arrival_time = self.events[0].time if self.events else float('inf')
@@ -72,7 +95,9 @@ class Simulator:
             if dt > 0:
                 for jid in self.active_jobs:
                     total_time_required = effective_iteration_time[jid] * self.active_jobs[jid].total_iterations
-                    progress[jid] += dt / total_time_required
+                    waited = min(dt, pending_wait[jid])
+                    pending_wait[jid] -= waited
+                    progress[jid] += (dt - waited) / total_time_required
                 self.current_time = next_time
 
             # -------------------------------------------------------------
@@ -90,28 +115,30 @@ class Simulator:
                     del progress[jid]
                     del expected_completion[jid]
                     del effective_iteration_time[jid]
+                    del pending_wait[jid]
+                    del applied_shift[jid]
                     self.completed_jobs.append({
                         "job_id": job.job_id,
                         "name": job.name,
                         "arrival_time": job.arrival_time,
                         "completion_time": self.current_time,
-                        "turnaround_time": self.current_time - job.arrival_time
+                        "turnaround_time": self.current_time - job.arrival_time,
+                        "shift_wait_ms": total_wait.pop(jid)
                     })
                     
                     # Remove from link and update remaining jobs on that link
                     link_id = self.job_to_link.pop(jid, None)
                     if link_id:
-                        rem_jobs = [j for j in self.active_cluster.link_jobs[link_id] if j.job_id != jid]
+                        rem_jobs = [j for j in self.active_cluster.link_jobs[link_id] if j.job_id not in completed_this_tick]
                         self.active_cluster.link_jobs[link_id] = rem_jobs
                         link_obj = next(l for l in self.base_cluster.links if l.link_id == link_id)
-                        score, _ = eval_link_compatibility(rem_jobs, link_obj, optimize=self.use_cassini,
-                                                          score_window_ms=self.score_window_ms)
+                        score, shifts = _link_plan(rem_jobs, link_obj, optimize=self.use_cassini,
+                                                   score_window_ms=self.score_window_ms)
+                        apply_shifts(shifts)
                         slowdown = 1.0 + (1.0 - score) * self.penalty_factor
                         for rj in rem_jobs:
                             effective_iteration_time[rj.job_id] = rj.iteration_time * slowdown
-                            total_req = effective_iteration_time[rj.job_id] * rj.total_iterations
-                            rem_prog = max(0.0, 1.0 - progress[rj.job_id])
-                            expected_completion[rj.job_id] = self.current_time + (rem_prog * total_req)
+                            expected_completion[rj.job_id] = completion_time(rj.job_id)
 
                 # Handle Arrivals
                 while self.events and self.events[0].time == next_time:
@@ -119,6 +146,11 @@ class Simulator:
                     job = event.job
                     self.active_jobs[job.job_id] = job
                     progress[job.job_id] = 0.0
+                    pending_wait[job.job_id] = 0.0
+                    total_wait[job.job_id] = 0.0
+                    applied_shift[job.job_id] = 0.0
+                    if not self.use_cassini:
+                        job.time_shift = 0.0
                     
                     # Candidate links: evaluate top least-loaded links
                     sorted_links = sorted(self.base_cluster.links, key=lambda l: len(self.active_cluster.link_jobs[l.link_id]))
@@ -127,21 +159,21 @@ class Simulator:
                     best_link = candidate_links[0]
                     # Heavy traffic can give every candidate a score below -1.
                     best_score = float('-inf')
-                    best_shift = 0.0
+                    best_shifts = {}
                     
                     for cand_link in candidate_links:
                         curr_link_jobs = self.active_cluster.link_jobs[cand_link.link_id]
                         test_jobs = curr_link_jobs + [job]
-                        score, opt_shift = eval_link_compatibility(test_jobs, cand_link, optimize=self.use_cassini,
-                                                                  score_window_ms=self.score_window_ms)
+                        score, shifts = _link_plan(test_jobs, cand_link, optimize=self.use_cassini,
+                                                           score_window_ms=self.score_window_ms)
                         if score > best_score:
                             best_score = score
-                            best_shift = opt_shift
+                            best_shifts = shifts
                             best_link = cand_link
                             if score >= 1.0:
                                 break
                                 
-                    job.time_shift = best_shift if self.use_cassini else 0.0
+                    apply_shifts(best_shifts)
                     self.active_cluster.link_jobs[best_link.link_id].append(job)
                     self.job_to_link[job.job_id] = best_link.link_id
                     
@@ -149,9 +181,7 @@ class Simulator:
                     slowdown = 1.0 + (1.0 - best_score) * self.penalty_factor
                     for aj in affected_jobs:
                         effective_iteration_time[aj.job_id] = aj.iteration_time * slowdown
-                        total_req = effective_iteration_time[aj.job_id] * aj.total_iterations
-                        rem_prog = max(0.0, 1.0 - progress[aj.job_id])
-                        expected_completion[aj.job_id] = self.current_time + (rem_prog * total_req)
+                        expected_completion[aj.job_id] = completion_time(aj.job_id)
 
             # -------------------------------------------------------------
             # Global Reshuffle Mode (Original Baseline for Small Mock Demos)
@@ -168,12 +198,15 @@ class Simulator:
                     del progress[jid]
                     del expected_completion[jid]
                     del effective_iteration_time[jid]
+                    del pending_wait[jid]
+                    del applied_shift[jid]
                     self.completed_jobs.append({
                         "job_id": job.job_id,
                         "name": job.name,
                         "arrival_time": job.arrival_time,
                         "completion_time": self.current_time,
-                        "turnaround_time": self.current_time - job.arrival_time
+                        "turnaround_time": self.current_time - job.arrival_time,
+                        "shift_wait_ms": total_wait.pop(jid)
                     })
                     placement_changed = True
                     
@@ -182,6 +215,11 @@ class Simulator:
                     job = event.job
                     self.active_jobs[job.job_id] = job
                     progress[job.job_id] = 0.0
+                    pending_wait[job.job_id] = 0.0
+                    total_wait[job.job_id] = 0.0
+                    applied_shift[job.job_id] = 0.0
+                    if not self.use_cassini:
+                        job.time_shift = 0.0
                     placement_changed = True
                     
                 if placement_changed and self.active_jobs:
@@ -189,11 +227,12 @@ class Simulator:
                     if self.use_cassini:
                         candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=5)
                         try:
-                            winning_candidate, _ = evaluate_placements(candidates, score_window_ms=self.score_window_ms)
+                            winning_candidate, shifts = evaluate_placements(candidates, score_window_ms=self.score_window_ms)
                             self.active_cluster = winning_candidate.cluster
                             score = winning_candidate.compatibility_score
                         except ValueError:
                             score = 0.0
+                            shifts = {}
                     else:
                         from src.scheduler.evaluator import score_candidate
                         candidates = generate_mock_candidates(self.base_cluster, jobs_list, num_candidates=1)
@@ -202,11 +241,11 @@ class Simulator:
                         score, _ = score_candidate(winning_candidate, optimize=False,
                                                    score_window_ms=self.score_window_ms)
                         
+                    if self.use_cassini:
+                        apply_shifts(shifts)
                     slowdown_factor = 1.0 + (1.0 - score) * self.penalty_factor
                     for jid, job in self.active_jobs.items():
                         effective_iteration_time[jid] = job.iteration_time * slowdown_factor
-                        total_time_required = effective_iteration_time[jid] * job.total_iterations
-                        remaining_progress = max(0.0, 1.0 - progress[jid])
-                        expected_completion[jid] = self.current_time + (remaining_progress * total_time_required)
+                        expected_completion[jid] = completion_time(jid)
 
 

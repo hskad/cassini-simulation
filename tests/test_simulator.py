@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 import os
 import sys
 
@@ -81,6 +82,56 @@ class TestSimulator(unittest.TestCase):
                 # model their completion times are 300 and 312.5 ms.
                 times = sorted(row["turnaround_time"] for row in sim.completed_jobs)
                 self.assertEqual(times, [300.0] * 3 + [312.5] * 5)
+
+    def test_shift_is_one_wait_not_one_wait_per_iteration(self):
+        for incremental in (False, True):
+            for enabled in (False, True):
+                for iterations in (1, 100):
+                    with self.subTest(incremental=incremental, cassini=enabled, iterations=iterations):
+                        sim = Simulator(Cluster([], [Link("link", 50)]),
+                                        use_cassini=enabled, incremental=incremental)
+                        for name in ("a", "b"):
+                            sim.add_job_arrival(Job(name, name, [
+                                Phase("compute", 10, 0), Phase("communicate", 10, 50)
+                            ], total_iterations=iterations))
+                        sim.run_simulation()
+                        rows = {r["job_id"]: r for r in sim.completed_jobs}
+                        if enabled:
+                            self.assertEqual(rows["a"]["turnaround_time"], 20 * iterations)
+                            self.assertEqual(rows["b"]["turnaround_time"], 20 * iterations + 10)
+                            self.assertEqual(rows["b"]["shift_wait_ms"], 10)
+                        else:
+                            self.assertTrue(all(r["shift_wait_ms"] == 0 for r in rows.values()))
+                            self.assertTrue(all(r["turnaround_time"] == 30 * iterations for r in rows.values()))
+
+    def test_pending_wait_survives_arrivals_and_reoptimization(self):
+        # Prescribe shift plans to isolate accounting from the search algorithm.
+        # A third job arrives at t=10 and leaves at t=15, during b's wait.
+        for incremental in (False, True):
+            for target, expected_wait, arrival in ((40, 40, 10), (70, 70, 10),
+                                                  (20, 120, 10), (70, 70, 60)):
+                with self.subTest(incremental=incremental, target=target, arrival=arrival):
+                    changed = False
+                    def plan(jobs, link, *args, **kwargs):
+                        nonlocal changed
+                        if len(jobs) < 2:
+                            return
+                        if any(j.job_id == "trigger" for j in jobs):
+                            changed = True
+                        for job in jobs:
+                            job.time_shift = (target if changed else 40) if job.job_id == "b" else 0
+                    sim = Simulator(Cluster([], [Link("link", 50)]), incremental=incremental)
+                    for name in ("a", "b"):
+                        sim.add_job_arrival(Job(name, name, [Phase("compute", 100, 0)]))
+                    sim.add_job_arrival(Job("trigger", "trigger", [Phase("compute", 5, 0)], arrival_time=arrival))
+                    with patch("src.scheduler.simulator.optimize_link", side_effect=plan), \
+                         patch("src.scheduler.evaluator.optimize_link", side_effect=plan):
+                        sim.run_simulation()
+                    rows = {r["job_id"]: r for r in sim.completed_jobs}
+                    self.assertEqual(rows["a"]["turnaround_time"], 100)
+                    self.assertEqual(rows["trigger"]["turnaround_time"], 5)
+                    self.assertEqual(rows["b"]["shift_wait_ms"], expected_wait)
+                    self.assertEqual(rows["b"]["turnaround_time"], 100 + expected_wait)
 
 if __name__ == '__main__':
     unittest.main()

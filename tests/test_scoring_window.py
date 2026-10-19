@@ -82,11 +82,19 @@ class TestScoringWindow(unittest.TestCase):
                             sim.add_job_arrival(job)
                         sim.run_simulation()
                         times = {r["job_id"]: r["turnaround_time"] for r in sim.completed_jobs}
-                        # Both jobs share one slowdown until a completes. Then
-                        # b's remaining six milliseconds run without contention.
-                        first_finish = 61 * (1 + 1.5 * (1 - reference_score(window, enabled)))
+                        # The independent overlap oracle also gives b's shift.
+                        # While b waits, it makes no progress. After a completes,
+                        # b's remaining work runs without the contention penalty.
+                        delays = range(67) if enabled else [0]
+                        shift = min(delays, key=lambda d: sum(
+                            t % 61 >= 20 and (t - d) % 67 >= 30
+                            for t in range(window)))
+                        slowdown = 1 + 1.5 * (1 - reference_score(window, enabled))
+                        first_finish = 61 * slowdown
+                        remaining_work = 67 - max(0, first_finish - shift) / slowdown
+                        second_finish = first_finish + max(0, shift - first_finish) + remaining_work
                         self.assertAlmostEqual(times["a"], first_finish, delta=1e-4)
-                        self.assertAlmostEqual(times["b"], first_finish + 6, delta=1e-4)
+                        self.assertAlmostEqual(times["b"], second_finish, delta=1e-4)
 
 
 if __name__ == "__main__":

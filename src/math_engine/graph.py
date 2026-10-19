@@ -55,8 +55,10 @@ def traverse_affinity_graph(graph: AffinityGraph, jobs_map: Dict[str, Job]) -> D
     visited_U: Set[str] = set()
     
     # Process each connected component
-    for u in graph.U:
-        if u in visited_U:
+    # Use placement order so the reference job, and thus charged waits, do
+    # not depend on Python's randomized set iteration order.
+    for u in jobs_map:
+        if u not in graph.U or u in visited_U:
             continue
             
         # Start BFS
