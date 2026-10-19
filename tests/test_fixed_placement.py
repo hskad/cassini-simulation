@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from src.core.models import Cluster, Job, Link, Phase
-from src.scheduler.evaluator import make_fixed_placement
+from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
 from src.scheduler.simulator import Simulator
 
 
@@ -75,3 +75,12 @@ class TestFixedPlacement(unittest.TestCase):
                             ([job], [Link("left", 50), Link("left", 50)])):
             with self.assertRaises(ValueError):
                 make_fixed_placement(jobs, links)
+
+    def test_comparison_verifies_complete_paired_routes(self):
+        placement = {"a": "left", "b": "right"}
+        rows = [{"job_id": job, "link_id": link} for job, link in placement.items()]
+        verify_paired_placement(rows, rows[::-1], placement)
+        for invalid in (rows[:1], [rows[0], rows[0]],
+                        [{"job_id": "a", "link_id": "right"}, rows[1]]):
+            with self.assertRaises(ValueError):
+                verify_paired_placement(rows, invalid, placement)

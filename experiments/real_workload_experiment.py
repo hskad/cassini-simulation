@@ -17,6 +17,7 @@ import numpy as np
 from src.core.models import Link, Cluster
 from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
+from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 def main():
@@ -73,12 +74,15 @@ def main():
     cluster = Cluster(servers=[], links=links)
     print(f"\n[*] Cluster Setup: {args.num_links} shared links with {args.capacity} Gbps line rate capacity.\n")
 
+    placement = make_fixed_placement(jobs, links, seed=args.seed)
+    print(f"Placement: shared fixed random routes, seed {args.seed}")
+
     # 3. Execute CASSINI Simulation
     print("-----------------------------------------------------------------")
     print("  Running Simulation 1: CASSINI Scheduler (Network-Aware Phase Interleaving)")
     print("-----------------------------------------------------------------")
     sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True,
-                            score_window_ms=args.score_window_ms)
+                            score_window_ms=args.score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim_cassini.add_job_arrival(copy.deepcopy(job))
     sim_cassini.run_simulation()
@@ -89,10 +93,12 @@ def main():
     print("  Running Simulation 2: Baseline Uncoordinated Scheduler")
     print("-----------------------------------------------------------------")
     sim_baseline = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False,
-                            score_window_ms=args.score_window_ms)
+                            score_window_ms=args.score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim_baseline.add_job_arrival(copy.deepcopy(job))
     sim_baseline.run_simulation()
+    verify_paired_placement(sim_cassini.completed_jobs, sim_baseline.completed_jobs, placement)
+    print(f"Verified identical routes for {len(placement)} jobs.")
     print(f"  [+] Completed {len(sim_baseline.completed_jobs)} jobs.\n")
 
     # 5. Extract Analytics & Metrics

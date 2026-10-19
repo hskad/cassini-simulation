@@ -19,6 +19,7 @@ import numpy as np
 from src.core.models import Link, Cluster, Job
 from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
+from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 TRACE_10000_PATH = os.path.join(PROJECT_ROOT, "data", "traces", "philly_10000_jobs.json")
@@ -59,13 +60,13 @@ def ensure_10000_job_trace(loader: TraceLoader, num_jobs: int = 10000, seed: int
 
 def _run_single_sim(args_tuple):
     """Worker function for multiprocessing execution."""
-    sim_name, use_cassini, cluster_links, capacity, penalty, jobs, score_window_ms = args_tuple
+    sim_name, use_cassini, cluster_links, capacity, penalty, jobs, score_window_ms, placement = args_tuple
     print(f"  [>] Process launched: {sim_name} (PID: {os.getpid()})...")
     t0 = time.time()
     links = [Link(f"L{i}", capacity) for i in range(cluster_links)]
     cluster = Cluster(servers=[], links=links)
     sim = Simulator(cluster, penalty_factor=penalty, use_cassini=use_cassini, incremental=True,
-                    score_window_ms=score_window_ms)
+                    score_window_ms=score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim.add_job_arrival(job)
     sim.run_simulation()
@@ -114,9 +115,11 @@ def main():
 
     print(f"\n[*] Cluster Fabric: {args.num_links} shared switches/links with {args.capacity} Gbps line rate.\n")
 
+    placement = make_fixed_placement(jobs, [Link(f"L{i}", args.capacity) for i in range(args.num_links)], seed=args.seed)
+    print(f"Placement: shared fixed random routes, seed {args.seed}")
     tasks = [
-        ("CASSINI (Geometric Coordinated)", True, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs], args.score_window_ms),
-        ("Baseline (Uncoordinated FIFO)", False, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs], args.score_window_ms)
+        ("CASSINI (Geometric Coordinated)", True, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs], args.score_window_ms, placement),
+        ("Baseline (Uncoordinated)", False, args.num_links, args.capacity, args.penalty, [copy.deepcopy(j) for j in jobs], args.score_window_ms, placement)
     ]
 
     completed_results = {}
@@ -140,7 +143,10 @@ def main():
     print(f"\n[+] Total Parallel Wall-Clock Runtime: {total_wall_time:.2f} seconds ({total_wall_time/60.0:.2f} minutes).\n")
 
     cassini_jobs = completed_results["CASSINI (Geometric Coordinated)"]
-    baseline_jobs = completed_results["Baseline (Uncoordinated FIFO)"]
+    baseline_jobs = completed_results["Baseline (Uncoordinated)"]
+
+    verify_paired_placement(cassini_jobs, baseline_jobs, placement)
+    print(f"Verified identical routes for {len(placement)} jobs.")
 
     cassini_map = {j["job_id"]: j for j in cassini_jobs}
     baseline_map = {j["job_id"]: j for j in baseline_jobs}
@@ -209,7 +215,7 @@ def main():
             label=f'Baseline Uncoordinated (Mean: {b_mean:.1f}m, P90: {b_p90:.1f}m)')
 
     ax.set_title(f"10,000-Job Production Cluster Workload: JCT CDF\n"
-                 f"Empirical ML Workloads | 20,000 Events | Overall Speedup: {overall_speedup:.1f}%",
+                 f"Empirical ML Workloads | 20,000 Events | Overall JCT Reduction: {overall_speedup:.1f}%",
                  fontsize=14, fontweight='bold', pad=15)
     ax.set_xlabel("Job Completion Time (JCT) [Minutes]", fontsize=12)
     ax.set_ylabel("Cumulative Probability (CDF)", fontsize=12)
@@ -246,7 +252,7 @@ def main():
     for i, m in enumerate(models):
         sp = model_speedups[m][2]
         y_max = max(b_vals[i], c_vals[i])
-        ax.annotate(f"+{sp:.1f}%",
+        ax.annotate(f"{sp:+.1f}%",
                     xy=(x[i], y_max),
                     xytext=(0, 6),
                     textcoords="offset points",

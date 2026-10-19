@@ -367,10 +367,11 @@ the simulator retains its joint placement/shift search for standalone demos.
 The uncoordinated policy uses zero phase shifts. It is a simplified placement policy, not an implementation of Kubernetes, Slurm, Themis, or Tiresias. Each job is assigned to one primary bottleneck link; GPU admission queues and full network routes are not modeled.
 
 1. **Placement and score scope**:
-   - Global mode (50- and 60-job experiments) compares five random candidates for Cassini with one for the baseline. Its runtime factor uses the unweighted mean score over links with more than one job, applied to all active jobs.
-   - Incremental mode (2,000- and 10,000-job experiments) checks up to four least-loaded links under either policy. Existing routes stay fixed, and runtime factors are per link.
+   - Each workload comparison creates one seeded random job-to-link map before either run. Both policies use exactly that map for every job, regardless of their completion order. Routes stay fixed; only shift optimization is enabled or disabled.
+   - Global mode (50- and 60-job experiments) uses the unweighted mean score over links with more than one job, applied to all active jobs.
+   - Incremental mode (2,000- and 10,000-job experiments) updates scores per affected link. It uses the same fixed routes under both policies, including parallel workers.
    - Runtime links with zero or one job receive score 1. Direct `score_link` calls can still detect a single job's overload.
-   - These comparisons do not isolate shift timing. In the 50-job script, the runs also share a random stream, so changing Cassini's event order can change the later baseline placements.
+   - A private placement RNG uses `--seed`, separate from workload generation and event execution. Each comparison verifies that both runs complete the same jobs on the planned links. Different active job sets due to different completion times are part of the shifting outcome.
 2. **Compatibility and completion estimate**:
    - For $N$ samples, link capacity $C$, and sampled job demands $b_j[n]$, the implemented score is:
      $$S = 1 - \frac{\sum_{n=0}^{N-1}\max(0,\sum_j b_j[n]-C)}{N C}.$$

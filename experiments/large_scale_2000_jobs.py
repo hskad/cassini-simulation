@@ -18,6 +18,7 @@ import numpy as np
 from src.core.models import Link, Cluster, Job
 from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
+from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 TRACE_2000_PATH = os.path.join(PROJECT_ROOT, "data", "traces", "philly_2000_jobs.json")
@@ -96,13 +97,16 @@ def main():
     cluster = Cluster(servers=[], links=links)
     print(f"\n[*] Cluster Fabric: {args.num_links} shared switches/links with {args.capacity} Gbps line rate.\n")
 
+    placement = make_fixed_placement(jobs, links, seed=args.seed)
+    print(f"Placement: shared fixed random routes, seed {args.seed}")
+
     # 1. Run CASSINI Simulation
     print("-------------------------------------------------------------------------")
     print("  [1/2] Running CASSINI Scheduler (Geometric Circular Phase Interleaving)")
     print("-------------------------------------------------------------------------")
     t0 = time.time()
     sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True, incremental=True,
-                            score_window_ms=args.score_window_ms)
+                            score_window_ms=args.score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim_cassini.add_job_arrival(copy.deepcopy(job))
     sim_cassini.run_simulation()
@@ -111,14 +115,16 @@ def main():
 
     # 2. Run Baseline Simulation
     print("\n-------------------------------------------------------------------------")
-    print("  [2/2] Running Baseline Scheduler (Uncoordinated FIFO / Zero Phase Shift)")
+    print("  [2/2] Running Baseline Scheduler (Uncoordinated / Zero Phase Shift)")
     print("-------------------------------------------------------------------------")
     t0 = time.time()
     sim_baseline = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False, incremental=True,
-                            score_window_ms=args.score_window_ms)
+                            score_window_ms=args.score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim_baseline.add_job_arrival(copy.deepcopy(job))
     sim_baseline.run_simulation()
+    verify_paired_placement(sim_cassini.completed_jobs, sim_baseline.completed_jobs, placement)
+    print(f"Verified identical routes for {len(placement)} jobs.")
     t_baseline = time.time() - t0
     print(f"  [+] Completed {len(sim_baseline.completed_jobs):,} jobs in {t_baseline:.2f} seconds.\n")
 
@@ -223,7 +229,7 @@ def main():
     for idx, m in enumerate(models_sorted):
         sp = model_speedups[m][2]
         c_val = model_speedups[m][1]
-        ax.text(c_val + 0.5, idx + bar_height/2, f"+{sp:.1f}%", va='center', fontsize=10, color='#00ffcc', fontweight='bold')
+        ax.text(c_val + 0.5, idx + bar_height/2, f"{sp:+.1f}%", va='center', fontsize=10, color='#00ffcc', fontweight='bold')
 
     breakdown_path = os.path.join(out_dir, "large_scale_2000_jobs_breakdown.png")
     plt.tight_layout()

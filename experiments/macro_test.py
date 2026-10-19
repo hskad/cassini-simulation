@@ -15,6 +15,7 @@ import numpy as np
 
 from src.core.models import Phase, Job, Link, Cluster
 from src.scheduler.simulator import Simulator
+from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 
 def main():
@@ -50,20 +51,25 @@ def main():
         ], arrival_time=arrival, total_iterations=iters)
         jobs.append(job)
 
+    placement = make_fixed_placement(jobs, links, seed=args.seed)
+    print(f"Placement: shared fixed random routes, seed {args.seed}")
+
     # We need to run them on two independent simulators
     print(f"--- Running CASSINI Scheduler (Optimized) ---", flush=True)
     sim_cassini = Simulator(cluster, penalty_factor=args.penalty, use_cassini=True,
-                            score_window_ms=args.score_window_ms)
+                            score_window_ms=args.score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim_cassini.add_job_arrival(copy.deepcopy(job))
     sim_cassini.run_simulation()
     
-    print(f"--- Running Random Scheduler (Baseline) ---", flush=True)
+    print(f"--- Running Uncoordinated Scheduler (Same Placement) ---", flush=True)
     sim_random = Simulator(cluster, penalty_factor=args.penalty, use_cassini=False,
-                            score_window_ms=args.score_window_ms)
+                            score_window_ms=args.score_window_ms, fixed_placement=placement)
     for job in jobs:
         sim_random.add_job_arrival(copy.deepcopy(job))
     sim_random.run_simulation()
+    verify_paired_placement(sim_cassini.completed_jobs, sim_random.completed_jobs, placement)
+    print(f"Verified identical routes for {len(placement)} jobs.")
 
     # 3. Extract Turnaround Times
     cassini_times = sorted([j["turnaround_time"] for j in sim_cassini.completed_jobs])
@@ -77,9 +83,9 @@ def main():
     y_random = np.arange(1, len(random_times) + 1) / len(random_times)
 
     ax.plot(cassini_times, y_cassini, marker='o', markersize=4, linestyle='-', color='#00ffcc', label=f'CASSINI Scheduler (Mean: {np.mean(cassini_times):.1f}ms)')
-    ax.plot(random_times, y_random, marker='s', markersize=4, linestyle='--', color='#ff007f', label=f'Random Scheduler (Mean: {np.mean(random_times):.1f}ms)')
+    ax.plot(random_times, y_random, marker='s', markersize=4, linestyle='--', color='#ff007f', label=f'Uncoordinated (Mean: {np.mean(random_times):.1f}ms)')
 
-    ax.set_title("CDF of Job Completion Times (Figure 9 Replica)", fontsize=15, color='white', pad=15)
+    ax.set_title("Job Completion Times: Same Placement, Shifting On/Off", fontsize=15, color='white', pad=15)
     ax.set_xlabel("Job Completion Time (ms)", fontsize=12, color='white')
     ax.set_ylabel("Cumulative Probability (CDF)", fontsize=12, color='white')
     ax.grid(True, alpha=0.25, color='gray', linestyle='--')
@@ -96,8 +102,8 @@ def main():
     # Print stats
     print(f"\n--- Results Summary ---")
     print(f"Average JCT (CASSINI): {np.mean(cassini_times):.2f}ms")
-    print(f"Average JCT (Random) : {np.mean(random_times):.2f}ms")
-    print(f"Performance Gain    : {speedup:.1f}% faster with CASSINI")
+    print(f"Average JCT (Baseline): {np.mean(random_times):.2f}ms")
+    print(f"Mean JCT reduction  : {speedup:.1f}%")
     print(f"CDF Graph saved to {output_path}")
 
 if __name__ == '__main__':

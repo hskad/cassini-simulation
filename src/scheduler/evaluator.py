@@ -23,6 +23,14 @@ def make_fixed_placement(jobs: List[Job], links: List[Link], seed: int = 42) -> 
     return {job.job_id: rng.choice(link_ids) for job in ordered}
 
 
+def verify_paired_placement(first: List[Dict], second: List[Dict],
+                            placement: Dict[str, str]) -> None:
+    """Require both runs to complete exactly the planned jobs on their links."""
+    for rows in (first, second):
+        if len(rows) != len(placement) or {r["job_id"]: r["link_id"] for r in rows} != placement:
+            raise ValueError("Comparison runs must use the same complete fixed placement.")
+
+
 def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candidates: int = 5) -> List[PlacementCandidate]:
     """
     Simulates a scheduler (like Themis) by generating N placement candidates.
