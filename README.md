@@ -9,26 +9,7 @@ A lightweight, purely algorithmic and discrete-event Python simulation of **CASS
 
 This project provides a standalone mathematical testbed for periodic traffic alignment, affinity graphs, and estimated job completion times. It runs on a CPU without GPUs or a deep learning framework. The fast simulator advances between arrivals and completions rather than executing individual training iterations or network transfers.
 
-### Baseline and research versions
-
-`main` contains the stable Cassini-based fast simulator. The immutable tag
-`baseline/fast-runtime-v1` identifies its tested code before the shift-decision
-extensions (commit `54e47cd`). It includes shared placement and explicit shift waits.
-
-`research/shift-policies` contains the score control, cooldown control, benefit
-rule, and their evaluation. Use this branch for policy development:
-
-```bash
-git fetch origin --tags
-git switch research/shift-policies
-```
-
-To inspect or run the frozen baseline, use `git switch --detach baseline/fast-runtime-v1`.
-Return with `git switch research/shift-policies`. Keep changes in small commits,
-push each completed change, and merge research into `main` after review and validation.
-Saved results retain the source commits that produced them; branch changes do not
-change their provenance. Experiment commands and result manifests are documented
-with each evaluation below.
+For the LCM scoring study, see [LCM_RESEARCH.md](LCM_RESEARCH.md).
 
 ### Features
 
@@ -454,7 +435,7 @@ Future work can compare this simplified model with additional baseline policies:
 
 ## Unit Testing
 
-Run the regression tests (38 tests, including identical-route checks):
+Run the regression tests:
 ```bash
 python -m unittest discover tests
 ```
