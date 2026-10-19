@@ -177,7 +177,7 @@ def build_readme_visuals(out):
                "src/math_engine/graph.py", "src/scheduler/evaluator.py",
                "src/utils/comparison_plots.py", "src/utils/readme_visuals.py"]
     manifest = {
-        "command": "cassini.bat docs", "source": "synthetic examples from the current simulator",
+        "command": "python3 cassini.py docs", "source": "synthetic examples from the current simulator",
         "profile": {"compute_ms": 50, "communication_ms": 50, "demand_gbps": 50,
                     "link_capacity_gbps": 50, "solver": "exact", "resolution_ms": 1},
         "aligned": {"iterations": 10, "jitter_fraction": 0, "plot_window_ms": 600},

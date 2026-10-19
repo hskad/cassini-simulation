@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Run Cassini demos, checks, and comparisons from Windows CMD or a shell."""
+"""Run Cassini demos, checks, and comparisons from a Linux shell."""
 import argparse
 import copy
 import csv

@@ -1,16 +1,19 @@
-PYTHON ?= python
+PYTHON ?= python3
 
-.PHONY: help test demo experiment micro-test macro-test real-workload large-scale scale-10k demo-link demo-affinity demo-evaluator demo-simulator demo-all validate-baseline
+.PHONY: help test demo docs experiment micro-test macro-test real-workload large-scale scale-10k demo-link demo-affinity demo-evaluator demo-simulator demo-all validate-baseline
 
 help:
-	@echo Run cassini.bat from Windows CMD, or use these make targets.
-	@echo test demo experiment micro-test macro-test real-workload large-scale scale-10k
+	@echo Use python3 cassini.py, or use these make targets.
+	@echo test demo docs experiment micro-test macro-test real-workload large-scale scale-10k
 
 test:
 	$(PYTHON) cassini.py test
 
 demo:
 	$(PYTHON) cassini.py demo
+
+docs:
+	$(PYTHON) cassini.py docs
 
 experiment:
 	$(PYTHON) cassini.py experiment

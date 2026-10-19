@@ -1,5 +1,4 @@
-﻿import json
-import os
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -41,10 +40,9 @@ class TestCommandLine(unittest.TestCase):
         self.assertIn("jitter", result.stderr.lower())
         self.assertNotIn("Traceback", result.stderr)
 
-    @unittest.skipUnless(os.name == "nt", "Windows launcher check")
-    def test_cmd_launcher_from_another_folder(self):
+    def test_python_entry_from_another_folder(self):
         result = subprocess.run(
-            [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(ROOT / "cassini.bat"), "--help"],
+            [sys.executable, str(ROOT / "cassini.py"), "--help"],
             cwd=ROOT.parent, text=True, capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("experiment", result.stdout)

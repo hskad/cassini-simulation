@@ -1,5 +1,5 @@
 {
-  "command": "cassini.bat docs",
+  "command": "python3 cassini.py docs",
   "source": "synthetic examples from the current simulator",
   "profile": {
     "compute_ms": 50,
@@ -77,7 +77,7 @@
     "src/math_engine/graph.py": "d19eb08ad5e57e5132482fcd477714e4f42b2873bd4305af903dbb23ab02114f",
     "src/scheduler/evaluator.py": "e4db658b5c9c6cb457969689bc55d54e72268d5b7e93fbe2edd10d04b17293c6",
     "src/utils/comparison_plots.py": "e95a916752391ce9d850b832400777e8ce46c5183c2f4e01873b042377027047",
-    "src/utils/readme_visuals.py": "cbdc3675d5ad62392ca60f14ac3d49a388d5bba8a545e1057e715a635922866c"
+    "src/utils/readme_visuals.py": "a9a867fa2a07d1f47d40472bfcd94d25b7e12cd7b6d6513b0f12d91ae54db3e9"
   },
   "versions": {
     "matplotlib": "3.9.0",

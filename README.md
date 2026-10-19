@@ -15,40 +15,49 @@ Blue shows compute, orange shows communication, and grey shows waiting.
 The view covers the first 600 ms. The full run contains 10 iterations per job.
 These are synthetic examples from the corrected simulator.
 
-## Start from Windows CMD
+## Start in WSL
 
-Open CMD in this folder. Install the packages once:
+Use a WSL terminal and open this project folder. Python 3.10 or later is required.
+Create a Linux virtual environment and install the packages:
 
-```bat
-python -m pip install -r requirements.txt
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+```
+
+If Ubuntu cannot create the environment, install its venv package first:
+
+```bash
+sudo apt install python3-venv
 ```
 
 Run the checks, then run the small demo:
 
-```bat
-cassini.bat test
-cassini.bat demo
+```bash
+python3 cassini.py test
+python3 cassini.py demo
 ```
 
-The Python commands work on Windows, Linux, and macOS:
+The Makefile provides the same entry points:
 
-```text
-python cassini.py test
-python cassini.py demo
-python cassini.py experiment --jobs 20 --links 4 --seed 42
+```bash
+make test
+make demo
+make experiment
+make docs
 ```
 
-Use `python3` if your system uses that command name.
-Use `cassini.bat --help` or `cassini.bat demo --help` to see the options.
+Use `python3 cassini.py --help` or `python3 cassini.py demo --help` to see the options.
 
 ## Demos and plots
 
-```bat
-cassini.bat demo --scenario aligned --iterations 10 --solver exact
-cassini.bat demo --scenario partial --out output/partial
-cassini.bat demo --scenario multi-link --out output/multi-link
-cassini.bat demo --scenario dynamic --out output/dynamic
-cassini.bat demo --jitter 0.04 --include-static --iterations 100 --plot-window 3000 --out output/jitter
+```bash
+python3 cassini.py demo --scenario aligned --iterations 10 --solver exact
+python3 cassini.py demo --scenario partial --out output/partial
+python3 cassini.py demo --scenario multi-link --out output/multi-link
+python3 cassini.py demo --scenario dynamic --out output/dynamic
+python3 cassini.py demo --jitter 0.04 --include-static --iterations 100 --plot-window 3000 --out output/jitter
 ```
 
 | Scenario | What it checks |
@@ -100,8 +109,8 @@ Themis, Pollux, or a GPU cluster.
 
 ## Rebuild the README visuals
 
-```bat
-cassini.bat docs
+```bash
+python3 cassini.py docs
 ```
 
 This command generates current PNG plots and GIF animations in `docs/images/`.
@@ -110,10 +119,10 @@ parameters, results, package versions, and source hashes.
 
 ## Experiments and saved data
 
-```bat
-cassini.bat experiment --jobs 20 --links 4 --iterations 20 --seed 42
-cassini.bat experiment --catalog --jobs 12 --score-horizon 2000 --out output/catalog
-cassini.bat experiment --trace data/traces/philly_cluster_trace.json --jobs 10 --score-horizon 2000 --out output/sample
+```bash
+python3 cassini.py experiment --jobs 20 --links 4 --iterations 20 --seed 42
+python3 cassini.py experiment --catalog --jobs 12 --score-horizon 2000 --out output/catalog
+python3 cassini.py experiment --trace data/traces/philly_cluster_trace.json --jobs 10 --score-horizon 2000 --out output/sample
 ```
 
 The default experiment uses synthetic jobs with simple periodic profiles.
@@ -266,6 +275,15 @@ Use the main utility for current comparisons and plots.
 Rajasekaran, Ghobadi, and Akella,
 *CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters*.
 The local reference is arXiv:2308.00852v1, dated 1 August 2023.
+
+## Optional files
+
+- `output/` contains generated runs and can be deleted. Commands recreate it.
+- `visualizations/` contains old figures. The current README uses `docs/images/`.
+- `examples/` and `experiments/` provide separate demos and older entry points.
+  The main `cassini.py` utility does not require those scripts.
+
+Keep `docs/images/` to display the figures in this README.
 
 ## Older entry points
 
