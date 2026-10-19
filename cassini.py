@@ -69,6 +69,9 @@ def write_csv(path, rows):
 
 
 def build_workload(args):
+    if args.command == "showcase":
+        from src.workloads import compatible_workload
+        return compatible_workload(args.seed, args.capacity, args.iterations)
     if args.command == "demo":
         count = 3 if args.scenario in ("multi-link", "dynamic") else 2
         compute, comm = (30, 70) if args.scenario == "partial" else (50, 50)
@@ -258,7 +261,7 @@ def main(argv=None):
     benchmark.add_argument("--out", default=str(ROOT / "output" / "benchmark"))
     docs = commands.add_parser("docs", help="Rebuild README PNG plots and GIF animations.")
     docs.add_argument("--out", default=str(ROOT / "visualizations" / "readme"), help="Folder for the README images.")
-    for command in ["demo", "experiment"]:
+    for command in ["demo", "experiment", "showcase"]:
         p = commands.add_parser(command, help="Run a comparison and save plots.")
         p.add_argument("--capacity", type=positive_float, default=50.0, help="Link capacity in Gbps.")
         p.add_argument("--iterations", type=positive_int, help="Iterations per job. Overrides trace counts if set.")
@@ -275,7 +278,7 @@ def main(argv=None):
         p.add_argument("--out", default=str(ROOT / "output" / command), help="Run folder with data/ and plots/. Existing result files are replaced.")
         if command == "demo":
             p.add_argument("--scenario", choices=["aligned", "partial", "multi-link", "dynamic"], default="aligned")
-        else:
+        elif command == "experiment":
             p.add_argument("--jobs", "--num-jobs", type=positive_int, default=20)
             p.add_argument("--links", "--num-links", type=positive_int, default=4)
             p.add_argument("--arrival-span", type=positive_float, default=400.0)

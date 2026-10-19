@@ -80,6 +80,20 @@ class TestCommandLine(unittest.TestCase):
             for policy in ["uncoordinated", "static-shifts", "cassini"]:
                 self.assertEqual(json.loads((data / policy / "routes.json").read_text()), expected)
 
+    def test_showcase_saves_synthetic_inputs_and_charges_waits(self):
+        with tempfile.TemporaryDirectory() as folder:
+            result = self.invoke("showcase", "--iterations", "3", "--no-history", "--out", folder)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data = Path(folder) / "data"
+            parameters = json.loads((data / "parameters.json").read_text())
+            self.assertEqual(parameters["provenance"]["kind"], "synthetic")
+            rows = json.loads((data / "summary.json").read_text())
+            self.assertEqual([row["jobs"] for row in rows], [56, 56])
+            self.assertLess(rows[1]["mean_jct_ms"], rows[0]["mean_jct_ms"])
+            self.assertGreater(rows[1]["mean_wait_ms"], 0)
+            for policy in ["uncoordinated", "cassini"]:
+                self.assertEqual(json.loads((data / policy / "routes.json").read_text()), parameters["input_routes"])
+
     def test_python_entry_from_another_folder(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / "cassini.py"), "--help"],

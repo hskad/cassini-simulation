@@ -219,7 +219,26 @@ For compute jitter, the bars average the percentage reduction from each seed.
 The dots show all five seeds. One seed gives a 0.65% increase in mean JCT with
 the current correction rule. Keeping this result shows the cost of that rule.
 
-## Workload comparison
+## Constructed compatible workload
+
+```bash
+python3 cassini.py showcase
+# Or use: make showcase
+```
+
+This is a synthetic demonstration designed to favor phase interleaving. It is
+not a datacenter trace. It uses 56 jobs on seven 50 Gbps links, with eight jobs
+per link. All jobs arrive together. Each job computes for seven slots, then
+communicates for one slot. Cassini can place the eight transfers in separate
+slots. Uncoordinated jobs start their transfers together and share bandwidth.
+
+Seven assumed profiles use periods of 40, 64, 80, 96, 120, 160, and 200 ms.
+These names describe timing profiles, not measured ML models. Job lengths vary
+from 200 to 400 iterations with seed 42. Both policies use the same inputs,
+routes, and link rates. All alignment waits count towards completion time.
+The command saves the exact inputs and results under `output/showcase/`.
+
+## Mixed-workload stress check
 
 The following figures use 56 synthetic jobs: eight jobs per catalog profile,
 six 50 Gbps links, and seed 42. Routes are fixed before either policy runs.
@@ -389,6 +408,7 @@ The published paper is available from [USENIX NSDI 2024](https://www.usenix.org/
 |   `-- traces/            Input workloads and source notes
 |-- src/
 |   |-- benchmark.py       Matched cases and analytical checks
+|   |-- workloads.py       Constructed synthetic input cases
 |   |-- core/              Job, phase, link, and input models
 |   |-- math_engine/       Compatibility scores, shifts, and affinity graphs
 |   |-- scheduler/         Placement checks and phase simulation
