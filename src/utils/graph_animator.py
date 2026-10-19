@@ -154,6 +154,6 @@ def create_bfs_animation(filename: str):
     print(f"Saved animation to {filename}")
 
 if __name__ == '__main__':
-    output_dir = os.path.join(PROJECT_ROOT, 'visualizations')
+    output_dir = os.path.join(PROJECT_ROOT, 'output', 'animations', 'plots')
     os.makedirs(output_dir, exist_ok=True)
     create_bfs_animation(os.path.join(output_dir, 'affinity_bfs_animation.gif'))

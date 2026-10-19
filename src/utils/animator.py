@@ -82,7 +82,7 @@ def create_optimization_gif(job1: Job, job2: Job, link: Link, filename: str, res
     print(f"Saved animation to {filename}")
 
 if __name__ == '__main__':
-    output_dir = os.path.join(PROJECT_ROOT, 'visualizations')
+    output_dir = os.path.join(PROJECT_ROOT, 'output', 'animations', 'plots')
     os.makedirs(output_dir, exist_ok=True)
     
     # 1. Setup Mock Jobs and Link (Capacity 25 Gbps to force a bottleneck if they overlap)

@@ -10,7 +10,7 @@ compute, communication, and all waits.
 The animation shows the circular phase-alignment method. One profile stays fixed,
 while the other rotates to reduce overlapping communication.
 
-![Circular communication profiles rotate from overlap to a compatible offset](docs/images/geometric-alignment.gif)
+![Circular communication profiles rotate from overlap to a compatible offset](visualizations/readme/geometric-alignment.gif)
 
 Each profile has 141 ms of compute and 114 ms of communication on a 50 Gbps link.
 The solver finds the 114 ms offset shown in the animation. These are periodic
@@ -92,7 +92,7 @@ job, for 10 iterations. Both jobs request the full 50 Gbps link during
 communication. Overlapping transfers share its capacity. With the calculated shift, their communication
 phases alternate. Served bandwidth stays within capacity in both cases.
 
-![Requested and served bandwidth on the same 50 Gbps link](docs/images/bandwidth.png)
+![Requested and served bandwidth on the same 50 Gbps link](visualizations/readme/bandwidth.png)
 
 ### Completion time and waiting cost
 
@@ -113,7 +113,7 @@ Themis, Pollux, or a GPU cluster.
 python3 cassini.py docs
 ```
 
-This command generates current PNG plots and GIF animations in `docs/images/`.
+This command generates current PNG plots and GIF animations in `visualizations/readme/`.
 The geometric and graph examples use the exact grid solver. The larger workload
 uses the greedy solver and an explicit scoring window. `manifest.json` records
 parameters, results, package versions, and source hashes.
@@ -160,13 +160,13 @@ The scheduler uses the greedy solver and a 2,000 ms scoring window. These plots
 show the current simulation with the documented correction rule. They do not
 reproduce the paper's hardware results. Catalog source limits still apply.
 
-![Completion time CDF for 56 synthetic jobs on six shared links](docs/images/workload-cdf.png)
+![Completion time CDF for 56 synthetic jobs on six shared links](visualizations/readme/workload-cdf.png)
 
 Each step represents completed jobs. A curve further left has shorter completion
 times. In this example, Cassini's alignment and correction waits increase mean
 JCT from 6.05 seconds to 7.99 seconds.
 
-![Mean completion time for each of seven illustrative model profiles](docs/images/model-breakdown.png)
+![Mean completion time for each of seven illustrative model profiles](visualizations/readme/model-breakdown.png)
 
 The labels show percentage reduction in mean JCT. Negative values mean that
 completion took longer. Each comparison uses the same jobs and routes.
@@ -197,7 +197,7 @@ This example uses five jobs and three shared links. The animation follows the
 BFS traversal. Yellow marks the current node or edge. The values above the jobs
 show their calculated global shifts.
 
-![BFS traversal highlights jobs and shared links while calculating global shifts](docs/images/affinity-traversal.gif)
+![BFS traversal highlights jobs and shared links while calculating global shifts](visualizations/readme/affinity-traversal.gif)
 
 The edge labels show local shifts in milliseconds. Each job has an 80 ms compute
 phase and a 20 ms communication phase. The graph has no cycles.
@@ -228,11 +228,11 @@ This run uses 100 iterations per job, uniform compute jitter of +/-4%, and seed 
 The plot shows the first 3,000 ms. Crosses mark correction triggers. Dotted lines
 show the 5% threshold. All panels use the same vertical scale.
 
-![Communication phase error with no shifts, static shifts, and drift correction](docs/images/drift.png)
+![Communication phase error with no shifts, static shifts, and drift correction](visualizations/readme/drift.png)
 
 In this run, correction gives lower phase error but higher mean JCT than static
 shifts. The correction waits have a cost. The settings and full run totals are
-saved in [the visual manifest](docs/images/manifest.json).
+saved in [the visual manifest](visualizations/readme/manifest.json).
 
 ## Scoring and solver limits
 
@@ -278,7 +278,7 @@ from Figure 16 of the supplied paper. Its testbed link rate is 50 Gbps.
 Scaling communication time inversely with bandwidth is a simulation assumption.
 Other model values lack verified benchmark sources.
 
-Historical plots in `visualizations/` came from the previous runtime model.
+Historical plots in `visualizations/archive/` came from the previous runtime model.
 They are retained as old artifacts. Their speedup values are not validated
 results from the corrected simulator.
 
@@ -301,11 +301,12 @@ The local reference is arXiv:2308.00852v1, dated 1 August 2023.
 ## Optional files
 
 - `output/` contains generated runs and can be deleted. Commands recreate it.
-- `visualizations/` contains old figures. The current README uses `docs/images/`.
+- `visualizations/readme/` contains the current README figures.
+- `visualizations/archive/` contains the old figures for reference.
 - `examples/` and `experiments/` provide separate demos and older entry points.
   The main `cassini.py` utility does not require those scripts.
 
-Keep `docs/images/` to display the figures in this README.
+Keep `visualizations/readme/` to display the figures in this README.
 
 ## Older entry points
 

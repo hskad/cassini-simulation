@@ -9,8 +9,6 @@ from src.core.models import Phase, Job, Link, Cluster, Server
 from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph
 
 def main():
-    os.makedirs(os.path.join(PROJECT_ROOT, 'visualizations'), exist_ok=True)
-    
     # 1. Setup Mock Complex Multi-Link Scenario
     job1 = Job(job_id="j1", name="VGG16", phases=[Phase("compute", 100, 0)])
     job2 = Job(job_id="j2", name="ResNet50", phases=[Phase("compute", 100, 0)])
@@ -55,7 +53,7 @@ def main():
     for jid, shift in global_shifts.items():
         print(f"  Job {jid}: {shift}ms")
         
-    print("\nTraversal Complete! (See visualizations/affinity_bfs_animation.gif for animated demonstration)")
+    print("\nTraversal Complete! (See visualizations/readme/affinity-traversal.gif for animated demonstration)")
 
 if __name__ == '__main__':
     main()

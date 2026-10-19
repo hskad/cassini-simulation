@@ -33,7 +33,7 @@ def main():
     print("\nRunning Link-Level Optimizer...")
     optimize_link([job1, job2], link)
     print(f"Optimal Time-Shift for {job2.name}: {job2.time_shift}ms")
-    print("\nOptimization Complete! (See visualizations/optimization_animation.gif for animated demonstration)")
+    print("\nOptimization Complete! (See visualizations/readme/geometric-alignment.gif for animated demonstration)")
 
 if __name__ == '__main__':
     main()

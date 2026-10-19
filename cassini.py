@@ -195,7 +195,7 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("test", help="Run all unit tests.")
     docs = commands.add_parser("docs", help="Rebuild README PNG plots and GIF animations.")
-    docs.add_argument("--out", default=str(ROOT / "docs" / "images"), help="Folder for the README images.")
+    docs.add_argument("--out", default=str(ROOT / "visualizations" / "readme"), help="Folder for the README images.")
     for command in ["demo", "experiment"]:
         p = commands.add_parser(command, help="Run a comparison and save plots.")
         p.add_argument("--capacity", type=positive_float, default=50.0, help="Link capacity in Gbps.")
