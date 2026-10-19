@@ -19,8 +19,8 @@ from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
 
 ROOT = Path(__file__).resolve().parent
-PLOT_FILES = ("timeline.png", "bandwidth.png", "drift.png", "jct.png")
-DATA_FILES = ("summary.csv", "summary.json", "parameters.json", "workload.json")
+PLOT_FILES = ("timeline.png", "bandwidth.png", "drift.png", "jct.png", "benchmark.png")
+DATA_FILES = ("summary.csv", "summary.json", "parameters.json", "workload.json", "runs.json")
 POLICY_FILES = ("completions.csv", "adjustments.csv", "link_totals.json", "routes.json",
                 "phases.csv", "links.csv", "drift.csv", "schedules.json")
 
@@ -201,10 +201,50 @@ def run_comparison(args):
     return 0
 
 
+def run_benchmark(args):
+    from src.benchmark import run_benchmarks
+    from src.visualization.benchmark_plots import plot_benchmarks
+    out = Path(args.out).resolve()
+    prepare_output(out)
+    rows, workloads, runs = run_benchmarks(args.iterations, args.seeds)
+    write_csv(out / "data" / "summary.csv", rows)
+    write_json(out / "data" / "summary.json", rows)
+    write_json(out / "data" / "workload.json", workloads)
+    write_json(out / "data" / "runs.json", runs)
+    sources = ["src/benchmark.py", "src/scheduler/simulator.py", "src/scheduler/evaluator.py",
+               "src/math_engine/optimizer.py", "src/math_engine/graph.py", "src/core/models.py",
+               "src/core/trace_loader.py", "data/models/real_models.json"]
+    write_json(out / "data" / "parameters.json", {**vars(args),
+        "source": "synthetic validation cases; no hardware performance claim",
+        "profile_source": "VGG-16 timing from the catalog; other cases use synthetic profiles",
+        "solver": "greedy", "resolution_ms": 1, "score_horizon_ms": None,
+        "drift_threshold": 0.05, "jitter_fraction": 0.04,
+        "seed_scope": "compute-jitter case; deterministic cases run once with seed 0",
+        "checks": ["analytical completion times", "fixed identical routes", "matched compute noise",
+                   "per-job network work", "per-link capacity and work", "all elapsed time charged"],
+        "source_sha256": {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in sources},
+        "units": {"time": "ms", "bandwidth": "Gbps"}})
+    plot_benchmarks(rows, out / "plots" / "benchmark.png")
+    write_json(out / "status.json", {"status": "complete", "validated_runs": len(rows)})
+    print(f"{'Case':<19} {'Seed':>4} {'Policy':<15} {'Mean JCT (ms)':>14} {'Reduction (%)':>14}")
+    for row in rows:
+        print(f"{row['case']:<19} {row['seed']:>4} {row['policy']:<15} "
+              f"{row['mean_jct_ms']:>14.3f} {row['jct_reduction_percent']:>14.3f}")
+    print("Negative reduction means longer completion time. All input cases are included.")
+    print("Data:", out / "data")
+    print("Plot:", out / "plots" / "benchmark.png")
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Run Cassini phase scheduling checks and plots.")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("test", help="Run all unit tests.")
+    benchmark = commands.add_parser("benchmark", help="Run matched cases and analytical checks.")
+    benchmark.add_argument("--iterations", type=positive_int, default=100)
+    benchmark.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 4],
+                           help="Distinct seeds for compute jitter. Other cases run once.")
+    benchmark.add_argument("--out", default=str(ROOT / "output" / "benchmark"))
     docs = commands.add_parser("docs", help="Rebuild README PNG plots and GIF animations.")
     docs.add_argument("--out", default=str(ROOT / "visualizations" / "readme"), help="Folder for the README images.")
     for command in ["demo", "experiment"]:
@@ -237,6 +277,8 @@ def main(argv=None):
         result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover(str(ROOT / "tests")))
         return 0 if result.wasSuccessful() else 1
     try:
+        if args.command == "benchmark":
+            return run_benchmark(args)
         if args.command == "docs":
             from src.visualization.readme_visuals import build_readme_visuals
             build_readme_visuals(args.out)

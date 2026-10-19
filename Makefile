@@ -1,10 +1,10 @@
 PYTHON ?= python3
 
-.PHONY: help test demo docs experiment micro-test macro-test sample-trace large-scale scale-10k demo-link demo-affinity demo-evaluator demo-simulator demo-all validate-baseline
+.PHONY: help test demo docs benchmark experiment micro-test macro-test sample-trace large-scale scale-10k demo-link demo-affinity demo-evaluator demo-simulator demo-all validate-baseline
 
 help:
 	@echo Use python3 cassini.py, or use these make targets.
-	@echo test demo docs experiment micro-test macro-test sample-trace large-scale scale-10k
+	@echo test demo docs benchmark experiment micro-test macro-test sample-trace large-scale scale-10k
 
 test:
 	$(PYTHON) cassini.py test
@@ -14,6 +14,9 @@ demo:
 
 docs:
 	$(PYTHON) cassini.py docs
+
+benchmark:
+	$(PYTHON) cassini.py benchmark
 
 experiment:
 	$(PYTHON) cassini.py experiment

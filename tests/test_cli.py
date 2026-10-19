@@ -56,6 +56,18 @@ class TestCommandLine(unittest.TestCase):
         self.assertIn("jitter", result.stderr.lower())
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_benchmark_saves_all_cases_and_audit_results(self):
+        with tempfile.TemporaryDirectory() as folder:
+            result = self.invoke("benchmark", "--iterations", "3", "--seeds", "7", "--out", folder)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            out = Path(folder)
+            rows = json.loads((out / "data" / "summary.json").read_text())
+            self.assertEqual(len(rows), 24)
+            self.assertEqual(json.loads((out / "status.json").read_text())["validated_runs"], 24)
+            self.assertTrue((out / "data" / "runs.json").is_file())
+            self.assertGreater((out / "plots" / "benchmark.png").stat().st_size, 1000)
+            self.assertIn("Negative reduction", result.stdout)
+
     def test_python_entry_from_another_folder(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / "cassini.py"), "--help"],

@@ -168,6 +168,41 @@ The detailed event files and the other plots are omitted.
 The engine executes all iterations; it no longer skips them through a score model.
 Large workloads can therefore take substantially longer than the old scripts.
 
+## Check the scheduling benefit
+
+```bash
+python3 cassini.py benchmark --iterations 100 --seeds 0 1 2 3 4
+# Or use: make benchmark
+```
+
+This command compares the same jobs and fixed routes under three policies:
+uncoordinated, shifts without correction, and Cassini with the stated correction
+rule. It includes aligned jobs, the VGG-16 timing profile from the catalog,
+an already aligned arrival, a multi-link chain,
+an overloaded link, different periods, separate links, and compute jitter.
+The jitter case uses every supplied seed. The deterministic cases run once.
+Cases are specified in `src/benchmark.py`; the command does not select cases
+based on their results.
+
+The benchmark checks network work, bandwidth limits, matched compute noise,
+and all elapsed job time. Five cases also have analytical completion-time checks.
+It saves every result to `output/benchmark/data/` and the comparison plot to
+`output/benchmark/plots/benchmark.png`. Negative reductions remain in the results.
+
+For the aligned pair, each job has 50 ms of compute and 50 ms of communication
+at 50 Gbps. With no shifts, both transfers share the link at 25 Gbps. Each
+iteration therefore takes 150 ms. Cassini delays the second job by 50 ms once,
+then the two jobs alternate their transfers. For `N` iterations:
+
+- Uncoordinated mean JCT: `150 N` ms.
+- Cassini mean JCT: `100 N + 25` ms, including the initial wait.
+
+At 100 iterations, these values are 15.00 s and 10.025 s: a 33.17% reduction.
+This result applies to the stated fluid model and compatible profiles. It is
+not a guarantee for every workload or a reproduction of the paper's testbed.
+The already aligned and separate-link cases check that no extra wait is added
+when no shift is needed.
+
 ## Workload comparison
 
 The following figures use 56 synthetic jobs: eight jobs per catalog profile,
@@ -333,6 +368,7 @@ The local reference is arXiv:2308.00852v1, dated 1 August 2023.
 |   |-- models/            Model parameters and source notes
 |   `-- traces/            Input workloads and source notes
 |-- src/
+|   |-- benchmark.py       Matched cases and analytical checks
 |   |-- core/              Job, phase, link, and input models
 |   |-- math_engine/       Compatibility scores, shifts, and affinity graphs
 |   |-- scheduler/         Placement checks and phase simulation
