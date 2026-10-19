@@ -184,7 +184,9 @@ def main():
     ax.set_xlabel('Average Job Completion Time (ms)', fontsize=12, color='white')
     ax.set_title('Turnaround Time Comparison by Model Architecture (Philly Workload)', fontsize=14, color='white', pad=15)
     ax.grid(True, alpha=0.2, color='gray', linestyle='--', axis='x')
-    ax.legend(loc='lower right', frameon=True, facecolor='#1e1e1e', edgecolor='#444444')
+    ax.set_xlim(0, max(b_vals + c_vals) * 1.25)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.16), ncol=2,
+              frameon=True, facecolor='#1e1e1e', edgecolor='#444444')
 
     # Add speedup annotations on bars
     for idx, m in enumerate(models_sorted):

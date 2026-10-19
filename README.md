@@ -17,8 +17,21 @@ pattern when a window ends partway through a cycle. The optimizer uses the same
 rule when comparing candidate shifts. The fast runtime formula and placement
 policies are unchanged.
 
-The result tables and figures below currently show the earlier sampling method;
-they are being regenerated for this correction.
+All eight experiment PNGs below were regenerated in WSL after this correction.
+The numerical results and figure hashes are recorded in
+[the results manifest](visualizations/readme_results.json), together with the
+source hashes, settings, and package versions. The existing GIFs illustrate
+separate examples and are retained.
+
+These results use the fast compatibility-based runtime estimator. Completion
+times come from its penalty formula; transfers and phase-shift waits are not
+executed individually. The other model assumptions are unchanged.
+
+To rebuild the experiment figures in WSL:
+
+```bash
+make PYTHON=python3 micro-test macro-test real-workload large-scale scale-10k
+```
 
 ---
 
@@ -171,18 +184,18 @@ python experiments/macro_test.py
 
 ```text
 --- Results Summary ---
-Average JCT (CASSINI): 1129.74ms
+Average JCT (CASSINI): 1130.19ms
 Average JCT (Random) : 1355.48ms
-Performance Gain    : 16.7% faster with CASSINI
+Mean JCT reduction  : 16.6%
 ```
 
 #### How to Interpret the CDF Graph:
 - **X-Axis (Job Completion Time in ms)**: Total turnaround time from job arrival to completion. Lower values (further left) represent faster completions.
 - **Y-Axis (Cumulative Probability)**: The proportion of all 50 cluster jobs completed (from 0% to 100%).
 - **Shifted Left is Better**:
-  - **Median JCT (P50)**: CASSINI finishes 50% of the workload at **$\sim 1150\text{ ms}$**, whereas the baseline Random scheduler requires **$\sim 1420\text{ ms}$** ($\approx 270\text{ ms}$ faster).
-  - **Tail Latency (P90)**: 90% of CASSINI jobs complete by **$1750\text{ ms}$**, while Random scheduling suffers from cascading collisions with jobs dragging out past **$2560\text{ ms}$**.
-  - **Physical Mechanism**: CASSINI's circular interleaving prevents packet drops and network queueing on bottleneck links, enabling jobs to transmit at full line rate without contention.
+  - **Median JCT (P50)**: Cassini reaches the median at 1162.66 ms; the random baseline reaches it at 1386.44 ms.
+  - **Tail JCT (P90)**: 90% of jobs have estimated JCT below 1730.28 ms with Cassini and 2050.06 ms with the baseline.
+  - **Model behavior**: Reduced communication overlap lowers the penalty used to estimate job duration.
 
 Custom cluster experiments can be passed directly via CLI:
 ```bash
@@ -211,18 +224,12 @@ python experiments/real_workload_experiment.py
   <img src="visualizations/real_workload_model_breakdown.png" alt="Turnaround Time by Architecture" width="48%"/>
 </p>
 
-```text
-=================================================================
-                     EXPERIMENT RESULTS SUMMARY                  
-=================================================================
-Metric                    |     Baseline |      CASSINI |  Improvement
----------------------------------------------------------------------
-Mean JCT (ms)             |      4389.20 |      4039.04 |         8.0%
-Median P50 JCT (ms)       |      4473.15 |      4096.45 |         8.4%
-P90 Tail Latency (ms)     |      5634.62 |      5208.91 |         7.6%
-P95 Tail Latency (ms)     |      5836.77 |      5388.78 |         7.7%
-=====================================================================
-```
+| Metric (ms) | Baseline | Cassini | Reduction |
+| --- | ---: | ---: | ---: |
+| Mean JCT | 4389.20 | 4052.20 | 7.7% |
+| Median (P50) | 4473.15 | 4110.17 | 8.1% |
+| P90 JCT | 5634.62 | 5222.91 | 7.3% |
+| P95 JCT | 5836.77 | 5402.94 | 7.4% |
 
 Run with custom cluster parameters or stochastic Philly distribution:
 ```bash
@@ -249,32 +256,24 @@ python experiments/large_scale_2000_jobs.py
   <img src="visualizations/large_scale_2000_jobs_breakdown.png" alt="2000-Job Turnaround by Architecture" width="48%"/>
 </p>
 
-```text
-=========================================================================
-               LARGE-SCALE PRODUCTION SIMULATION RESULTS                 
-=========================================================================
-Metric                    | Baseline (Uncoord) |         CASSINI |  Improvement
------------------------------------------------------------------------------
-Mean JCT (minutes)        |              13.84 |            8.27 |        40.3%
-Median P50 (minutes)      |              10.71 |            6.46 |        39.7%
-P90 Tail Latency (min)    |              27.55 |           16.19 |        41.3%
-P95 Tail Latency (min)    |              34.76 |           20.55 |        40.9%
-=============================================================================
+| Metric (minutes) | Baseline | Cassini | Reduction |
+| --- | ---: | ---: | ---: |
+| Mean JCT | 13.84 | 8.42 | 39.2% |
+| Median (P50) | 10.71 | 6.52 | 39.1% |
+| P90 JCT | 27.55 | 16.47 | 40.2% |
+| P95 JCT | 34.76 | 20.66 | 40.6% |
 
--------------------------------------------------------------------------
-  Per-Model Turnaround & Speedup Breakdown                               
--------------------------------------------------------------------------
-Model Architecture | Baseline (min) | CASSINI (min) |    Speedup
-------------------------------------------------------------
-BERT-Base        |          11.45 |          6.84 |      40.3%
-BERT-Large       |          24.45 |         14.37 |      41.2%
-DLRM             |           6.98 |          4.40 |      36.9%
-GPT-2-Medium     |          22.57 |         13.84 |      38.7%
-ResNet-50        |           9.90 |          5.76 |      41.8%
-VGG-16           |          20.05 |         11.98 |      40.2%
-ViT-Base         |           9.40 |          5.62 |      40.2%
-============================================================
-```
+Mean JCT by model (minutes):
+
+| Model | Baseline | Cassini | Reduction |
+| --- | ---: | ---: | ---: |
+| BERT-Base | 11.45 | 6.97 | 39.1% |
+| BERT-Large | 24.45 | 14.59 | 40.3% |
+| DLRM | 6.98 | 4.52 | 35.2% |
+| GPT-2-Medium | 22.57 | 14.05 | 37.7% |
+| ResNet-50 | 9.90 | 5.87 | 40.8% |
+| VGG-16 | 20.05 | 12.20 | 39.1% |
+| ViT-Base | 9.40 | 5.69 | 39.4% |
 
 ---
 
@@ -297,33 +296,25 @@ make scale-10k
 
 ### 10,000-Job Empirical Results Summary
 
-```text
-=========================================================================
-               10,000-JOB PRODUCTION SIMULATION RESULTS                  
-=========================================================================
-Metric                    | Baseline (Uncoord) |         CASSINI |  Improvement
------------------------------------------------------------------------------
-Mean JCT (minutes)        |              17.04 |            8.15 |        52.2%
-Median P50 (minutes)      |              13.19 |            6.38 |        51.6%
-P90 Tail Latency (min)    |              33.01 |           15.69 |        52.5%
-P95 Tail Latency (min)    |              42.82 |           19.85 |        53.6%
-P99 Tail Latency (min)    |              65.00 |           29.60 |        54.5%
-=============================================================================
+| Metric (minutes) | Baseline | Cassini | Reduction |
+| --- | ---: | ---: | ---: |
+| Mean JCT | 17.04 | 8.29 | 51.3% |
+| Median (P50) | 13.19 | 6.46 | 51.0% |
+| P90 JCT | 33.01 | 15.87 | 51.9% |
+| P95 JCT | 42.82 | 20.07 | 53.1% |
+| P99 JCT | 65.00 | 30.68 | 52.8% |
 
--------------------------------------------------------------------------
-  Per-Model Turnaround & Speedup Breakdown (10,000 Jobs)                 
--------------------------------------------------------------------------
-Model Architecture | Baseline (min) | CASSINI (min) |    Speedup
-------------------------------------------------------------
-BERT-Base        |          14.60 |          6.94 |      52.4%
-BERT-Large       |          31.10 |         14.52 |      53.3%
-DLRM             |           8.84 |          4.44 |      49.8%
-GPT-2-Medium     |          28.00 |         13.76 |      50.8%
-ResNet-50        |          11.79 |          5.63 |      52.3%
-VGG-16           |          24.78 |         11.87 |      52.1%
-ViT-Base         |          12.45 |          5.85 |      53.0%
-============================================================
-```
+Mean JCT by model (minutes):
+
+| Model | Baseline | Cassini | Reduction |
+| --- | ---: | ---: | ---: |
+| BERT-Base | 14.60 | 7.05 | 51.7% |
+| BERT-Large | 31.10 | 14.80 | 52.4% |
+| DLRM | 8.84 | 4.51 | 49.0% |
+| GPT-2-Medium | 28.00 | 14.07 | 49.7% |
+| ResNet-50 | 11.79 | 5.71 | 51.6% |
+| VGG-16 | 24.78 | 12.08 | 51.3% |
+| ViT-Base | 12.45 | 5.94 | 52.2% |
 
 ---
 
@@ -418,9 +409,9 @@ The following major enhancements and empirical expansions have been implemented 
 | **Empirical ML Model Profiling** | None (hardcoded synthetic values) | [`data/models/real_models.json`](data/models/real_models.json) with 7 architectures | Grounded in A100 micro-benchmarks from USENIX NSDI '24 & MLPerf |
 | **Trace Ingestion Engine** | None | [`src/core/trace_loader.py`](src/core/trace_loader.py) with dynamic bandwidth scaling ($T_{\text{comm}} \propto 1/B$) | Realistic multi-tenant trace generation and unit test suite |
 | **Incremental Placement Engine** | Batch-only (all jobs reshuffled every tick) | Added `incremental=True` mode in [`Simulator`](src/scheduler/simulator.py) | Simulation runtime reduced by **>95%** (sub-minute execution) |
-| **Phase 2 Real Workload** | None | 60-job snapshot experiment with empirical models | Initial validation of 38.6% mean JCT reduction |
-| **Phase 3 Large-Scale Experiment** | None | 2,000-job production cluster trace (~2 weeks) | 40.3% speedup over 5.5M training iterations |
-| **Phase 4 Ultra-Scale Workload** | None | 10,000-job multi-core parallel simulation (~1.5 months) | **52.2% speedup** and **54.5% P99 tail reduction** across 27.8M iterations |
+| **Phase 2 Real Workload** | None | 60-job snapshot experiment with empirical models | Current fast-model mean JCT reduction: 7.7% |
+| **Phase 3 Large-Scale Experiment** | None | 2,000-job production cluster trace (~2 weeks) | 39.2% estimated mean JCT reduction over the workload's 5.5M iterations |
+| **Phase 4 Ultra-Scale Workload** | None | 10,000-job multi-core parallel simulation (~1.5 months) | **51.3% estimated mean JCT reduction** and **52.8% P99 reduction** across the workload's 27.8M iterations |
 | **CLI & Automation** | Basic targets | `make real-workload`, `make large-scale`, `make scale-10k` | One-command execution for all scales |
 
 ---
