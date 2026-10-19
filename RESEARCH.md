@@ -162,8 +162,9 @@ smaller workloads, with the same three seeds:
 
 The [sensitivity records](visualizations/shift_policy_sensitivity.json) contain
 all runs. These results are model experiments on a small set of seeds, rather
-than proof of a general improvement or novelty. Remaining-work prediction
-errors and an independent execution model have not been evaluated here.
+than proof of a general improvement or novelty. These runs use accurate
+remaining-work input. The experiment below tests systematic estimate errors;
+an independent execution model has not been evaluated.
 
 Reproduce these evaluations:
 
@@ -223,6 +224,50 @@ uncommitted changes, package versions, settings, and all paired results.
 The graph shows mean and P95 JCT reductions versus vanilla. Shaded bands show
 the min–max range across seeds, not a confidence interval. It also records JCT
 changes relative to the accurate benefit rule, waiting time, and shift counts.
+
+### Estimate-error results
+
+The WSL evaluation uses three seeds for every workload and error setting:
+60 paired comparisons, or 120 policy simulations. Values below are mean JCT
+reductions versus the vanilla model, averaged over paired seeds. Negative error
+means the estimate is too low; positive error means it is too high.
+
+| Workload | -50% | -25% | Accurate | +25% | +50% |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 50 generated jobs | +1.60% | +1.63% | +1.55% | +1.51% | +1.49% |
+| 60 illustrative jobs | +2.03% | +2.00% | +1.98% | +1.99% | +1.94% |
+| 200 short jobs | +10.35% | +9.94% | +9.30% | +9.00% | +8.07% |
+| 2,000 synthetic jobs | +0.98% | +0.98% | +0.98% | +0.98% | +0.98% |
+
+<p align="center">
+  <img src="visualizations/remaining_work/remaining_work_sensitivity.png" alt="Mean and P95 JCT gains with remaining-work estimate errors and seed ranges" width="900"/>
+</p>
+
+The benefit rule beats vanilla in all 60 workload cases, including both extremes
+of the tested error range. Short jobs are more sensitive to overestimation:
+at +50% error, their mean gain falls from 9.30% to 8.07%, and mean shift wait
+increases from 29.42 ms to 37.30 ms. The 2,000-job gains are nearly unchanged
+at this scale; the saved records retain the smaller numerical differences.
+
+Lower estimates make the rule more conservative at a given decision. They
+sometimes give better actual JCT than accurate work input. Accurate remaining
+work does not make the forecast exact: it still holds traffic scores fixed
+while later arrivals and departures can change them. These results do not
+establish that underestimation is always preferable. A separate two-job test
+shows that a +50% error can cause acceptance of a shift that is slower than
+keeping the current offsets.
+
+The [results manifest](visualizations/remaining_work/remaining_work_results.json)
+records source commit `bb5f6df`, all settings, seed ranges, P95 gains, waits,
+and individual run metrics. All 120 completion files were checked, and all
+24 accurate-estimate policy runs match the previously published results.
+The run's Git status reports source changes due to CRLF checkout line endings;
+the post-run audit verifies that every source matches the committed content
+after line-ending normalization, and retains both byte and Git-blob hashes.
+
+All 52 regression tests pass in WSL. This experiment tests a shared systematic
+bias, not a real job-length predictor or independent network execution. The
+10,000-job workload was not included in this sweep.
 
 ## Possible future experiments
 
