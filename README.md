@@ -1,3 +1,11 @@
+> The Cassini policy now checks communication phase error against 5% of the
+> nominal iteration time (paper Section 5.7). For a compatible group, it delays
+> a phase to its next nominal start when the threshold is exceeded. This
+> delay-only action is a simulation assumption: the paper specifies the trigger,
+> but not a complete correction procedure. Correction waits count towards JCT.
+> Uniform compute jitter is optional. Each job receives the same noise sequence
+> under both policies. This is a baseline stress test, not a new extension.
+
 > The simulator now executes each phase and shares link bandwidth. It records
 > alignment waits and includes them in completion time. Routes stay fixed after
 > admission. Both policies use the same placement rule. Explicit routes can span

@@ -1,5 +1,6 @@
-﻿"""Phase events and a fluid network model. Time is in ms; rates are in Gbps."""
+"""Phase events and a fluid network model. Time is in ms; rates are in Gbps."""
 import heapq
+import hashlib
 import math
 import warnings
 from dataclasses import dataclass, field, replace
@@ -33,6 +34,8 @@ class JobState:
     pending_alignment: bool = True
     wait_reason: str = "initial shift"
     wait_time: float = 0.0
+    correct_drift: bool = False
+    drift_checked: bool = False
 
 
 def eval_link_compatibility(jobs: List[Job], link: Link, optimize: bool = True,
@@ -80,10 +83,20 @@ class Simulator:
     def __init__(self, base_cluster: Cluster, penalty_factor: Optional[float] = None,
                  use_cassini: bool = True, incremental: bool = False, *,
                  record_history: bool = False, score_horizon: Optional[float] = None,
-                 resolution: float = 1.0):
+                 resolution: float = 1.0, compute_jitter: float = 0.0,
+                 seed: int = 42, drift_threshold: Optional[float] = 0.05):
         if penalty_factor is not None:
             warnings.warn("penalty_factor is obsolete. Link capacity now determines communication time.",
                           DeprecationWarning, stacklevel=2)
+        if not math.isfinite(compute_jitter) or not 0 <= compute_jitter < 1:
+            raise ValueError("Compute jitter must be in [0, 1).")
+        if drift_threshold is not None and (not math.isfinite(drift_threshold) or not 0 < drift_threshold < 0.5):
+            raise ValueError("Drift threshold must be in (0, 0.5), or None.")
+        self.compute_jitter = compute_jitter
+        self.seed = seed
+        self.drift_threshold = drift_threshold
+        self.drift_history = []
+        self.adjustments = []
         self.base_cluster = base_cluster
         self.use_cassini = use_cassini
         self.incremental = incremental  # Kept for callers; paths now stay fixed in both modes.
@@ -151,7 +164,14 @@ class Simulator:
             return
         candidate = PlacementCandidate("fixed routes", self.active_cluster)
         _, shifts = evaluate_placements([candidate], horizon=self.score_horizon, resolution=self.resolution)
+        planned = {jid: replace(state.job, time_shift=shifts.get(jid, state.job.time_shift))
+                   for jid, state in self.states.items()}
+        link_scores = {link.link_id: score_link(
+            [planned[j.job_id] for j in self.active_cluster.link_jobs[link.link_id]], link, self.score_horizon)
+            for link in self.base_cluster.links}
         for jid, state in self.states.items():
+            shared = [lid for lid in state.links if len(self.active_cluster.link_jobs[lid]) > 1]
+            state.correct_drift = bool(shared) and all(link_scores[lid] >= 1 - EPS for lid in shared)
             if jid in shifts:
                 state.origin = self.current_time + shifts[jid]
                 state.pending_alignment = True
@@ -160,7 +180,8 @@ class Simulator:
                 state.pending_alignment = False
         if self.record_history:
             self.schedule_history.append({"time": self.current_time, "shifts": shifts,
-                                          "score_horizon_ms": self.score_horizon})
+                                          "score_horizon_ms": self.score_horizon,
+                                          "link_scores": link_scores})
 
     def _complete(self, jid):
         state = self.states.pop(jid)
@@ -181,6 +202,7 @@ class Simulator:
                 continue
             state.phase_index += 1
             state.mode = "new"
+            state.drift_checked = False
             if state.phase_index == len(state.job.phases):
                 state.phase_index = 0
                 state.iteration += 1
@@ -188,6 +210,15 @@ class Simulator:
                     self._complete(jid)
                     departed = True
         return departed
+
+    def _compute_duration(self, state):
+        phase = state.job.phases[state.phase_index]
+        if phase.type != "compute" or phase.bandwidth_demand or not self.compute_jitter:
+            return phase.duration
+        # Index noise by job and iteration. Policies receive the same noise.
+        key = f"{self.seed}:{state.job.job_id}:{state.iteration}:{state.phase_index}".encode()
+        uniform = int.from_bytes(hashlib.blake2b(key, digest_size=8).digest(), "big") / 2**64
+        return phase.duration * (1 + self.compute_jitter * (2 * uniform - 1))
 
     def _enter_phase(self, state):
         if state.phase_index == 0 and state.pending_alignment:
@@ -201,7 +232,27 @@ class Simulator:
                 state.wait_reason = "phase alignment"
                 return
         phase = state.job.phases[state.phase_index]
-        state.remaining = phase.duration * (phase.bandwidth_demand or 1.0)
+        if phase.bandwidth_demand and not state.drift_checked:
+            state.drift_checked = True
+            offset = sum(p.duration for p in state.job.phases[:state.phase_index])
+            ideal = state.origin + state.iteration * state.job.iteration_time + offset
+            error = math.remainder(self.current_time - ideal, state.job.iteration_time)
+            observation = {"job_id": state.job.job_id, "iteration": state.iteration,
+                           "phase_index": state.phase_index, "time": self.current_time,
+                           "error_ms": self.current_time - ideal, "phase_error_ms": error}
+            if self.record_history:
+                self.drift_history.append(observation)
+            if (self.use_cassini and state.correct_drift and self.drift_threshold is not None
+                    and abs(error) > self.drift_threshold * state.job.iteration_time + EPS):
+                # Delay to the next occurrence of this phase's nominal start.
+                delay = (-error) % state.job.iteration_time
+                self.adjustments.append(dict(observation, delay_ms=delay))
+                state.mode = "wait"
+                state.ready_time = self.current_time + delay
+                state.wait_reason = "drift correction"
+                return
+        duration = self._compute_duration(state)
+        state.remaining = duration * (phase.bandwidth_demand or 1.0)
         state.mode = "phase"
 
     def _activate(self):
