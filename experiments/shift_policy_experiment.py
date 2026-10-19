@@ -79,7 +79,8 @@ def build_workload(name, seed, num_jobs=None):
 
 
 def run_case(name, seed, *, num_jobs=None, min_gain_ms=0, cooldown_ms=100,
-             score_window_ms=DEFAULT_SCORE_WINDOW_MS, output_dir=None, policies=POLICIES):
+             score_window_ms=DEFAULT_SCORE_WINDOW_MS, output_dir=None, policies=POLICIES,
+             remaining_work_scale=1.0):
     jobs, cluster, incremental = build_workload(name, seed, num_jobs)
     placement = make_fixed_placement(jobs, cluster.links, seed)
     input_hash = digest([asdict(job) for job in jobs])
@@ -89,7 +90,7 @@ def run_case(name, seed, *, num_jobs=None, min_gain_ms=0, cooldown_ms=100,
                         incremental=incremental, fixed_placement=placement,
                         shift_policy=policy if policy != "uncoordinated" else "compatibility",
                         min_gain_ms=min_gain_ms, cooldown_ms=cooldown_ms,
-                        score_window_ms=score_window_ms)
+                        score_window_ms=score_window_ms, remaining_work_scale=remaining_work_scale)
         for job in jobs:
             sim.add_job_arrival(copy.deepcopy(job))
         start = time.perf_counter()
@@ -108,6 +109,7 @@ def run_case(name, seed, *, num_jobs=None, min_gain_ms=0, cooldown_ms=100,
             "input_sha256": input_hash, "placement_sha256": digest(placement),
             "incremental": incremental, "penalty": 1.5, "score_window_ms": score_window_ms,
             "min_gain_ms": min_gain_ms, "cooldown_ms": cooldown_ms,
+            "remaining_work_scale": remaining_work_scale,
             "mean_jct_ms": statistics.mean(times),
             "p50_jct_ms": float(np.percentile(times, 50)),
             "p95_jct_ms": float(np.percentile(times, 95)),
@@ -220,6 +222,8 @@ def main(argv=None):
     parser.add_argument("--min-gain-ms", type=float, default=0)
     parser.add_argument("--cooldown-ms", type=float, default=100)
     parser.add_argument("--score-window-ms", type=float, default=DEFAULT_SCORE_WINDOW_MS)
+    parser.add_argument("--remaining-work-scale", type=float, default=1.0,
+                        help="Multiply only the benefit rule's remaining-work estimate")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "output/shift-policy")
     parser.add_argument("--plot-dir", type=Path, default=ROOT / "visualizations")
     args = parser.parse_args(argv)
@@ -231,6 +235,8 @@ def main(argv=None):
         parser.error("--cooldown-ms must be finite and nonnegative")
     if not math.isfinite(args.score_window_ms) or args.score_window_ms < 1:
         parser.error("--score-window-ms must be finite and at least 1 ms")
+    if not math.isfinite(args.remaining_work_scale) or args.remaining_work_scale <= 0:
+        parser.error("--remaining-work-scale must be finite and positive")
     if len(set(args.seeds)) != len(args.seeds) or len(set(args.workloads)) != len(args.workloads):
         parser.error("Seeds and workloads must not contain duplicates")
     if ("compatibility" not in args.policies or len(args.policies) < 2
@@ -245,7 +251,8 @@ def main(argv=None):
             results, completed = run_case(
                 name, seed, num_jobs=args.num_jobs, min_gain_ms=args.min_gain_ms,
                 cooldown_ms=args.cooldown_ms, score_window_ms=args.score_window_ms,
-                output_dir=args.output_dir, policies=args.policies)
+                output_dir=args.output_dir, policies=args.policies,
+                remaining_work_scale=args.remaining_work_scale)
             runs.extend(results.values())
             if seed == args.seeds[0]:
                 examples[name] = completed
@@ -273,9 +280,10 @@ def main(argv=None):
         "workloads": args.workloads, "seeds": args.seeds, "policies": args.policies,
         "num_jobs": args.num_jobs,
         "min_gain_ms": args.min_gain_ms, "cooldown_ms": args.cooldown_ms,
+        "remaining_work_scale": args.remaining_work_scale,
         "score_window_ms": args.score_window_ms, "shift_waits_charged": True,
         "placement": "shared seeded fixed routes; independently verified for every run",
-        "remaining_work": "known remaining iterations; no future arrivals; frozen-score estimate",
+        "remaining_work": "true remaining work times remaining_work_scale; decision input only; no future arrivals; frozen-score estimate",
         "aggregation": "mean of per-seed paired JCT reductions; range is not a confidence interval",
         "baseline": "current Cassini-based fast model; not full paper implementation",
         "cdf_seed": args.seeds[0], "runs": runs, "summary": summary, "figures": figures,

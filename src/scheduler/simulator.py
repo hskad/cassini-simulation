@@ -38,18 +38,21 @@ class Simulator:
                  score_window_ms: float = DEFAULT_SCORE_WINDOW_MS,
                  fixed_placement: Optional[Dict[str, str]] = None,
                  shift_policy: str = "compatibility", min_gain_ms: float = 0.0,
-                 cooldown_ms: float = 100.0):
+                 cooldown_ms: float = 100.0, remaining_work_scale: float = 1.0):
         get_score_window([], score_window_ms=score_window_ms)
         self._accept_shift_change = get_shift_policy(shift_policy)
         if not math.isfinite(min_gain_ms) or min_gain_ms < 0:
             raise ValueError("Minimum mean gain must be finite and nonnegative.")
         if not math.isfinite(cooldown_ms) or cooldown_ms < 0:
             raise ValueError("Cooldown must be finite and nonnegative.")
+        if not math.isfinite(remaining_work_scale) or remaining_work_scale <= 0:
+            raise ValueError("Remaining-work scale must be finite and positive.")
         if shift_policy != "compatibility" and (not use_cassini or fixed_placement is None):
             raise ValueError("Shift decision policies require Cassini and fixed placement.")
         self.shift_policy = shift_policy
         self.min_gain_ms = min_gain_ms
         self.cooldown_ms = cooldown_ms
+        self.remaining_work_scale = remaining_work_scale
         self.shift_stats = {"proposed": 0, "accepted": 0, "rejected": 0}
         self.fixed_placement = dict(fixed_placement) if fixed_placement is not None else None
         if self.fixed_placement is not None:
@@ -108,7 +111,9 @@ class Simulator:
                 return score, shifts
             self.shift_stats["proposed"] += 1
             keep_score = keep_score_fn() if self.shift_policy in ("score", "benefit") else None
-            remaining = ({j.job_id: max(0.0, 1.0 - progress[j.job_id]) * j.iteration_time * j.total_iterations
+            # Perturb only the policy's estimate. Actual progress and completion
+            # times continue to use the original job lengths.
+            remaining = ({j.job_id: max(0.0, 1.0 - progress[j.job_id]) * j.iteration_time * j.total_iterations * self.remaining_work_scale
                           for j in jobs} if self.shift_policy == "benefit" else {})
             accept = self._accept_shift_change(ShiftDecision(
                 proposed_score=score, current_score=keep_score,

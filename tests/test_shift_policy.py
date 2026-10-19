@@ -120,10 +120,39 @@ class TestShiftPolicy(unittest.TestCase):
                        {"shift_policy": "cooldown"},
                        {"shift_policy": "benefit", "fixed_placement": {}, "use_cassini": False},
                        *({"min_gain_ms": n} for n in (-1, float("nan"), float("inf"))),
-                       *({"cooldown_ms": n} for n in (-1, float("nan"), float("inf")))):
+                       *({"cooldown_ms": n} for n in (-1, float("nan"), float("inf"))),
+                       *({"remaining_work_scale": n} for n in (0, -1, float("nan"), float("inf")))):
             with self.subTest(options=kwargs):
                 with self.assertRaises(ValueError):
                     Simulator(cluster, **kwargs)
+
+    def test_estimate_errors_change_decisions_without_changing_job_lengths(self):
+        for incremental in (False, True):
+            # At penalty .4, the true gain is 20 ms minus 25 ms of mean wait.
+            # A 50% overestimate makes the rule accept a harmful change.
+            accurate = self.run_pair("benefit", incremental=incremental, penalty=0.4)
+            high = self.run_pair("benefit", incremental=incremental, penalty=0.4,
+                                 remaining_work_scale=1.5)
+            self.assertEqual([r["turnaround_time"] for r in accurate.completed_jobs], [120, 120])
+            self.assertEqual(sorted(r["turnaround_time"] for r in high.completed_jobs), [100, 150])
+            # A 50% underestimate rejects a worthwhile change at penalty 1.
+            low = self.run_pair("benefit", incremental=incremental, penalty=1,
+                                remaining_work_scale=0.5)
+            self.assertEqual([r["turnaround_time"] for r in low.completed_jobs], [150, 150])
+            self.assertEqual(low.shift_stats["rejected"], 1)
+
+    def test_estimate_scale_leaves_other_policies_and_default_unchanged(self):
+        for incremental in (False, True):
+            for policy in ("compatibility", "score", "cooldown", "benefit"):
+                default = self.run_pair(policy, incremental=incremental)
+                explicit = self.run_pair(policy, incremental=incremental, remaining_work_scale=1)
+                self.assertEqual(default.completed_jobs, explicit.completed_jobs)
+                if policy != "benefit":
+                    for scale in (0.5, 1.5):
+                        biased = self.run_pair(policy, incremental=incremental,
+                                               remaining_work_scale=scale)
+                        self.assertEqual(default.completed_jobs, biased.completed_jobs)
+                        self.assertEqual(default.shift_stats, biased.shift_stats)
 
     @staticmethod
     def run_pair(policy, incremental=False, iterations=1, penalty=0.25, **kwargs):

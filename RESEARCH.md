@@ -184,6 +184,24 @@ which weigh schedule benefits against change costs. Their guarantees do not
 transfer to this model. The comparison baseline is our Cassini-based model,
 not the paper's full implementation with worker-level drift correction.
 
+## Remaining-work estimate errors
+
+`--remaining-work-scale` multiplies the remaining-work estimate supplied to the
+benefit rule. For example, `0.5` means 50% too low and `1.5` means 50% too high.
+The default `1.0` retains the original rule. The simulator's actual job lengths,
+progress, traffic profiles, placement, and shift-wait accounting are unchanged.
+The other policies ignore this estimate setting.
+
+This is a controlled test of a systematic multiplicative error at every decision,
+not a learned job-length predictor. The estimate still uses true remaining work
+before applying the multiplier; it does not model missing progress information.
+
+Run a single error setting without replacing the published figures:
+
+```bash
+python3 experiments/shift_policy_experiment.py --workloads short --seeds 7 19 42 --policies compatibility benefit --remaining-work-scale 0.5 --output-dir output/remaining-work-low --plot-dir output/remaining-work-low/plots
+```
+
 ## Possible future experiments
 
 Future work can compare this simplified model with additional baseline policies:
