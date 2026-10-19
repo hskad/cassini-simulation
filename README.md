@@ -296,10 +296,6 @@ from Figure 16 of the supplied paper. Its testbed link rate is 50 Gbps.
 Scaling communication time inversely with bandwidth is a simulation assumption.
 Other model values lack verified benchmark sources.
 
-Historical plots in `visualizations/archive/` came from the previous runtime model.
-They are retained as old artifacts. Their speedup values are not validated
-results from the corrected simulator.
-
 ## Model boundaries
 
 This is a mathematical testbed. It does not model GPU admission, GPU memory,
@@ -335,15 +331,15 @@ The local reference is arXiv:2308.00852v1, dated 1 August 2023.
 |-- examples/              Small examples of individual components
 |-- experiments/           Experiment entry points
 |-- visualizations/
-|   |-- readme/            Current README PNGs, GIFs, and manifest
-|   `-- archive/           Original figures from the previous runtime model
+|   `-- readme/            Current README PNGs, GIFs, and manifest
 `-- output/                Local run results; excluded from Git
     `-- <run>/             status.json, data/, and plots/
 ```
 
 Keep all saved README figures under `visualizations/readme/`. Keep generated run
 plots under `output/<run>/plots/`. The plot code is in `src/visualization/`.
-The old animation scripts were replaced by the current README animation module.
+The current README animation module replaces the old animation scripts.
+Old figures from the previous runtime model are available in Git history.
 
 You can delete `output/` when you no longer need the results. Commands recreate
 it. The main utility does not require the scripts in `examples/` or `experiments/`.
