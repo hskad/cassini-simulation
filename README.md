@@ -9,6 +9,17 @@ A lightweight, purely algorithmic and discrete-event Python simulation of **CASS
 
 This project provides a standalone mathematical testbed to validate CASSINI's geometric abstractions, circular phase-interleaving algorithms, bipartite graph conflict resolutions, and discrete-event cluster timelines—completely isolated from heavy GPU hardware constraints or deep learning runtimes.
 
+### Periodic sampling correction
+
+Communication profiles are now shifted within one sampled job cycle before
+they are repeated and cut to the scoring window. This preserves the repeating
+pattern when a window ends partway through a cycle. The optimizer uses the same
+rule when comparing candidate shifts. The fast runtime formula and placement
+policies are unchanged.
+
+The result tables and figures below currently show the earlier sampling method;
+they are being regenerated for this correction.
+
 ---
 
 ## Core Concepts Modeled

@@ -51,5 +51,48 @@ class TestOptimizer(unittest.TestCase):
         self.assertEqual(score_after, 1.0) # 100% compatible if perfectly shifted
         self.assertGreater(self.job2.time_shift, 0.0)
 
+    def test_shift_before_truncating_periodic_profile(self):
+        job = Job("short", "Seven-ms cycle", [
+            Phase("compute", 5, 0), Phase("communicate", 2, 50)
+        ], time_shift=3)
+
+        # Communication wraps into samples 1 and 2 from the preceding cycle.
+        self.assertEqual(discretize_phases(job, 10),
+                         [0, 50, 50, 0, 0, 0, 0, 0, 50, 50])
+
+    def test_shifted_profile_matches_periodic_time_at_each_sample(self):
+        for resolution in (0.5, 1.0):
+            for window_steps in (1, 3, 7, 10, 14, 21):
+                for shift_steps in (-25, -3, 0, 3, 7, 38):
+                    with self.subTest(resolution=resolution, window=window_steps,
+                                      shift=shift_steps):
+                        job = Job("periodic", "Periodic profile", [
+                            Phase("compute", 5 * resolution, 0),
+                            Phase("communicate", 2 * resolution, 50)
+                        ], time_shift=shift_steps * resolution)
+                        expected = [50 if (step - shift_steps) % 7 >= 5 else 0
+                                    for step in range(window_steps)]
+                        self.assertEqual(discretize_phases(
+                            job, window_steps * resolution, resolution), expected)
+
+    def test_optimizer_uses_periodic_shifts_in_capped_window(self):
+        job_a = Job("a", "Period 61", [
+            Phase("compute", 20, 0), Phase("communicate", 41, 50)
+        ])
+        job_b = Job("b", "Period 67", [
+            Phase("compute", 30, 0), Phase("communicate", 37, 50)
+        ])
+        # The common period is 4087 ms; this optimizer searches a 600-ms window.
+        # Calculate overlap directly from time modulo each job's period.
+        overlaps = [sum(50 for time in range(600)
+                        if time % 61 >= 20 and (time - shift) % 67 >= 30)
+                    for shift in range(67)]
+
+        optimize_link([job_a, job_b], Link("link", 50))
+
+        self.assertEqual(job_a.time_shift, 0)
+        self.assertEqual(job_b.time_shift, overlaps.index(min(overlaps)))
+        self.assertEqual(min(overlaps), 10300)
+
 if __name__ == '__main__':
     unittest.main()
