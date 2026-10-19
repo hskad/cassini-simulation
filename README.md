@@ -329,7 +329,6 @@ The local reference is arXiv:2308.00852v1, dated 1 August 2023.
 |   `-- visualization/     All plot and animation code
 |-- tests/                 Automated checks
 |-- examples/              Small examples of individual components
-|-- experiments/           Experiment entry points
 |-- visualizations/
 |   `-- readme/            Current README PNGs, GIFs, and manifest
 `-- output/                Local run results; excluded from Git
@@ -342,16 +341,26 @@ The current README animation module replaces the old animation scripts.
 Old figures from the previous runtime model are available in Git history.
 
 You can delete `output/` when you no longer need the results. Commands recreate
-it. The main utility does not require the scripts in `examples/` or `experiments/`.
+it. The main utility does not require the scripts in `examples/`.
 
-## Older entry points
+## Experiment presets
 
-The four cluster experiment scripts now call the main utility. They use the
-corrected phase engine and save results under `output/`. Their old penalty and
-parallel execution options have been removed. Run a script with `--help` for
-current options. Large scripts keep the original iteration counts and can take
-considerable time. Use `--jobs 10 --iterations 5` for a quick check.
+The Makefile calls the main utility directly. Separate forwarding scripts are
+not required.
 
-`experiments/micro_test.py` still shows the circular geometric example.
-It now scores phase boundaries and saves its plot under `output/micro/plots/`.
+| Command | Input |
+| --- | --- |
+| `make macro-test` | 50 synthetic jobs on 16 links. |
+| `make sample-trace` | The 60-job illustrative trace on 16 links. |
+| `make large-scale` | The 2,000-job synthetic trace on 32 links. |
+| `make scale-10k` | The 10,000-job synthetic trace on 32 links. |
+
+The trace presets keep the input iteration counts. Large runs can take
+considerable time. For a quick check, use the main utility with
+`--jobs 10 --iterations 5` and the required `--trace` file.
+The `sample-trace` preset replaces the old `real-workload` target. Its input has
+no verified production source.
+
+`examples/demo_geometric.py` shows the circular geometric example. Run it with
+`make micro-test`. It saves its plot under `output/micro/plots/`.
 It illustrates Figure 3's method; it does not reproduce a hardware experiment.
