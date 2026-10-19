@@ -173,7 +173,7 @@ class Simulator:
         # A schedule belongs to one connected group of jobs and shared links.
         # Events in another group must not reset its phase origins or waits.
         remaining = set(shifts)
-        groups, updates, targets = set(), set(), {}
+        groups, updates, targets = {}, set(), {}
         while remaining:
             pending = [min(remaining)]
             members, edges = set(), set()
@@ -191,7 +191,7 @@ class Simulator:
                                 pending.append(neighbor.job_id)
             remaining -= members
             key = frozenset(edges)
-            groups.add(key)
+            groups[key] = members
             if key not in self._scheduled_groups:
                 updates.update(members)
                 # BFS shifts are relative. Keep the oldest member's existing
@@ -199,12 +199,28 @@ class Simulator:
                 reference = min(members, key=lambda jid: (self.states[jid].job.arrival_time, jid))
                 anchor = self.states[reference].origin - shifts[reference]
                 targets.update({jid: anchor + shifts[jid] for jid in members})
-        self._scheduled_groups = groups
+        self._scheduled_groups = set(groups)
         planned = {jid: replace(state.job, time_shift=targets.get(jid, state.origin))
                    for jid, state in self.states.items()}
         link_scores = {link.link_id: score_link(
             [planned[j.job_id] for j in self.active_cluster.link_jobs[link.link_id]], link, self.score_horizon)
             for link in self.base_cluster.links}
+        # The current phase arrangement is a feasible candidate too. A greedy
+        # proposal must improve the same compatibility metric before replacing it.
+        retained = set()
+        for key, members in groups.items():
+            if not members.intersection(updates):
+                continue
+            lids = {lid for _, lid in key}
+            current_scores = {lid: score_link(
+                [replace(job, time_shift=self.states[job.job_id].origin)
+                 for job in self.active_cluster.link_jobs[lid]],
+                next(link for link in self.base_cluster.links if link.link_id == lid),
+                self.score_horizon) for lid in lids}
+            if math.fsum(link_scores[lid] for lid in lids) <= math.fsum(current_scores.values()) + EPS:
+                updates.difference_update(members)
+                retained.update(members)
+                link_scores.update(current_scores)
         for jid, state in self.states.items():
             shared = [lid for lid in state.links if len(self.active_cluster.link_jobs[lid]) > 1]
             state.correct_drift = bool(shared) and all(link_scores[lid] >= 1 - EPS for lid in shared)
@@ -219,6 +235,7 @@ class Simulator:
         if self.record_history:
             self.schedule_history.append({"time": self.current_time, "shifts": shifts,
                                           "updated_jobs": sorted(updates),
+                                          "retained_jobs": sorted(retained),
                                           "phase_origins": {jid: state.origin for jid, state in self.states.items()},
                                           "score_horizon_ms": self.score_horizon,
                                           "link_scores": link_scores})

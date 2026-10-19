@@ -53,6 +53,18 @@ class TestPhaseExecution(unittest.TestCase):
         arriving = next(r for r in sim.completed_jobs if r["job_id"] == "A")
         self.assertEqual(arriving["wait_time"], 25)
 
+    def test_an_inferior_greedy_proposal_is_not_applied(self):
+        from unittest.mock import patch
+        jobs = [make_job("A", iterations=10), make_job("B", arrival=50, iterations=10)]
+        def proposal(candidates, **options):
+            candidate = candidates[0]
+            shifts = {"A": 0, "B": 0} if len(candidate.cluster.link_jobs["L"]) == 2 else {}
+            return candidate, shifts
+        with patch("src.scheduler.simulator.evaluate_placements", side_effect=proposal):
+            sim = self.run_jobs(jobs, cassini=True, routes={"L": jobs})
+        self.assertEqual([r["turnaround_time"] for r in sim.completed_jobs], [1000, 1000])
+        self.assertEqual([r["wait_time"] for r in sim.completed_jobs], [0, 0])
+
     def test_manual_initial_shift_is_charged_once(self):
         sim = self.run_jobs([make_job("A", shift=500, iterations=3)])
         self.assertEqual(sim.completed_jobs[0]["turnaround_time"], 800)

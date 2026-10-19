@@ -210,6 +210,9 @@ waits intact.
 Within a changed group, the oldest job keeps its reference phase. Relative BFS
 shifts are translated to that reference. A job whose target phase is unchanged
 does not receive another alignment wait.
+The current phase arrangement is also a candidate. A solver proposal replaces
+it only if the group's mean compatibility score improves. This check prevents
+the approximate solver from replacing a better existing arrangement.
 A new job waits for its target start. An existing job applies the new target at
 its next iteration boundary. It can finish its current phase first.
 Every applied wait counts towards JCT. A new schedule need not take effect
