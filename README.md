@@ -155,7 +155,9 @@ A score of one in that window does not establish compatibility for all time.
 `--resolution` sets the time grid for shift search. The first job is held fixed.
 The search is exhaustive on that grid for two jobs. For more jobs it is greedy.
 It does not guarantee the global optimum of the paper's joint formulation.
-The affinity graph must have no cycles. Unsupported cyclic routes are rejected.
+The affinity graph must have no cycles. Unsupported cyclic routes are rejected
+before optimization. Job IDs and link IDs use separate namespaces. Graph demo
+inputs also use a graph with no cycles.
 
 ## Data sources
 

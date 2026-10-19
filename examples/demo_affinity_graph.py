@@ -29,8 +29,8 @@ def main():
         link_jobs={
             "l1": [job1, job2, job3],
             "l2": [job2, job4],
-            "l3": [job3, job4, job5],
-            "l4": [job1, job5]
+            "l3": [job3, job5],
+            "l4": [job5]
         }
     )
     

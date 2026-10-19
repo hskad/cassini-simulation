@@ -45,4 +45,3 @@ demo-simulator:
 demo-all: demo-link demo-affinity demo-evaluator demo-simulator
 
 validate-baseline: test demo
-

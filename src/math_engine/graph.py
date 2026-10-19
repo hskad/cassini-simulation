@@ -1,4 +1,5 @@
 from collections import deque
+import math
 from typing import Dict, List, Set, Tuple
 from src.core.models import Cluster, Job, Link
 
@@ -19,6 +20,10 @@ class AffinityGraph:
         self.weights: Dict[Tuple[str, str], float] = {}
 
     def add_edge(self, job_id: str, link_id: str, weight: float = 0.0):
+        if (job_id, link_id) in self.weights:
+            raise ValueError("The affinity graph already contains this edge.")
+        if not math.isfinite(weight):
+            raise ValueError("An edge weight must be finite.")
         self.U.add(job_id)
         self.V.add(link_id)
         
@@ -31,7 +36,29 @@ class AffinityGraph:
         self.edges_V_to_U[link_id].append(job_id)
         
         self.weights[(job_id, link_id)] = weight
-        self.weights[(link_id, job_id)] = weight
+
+def has_cycle(graph: AffinityGraph) -> bool:
+    """Keep job and link namespaces distinct, even when their IDs match."""
+    visited = set()
+    for job_id in sorted(graph.U):
+        start = ("job", job_id)
+        if start in visited:
+            continue
+        visited.add(start)
+        queue = deque([(start, None)])
+        while queue:
+            node, parent = queue.popleft()
+            kind, name = node
+            neighbors = ([("link", lid) for lid in graph.edges_U_to_V[name]] if kind == "job"
+                         else [("job", jid) for jid in graph.edges_V_to_U[name]])
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append((neighbor, node))
+                elif neighbor != parent:
+                    return True
+    return False
+
 
 def build_affinity_graph(cluster: Cluster, link_optimal_shifts: Dict[str, Dict[str, float]]) -> AffinityGraph:
     """
@@ -51,6 +78,8 @@ def traverse_affinity_graph(graph: AffinityGraph, jobs_map: Dict[str, Job]) -> D
     """
     Algorithm 1 from the paper: BFS Affinity Graph Traversal to find unique global time shifts.
     """
+    if has_cycle(graph):
+        raise ValueError("Cassini requires an affinity graph with no cycles.")
     global_time_shifts: Dict[str, float] = {}
     visited_U: Set[str] = set()
     
@@ -76,7 +105,7 @@ def traverse_affinity_graph(graph: AffinityGraph, jobs_map: Dict[str, Job]) -> D
                 for neighbor_job_id in graph.edges_V_to_U.get(link_id, []):
                     if neighbor_job_id not in visited_U:
                         # Traversing V -> U incurs a positive sign
-                        w_v_to_u = graph.weights[(link_id, neighbor_job_id)]
+                        w_v_to_u = graph.weights[(neighbor_job_id, link_id)]
                         
                         # Calculate final shift (Eq 17 in paper algorithm)
                         # tk = (tj - we1 + we2) % iter_timek

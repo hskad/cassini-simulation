@@ -48,5 +48,28 @@ class TestGraph(unittest.TestCase):
         diff_j3_j2 = (global_shifts["j3"] - global_shifts["j2"]) % 100
         self.assertEqual(diff_j3_j2, 40.0)
 
+class TestGraphBoundaries(unittest.TestCase):
+    def test_job_and_link_ids_can_match(self):
+        graph = AffinityGraph()
+        for jid,lid,weight in [("a","b",10),("b","b",30),("b","a",20),("c","a",40)]:
+            graph.add_edge(jid,lid,weight)
+        jobs = {jid: Job(jid,jid,[Phase("compute",100,0)]) for jid in ["a","b","c"]}
+        shifts = traverse_affinity_graph(graph,jobs)
+        self.assertEqual((shifts["b"]-shifts["a"])%100,20)
+        self.assertEqual((shifts["c"]-shifts["b"])%100,20)
+
+    def test_direct_traversal_rejects_cycles(self):
+        graph = AffinityGraph()
+        for jid,lid in [("a","x"),("a","y"),("b","x"),("b","y")]:
+            graph.add_edge(jid,lid)
+        with self.assertRaises(ValueError):
+            traverse_affinity_graph(graph,{})
+
+    def test_duplicate_edges_are_rejected(self):
+        graph = AffinityGraph()
+        graph.add_edge("a","x")
+        with self.assertRaises(ValueError):
+            graph.add_edge("a","x")
+
 if __name__ == '__main__':
     unittest.main()

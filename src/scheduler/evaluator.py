@@ -2,7 +2,7 @@ import random
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 from src.core.models import Cluster, Job, Link
-from src.math_engine.graph import AffinityGraph, build_affinity_graph, traverse_affinity_graph
+from src.math_engine.graph import AffinityGraph, build_affinity_graph, traverse_affinity_graph, has_cycle
 from src.math_engine.optimizer import optimize_link, score_link
 
 @dataclass
@@ -10,41 +10,6 @@ class PlacementCandidate:
     candidate_id: str
     cluster: Cluster
     compatibility_score: float = 0.0
-
-def has_cycle(graph: AffinityGraph) -> bool:
-    """
-    Detects if the bipartite Affinity Graph has any cycles using BFS.
-    Returns True if a cycle is found, False otherwise.
-    """
-    visited = set()
-    
-    for start_node in graph.U:
-        if start_node in visited:
-            continue
-            
-        # queue stores tuples of (current_node, parent_node)
-        queue = [(start_node, None)]
-        visited.add(start_node)
-        
-        while queue:
-            current_node, parent = queue.pop(0)
-            
-            # get neighbors
-            neighbors = []
-            if current_node in graph.U:
-                neighbors = graph.edges_U_to_V.get(current_node, [])
-            else:
-                neighbors = graph.edges_V_to_U.get(current_node, [])
-                
-            for neighbor in neighbors:
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append((neighbor, current_node))
-                elif neighbor != parent:
-                    # Found a cycle!
-                    return True
-                    
-    return False
 
 def generate_mock_candidates(base_cluster: Cluster, jobs: List[Job], num_candidates: int = 5) -> List[PlacementCandidate]:
     """
@@ -88,7 +53,7 @@ def score_candidate(candidate: PlacementCandidate, optimize: bool = True, horizo
     
     for link in candidate.cluster.links:
         jobs_on_link = candidate.cluster.link_jobs.get(link.link_id, [])
-        if len(jobs_on_link) > 1:
+        if len(jobs_on_link) > 1 or any(p.bandwidth_demand > link.capacity for j in jobs_on_link for p in j.phases):
             # Copy jobs to avoid mutating original objects globally
             jobs_copy = [Job(j.job_id, j.name, j.phases, j.time_shift) for j in jobs_on_link]
             
@@ -118,15 +83,14 @@ def evaluate_placements(candidates: List[PlacementCandidate], horizon: Optional[
     valid_candidates = []
     
     for candidate in candidates:
+        graph = build_affinity_graph(candidate.cluster, {})
+        if has_cycle(graph):
+            continue
         score, link_shifts = score_candidate(candidate, horizon=horizon, resolution=resolution)
-        
-        # Build graph to check for cycles
         graph = build_affinity_graph(candidate.cluster, link_shifts)
-        
-        if not has_cycle(graph):
-            candidate.compatibility_score = score
-            valid_candidates.append((candidate, graph))
-            
+        candidate.compatibility_score = score
+        valid_candidates.append((candidate, graph))
+
     if not valid_candidates:
         raise ValueError("No valid loop-free placement candidates found.")
         

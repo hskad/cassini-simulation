@@ -27,7 +27,7 @@ def trace_bfs(graph, jobs_map):
     # Initial state (nothing visited)
     yield visited_U, visited_V, None, None
     
-    for u in graph.U:
+    for u in sorted(graph.U):
         if u in visited_U:
             continue
             
@@ -75,8 +75,8 @@ def create_bfs_animation(filename: str):
         link_jobs={
             "l1": [j1, j2, j3],
             "l2": [j2, j4],
-            "l3": [j3, j4, j5],
-            "l4": [j1, j5]
+            "l3": [j3, j5],
+            "l4": [j5]
         }
     )
     optimal_shifts = {
@@ -96,7 +96,7 @@ def create_bfs_animation(filename: str):
     G = nx.Graph()
     G.add_nodes_from(graph.U, bipartite=0)
     G.add_nodes_from(graph.V, bipartite=1)
-    for u in graph.U:
+    for u in sorted(graph.U):
         for v in graph.edges_U_to_V.get(u, []):
             G.add_edge(u, v)
             

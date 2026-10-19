@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Tuple
 
 from src.core.models import Job, Link, Cluster
-from src.math_engine.optimizer import optimize_link, score_link, validate_profile
+from src.math_engine.optimizer import score_link, validate_profile
 from src.scheduler.evaluator import PlacementCandidate, evaluate_placements
 
 EPS = 1e-9

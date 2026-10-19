@@ -1,4 +1,4 @@
-﻿"""Analytical checks for phase execution and conservation of network work."""
+"""Analytical checks for phase execution and conservation of network work."""
 import copy
 import unittest
 
@@ -94,3 +94,31 @@ class TestPhaseExecution(unittest.TestCase):
         with self.assertRaises(ValueError):
             sim.add_job_arrival(make_job("B", iterations=0))
 
+
+
+class TestWorkConservation(unittest.TestCase):
+    def test_dynamic_jobs_preserve_work_and_respect_every_link(self):
+        import random
+        rng = random.Random(8)
+        for policy in [False, True]:
+            jobs = [make_job(str(i), arrival=3.5*i, iterations=4,
+                             compute=rng.choice([10,20,30]), comm=10, demand=50)
+                    for i in range(6)]
+            routes = {"X":jobs[:3], "Y":jobs[2:]}
+            sim = Simulator(Cluster([],[Link("X",50),Link("Y",35)],routes),
+                            use_cassini=policy,record_history=True)
+            for job in copy.deepcopy(jobs):
+                sim.add_job_arrival(job)
+            sim.run_simulation()
+            self.assertEqual(len(sim.completed_jobs),len(jobs))
+            for job in jobs:
+                rows = [r for r in sim.phase_history if r["job_id"]==job.job_id]
+                work = sum((r["end"]-r["start"])*r["rate_gbps"] for r in rows)
+                self.assertAlmostEqual(work,2000)
+                completed = next(r for r in sim.completed_jobs if r["job_id"]==job.job_id)
+                self.assertAlmostEqual(sum(r["end"]-r["start"] for r in rows),completed["turnaround_time"])
+            for row in sim.link_history:
+                self.assertLessEqual(row["served_gbps"],row["capacity_gbps"]+1e-8)
+            for lid in routes:
+                expected = 2000*len(routes[lid])
+                self.assertAlmostEqual(sim.link_totals[lid]["served_work_gbps_ms"],expected)

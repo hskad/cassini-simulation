@@ -1,4 +1,4 @@
-﻿"""Legacy entry point. Use cassini.py experiment for current options."""
+"""Legacy entry point. Use cassini.py experiment for current options."""
 import sys
 from pathlib import Path
 
@@ -9,4 +9,3 @@ from cassini import main
 
 if __name__ == "__main__":
     sys.exit(main(["experiment", "--jobs", "50", "--links", "16", "--out", "output/macro"] + sys.argv[1:]))
-

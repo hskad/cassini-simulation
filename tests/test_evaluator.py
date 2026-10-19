@@ -53,5 +53,20 @@ class TestEvaluator(unittest.TestCase):
         self.assertEqual(winning_candidate.candidate_id, "c2")
         self.assertEqual(winning_candidate.compatibility_score, 1.0)
         
+class TestCandidateBoundaries(unittest.TestCase):
+    def test_single_overcapacity_job_is_not_perfect(self):
+        from src.scheduler.evaluator import score_candidate
+        job = Job("A","A",[Phase("communicate",100,100)])
+        candidate = PlacementCandidate("C",Cluster([],[Link("L",50)],{"L":[job]}))
+        self.assertEqual(score_candidate(candidate)[0],0)
+
+    def test_invalid_cycle_is_rejected_before_optimization(self):
+        from unittest.mock import patch
+        jobs = [Job(str(i),str(i),[Phase("compute",100,0)]) for i in range(2)]
+        candidate = PlacementCandidate("C",Cluster([],[Link("X",50),Link("Y",50)],{"X":jobs,"Y":jobs}))
+        with patch("src.scheduler.evaluator.optimize_link",side_effect=AssertionError("must not optimize")):
+            with self.assertRaises(ValueError):
+                evaluate_placements([candidate])
+
 if __name__ == '__main__':
     unittest.main()
