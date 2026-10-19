@@ -207,6 +207,9 @@ At an arrival or departure, Cassini calculates a schedule for the active routes.
 A new schedule is applied only to a connected group whose jobs or shared links
 have changed. Events on other links keep that group's phase origins and pending
 waits intact.
+Within a changed group, the oldest job keeps its reference phase. Relative BFS
+shifts are translated to that reference. A job whose target phase is unchanged
+does not receive another alignment wait.
 A new job waits for its target start. An existing job applies the new target at
 its next iteration boundary. It can finish its current phase first.
 Every applied wait counts towards JCT. A new schedule need not take effect

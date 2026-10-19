@@ -173,7 +173,7 @@ class Simulator:
         # A schedule belongs to one connected group of jobs and shared links.
         # Events in another group must not reset its phase origins or waits.
         remaining = set(shifts)
-        groups, updates = set(), set()
+        groups, updates, targets = set(), set(), {}
         while remaining:
             pending = [min(remaining)]
             members, edges = set(), set()
@@ -194,8 +194,13 @@ class Simulator:
             groups.add(key)
             if key not in self._scheduled_groups:
                 updates.update(members)
+                # BFS shifts are relative. Keep the oldest member's existing
+                # phase as their common reference, rather than using now as zero.
+                reference = min(members, key=lambda jid: (self.states[jid].job.arrival_time, jid))
+                anchor = self.states[reference].origin - shifts[reference]
+                targets.update({jid: anchor + shifts[jid] for jid in members})
         self._scheduled_groups = groups
-        planned = {jid: replace(state.job, time_shift=shifts.get(jid, state.job.time_shift))
+        planned = {jid: replace(state.job, time_shift=targets.get(jid, state.origin))
                    for jid, state in self.states.items()}
         link_scores = {link.link_id: score_link(
             [planned[j.job_id] for j in self.active_cluster.link_jobs[link.link_id]], link, self.score_horizon)
@@ -204,14 +209,17 @@ class Simulator:
             shared = [lid for lid in state.links if len(self.active_cluster.link_jobs[lid]) > 1]
             state.correct_drift = bool(shared) and all(link_scores[lid] >= 1 - EPS for lid in shared)
             if jid in updates:
-                state.origin = self.current_time + shifts[jid]
-                state.pending_alignment = True
-                state.job.time_shift = shifts[jid]
+                target = targets[jid]
+                if abs(math.remainder(target - state.origin, state.job.iteration_time)) > EPS:
+                    state.origin = target
+                    state.pending_alignment = True
+                    state.job.time_shift = target % state.job.iteration_time
             elif jid not in shifts and state.mode != "new":
                 state.pending_alignment = False
         if self.record_history:
             self.schedule_history.append({"time": self.current_time, "shifts": shifts,
                                           "updated_jobs": sorted(updates),
+                                          "phase_origins": {jid: state.origin for jid, state in self.states.items()},
                                           "score_horizon_ms": self.score_horizon,
                                           "link_scores": link_scores})
 

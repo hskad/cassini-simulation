@@ -38,6 +38,21 @@ class TestPhaseExecution(unittest.TestCase):
         sim = self.run_jobs([make_job("A", iterations=10), make_job("B", arrival=50, iterations=10)])
         self.assertEqual([r["turnaround_time"] for r in sim.completed_jobs], [1000, 1000])
 
+    def test_cassini_preserves_an_already_aligned_arrival(self):
+        jobs = [make_job("A", iterations=10), make_job("B", arrival=50, iterations=10)]
+        sim = self.run_jobs(jobs, cassini=True, routes={"L": jobs})
+        self.assertEqual([r["turnaround_time"] for r in sim.completed_jobs], [1000, 1000])
+        self.assertEqual([r["wait_time"] for r in sim.completed_jobs], [0, 0])
+
+    def test_changed_group_keeps_the_incumbent_reference_phase(self):
+        # The arriving job sorts first. It must not become a new clock origin.
+        jobs = [make_job("B", iterations=10), make_job("A", arrival=25, iterations=10)]
+        sim = self.run_jobs(jobs, cassini=True, routes={"L": jobs}, drift_threshold=None)
+        incumbent = next(r for r in sim.completed_jobs if r["job_id"] == "B")
+        self.assertEqual(incumbent["wait_time"], 0)
+        arriving = next(r for r in sim.completed_jobs if r["job_id"] == "A")
+        self.assertEqual(arriving["wait_time"], 25)
+
     def test_manual_initial_shift_is_charged_once(self):
         sim = self.run_jobs([make_job("A", shift=500, iterations=3)])
         self.assertEqual(sim.completed_jobs[0]["turnaround_time"], 800)
