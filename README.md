@@ -100,6 +100,7 @@ cassini-simulation/
 │   ├── macro_test.py             # Replicating Figure 9 (50-job cluster JCT CDF)
 │   ├── real_workload_experiment.py # Illustrative trace with model profiles
 │   ├── large_scale_2000_jobs.py  # 2,000-job synthetic workload experiment
+│   ├── shift_policy_experiment.py # Five-policy comparisons and seed ranges
 │   └── scale_10000_jobs.py       # 10,000-job ultra-scale parallel experiment
 ├── tests/                        # Comprehensive unit tests
 │   ├── test_models.py
@@ -107,6 +108,10 @@ cassini-simulation/
 │   ├── test_graph.py
 │   ├── test_evaluator.py
 │   ├── test_simulator.py
+│   ├── test_shift_policy.py
+│   ├── test_shift_experiment.py
+│   ├── test_fixed_placement.py
+│   ├── test_scoring_window.py
 │   └── test_trace_loader.py
 ├── visualizations/               # Output charts, CDF plots, and animations
 ├── Makefile                      # Cross-platform CLI shortcuts
@@ -348,6 +353,7 @@ A `Makefile` provides command shortcuts for WSL:
 | `make large-scale` | Run the 2,000-job synthetic workload experiment |
 | `make scale-10k` | Run the 10,000-job synthetic workload experiment |
 | `make validate-baseline` | Run both micro and macro baseline tests sequentially |
+| `make shift-policy` | Compare shift decisions on shared workloads and routes |
 | `make test` | Run the complete suite of unit tests |
 | `make clean-png` | Delete all generated PNG charts (**strictly preserves GIF animations**) |
 | `make clean` | Clean all PNG charts and `__pycache__` artifacts (**preserves GIFs**) |
@@ -422,8 +428,9 @@ selection rule. Both policies use the same traffic model and wait accounting.
 The control policy `shift_policy="cooldown"` accepts changes at most once per
 `cooldown_ms` (default 100 ms), per link in incremental mode or across the
 cluster in global mode. It is checked at arrival/completion events. The score
-control changes offsets only if compatibility strictly improves, without
-considering waiting cost. These decision policies require fixed placement. Completion records include `shift_changes`,
+control (`shift_policy="score"`) changes offsets only if compatibility strictly
+improves, without considering waiting cost. These decision policies require
+fixed placement. Completion records include `shift_changes`,
 and `Simulator.shift_stats` reports proposed, accepted, and rejected plans.
 
 Run all five policies on the same inputs and routes:
@@ -436,9 +443,10 @@ python3 experiments/shift_policy_experiment.py --workloads macro sample short 20
 The default command compares uncoordinated scheduling, the vanilla model,
 a score control, a cooldown control, and the benefit rule on `macro`, `sample`, and a generated
 `short` workload. `--min-gain-ms`, `--cooldown-ms`, `--score-window-ms`, and
-`--num-jobs` control the experiment. Stored traces use the seed for placement;
+`--num-jobs` control the experiment. `--policies` selects a subset that includes
+`compatibility`. Stored traces use the seed for placement;
 `macro` and `short` also use it to generate jobs. The `short` case has 200 jobs,
-4 links, exponential arrivals with mean 8 ms, and 1?5 iterations per job.
+4 links, exponential arrivals with mean 8 ms, and 1 to 5 iterations per job.
 
 Raw completion records go to `output/shift-policy/`. Two plots and a settings,
 source, and results manifest go to `visualizations/` with the `shift_policy_`
@@ -447,6 +455,66 @@ prefix. Other experiment figures are preserved. Use `--output-dir` and
 a confidence interval; labels report the mean and whiskers show both ends
 of that range. CDFs use the first requested seed. The manifest also
 reports waiting, shift counts, and whole-simulation wall time.
+
+### Evaluation of shift decisions
+
+All values below are percentage reductions in mean JCT relative to the vanilla
+model, averaged over paired seeds. Settings are a 0 ms minimum gain and a
+100 ms cooldown. The 50-job, 60-job, short-job, and 2,000-job cases use seeds
+7, 19, and 42. The 10,000-job case uses seed 42 only. A seed changes placement
+for stored traces, and also changes jobs for generated workloads.
+
+| Workload | Seeds | Score control | Cooldown control | Benefit rule (range) |
+| --- | ---: | ---: | ---: | ---: |
+| 50 generated jobs | 3 | +0.33% | -0.183% | +1.55% (+1.09 to +2.04) |
+| 60 illustrative jobs | 3 | +0.72% | -0.456% | +1.98% (+1.58 to +2.51) |
+| 200 short synthetic jobs | 3 | +5.23% | +3.974% | +9.30% (+7.95 to +10.84) |
+| 2,000 synthetic jobs | 3 | +0.98% | -0.005% | +0.98% (+0.94 to +1.02) |
+| 10,000 synthetic jobs | 1 | +3.11% | -0.003% | +3.11% |
+
+<p align="center">
+  <img src="visualizations/shift_policy_comparison.png" alt="Mean JCT gains over the vanilla model with ranges across seeds" width="800"/>
+  <img src="visualizations/shift_policy_cdf.png" alt="Five-policy CDF comparisons on the first specified seed" width="900"/>
+</p>
+
+The benefit rule exceeds both simple controls on all three seeds of the smaller
+workloads. On the 2,000- and 10,000-job cases, it gives the same results as the
+score control: these gains do not establish an extra benefit from the waiting
+cost test. The evidence for that extra benefit is concentrated in short jobs.
+The method minimizes an estimate of the mean; it does not guarantee an
+improvement for every individual job.
+
+The 10,000-job simulation took 61.09 s for the vanilla model and 64.77 s
+for the benefit rule. These are simulator wall times, separate from simulated
+job completion times. The fast event runtime is used for all policies.
+
+The [main results](visualizations/shift_policy_results.json) and
+[10,000-job results](visualizations/shift_policy_scale/shift_policy_results.json)
+include P95 JCT, waiting costs, shift counts, and per-policy runtimes. The
+10,000-job [gain plot](visualizations/shift_policy_scale/shift_policy_comparison.png)
+and [CDF](visualizations/shift_policy_scale/shift_policy_cdf.png) are also available.
+
+A sensitivity run uses a 5 ms minimum gain and a 500 ms cooldown on the three
+smaller workloads, with the same three seeds:
+
+| Workload | Cooldown control | Benefit rule |
+| --- | ---: | ---: |
+| 50 generated jobs | -1.05% | +1.45% |
+| 60 illustrative jobs | -1.72% | +2.00% |
+| 200 short synthetic jobs | +7.16% | +9.90% |
+
+The [sensitivity records](visualizations/shift_policy_sensitivity.json) contain
+all runs. These results are model experiments on a small set of seeds, rather
+than proof of a general improvement or novelty. Remaining-work prediction
+errors and an independent execution model have not been evaluated here.
+
+Reproduce these evaluations:
+
+```bash
+python3 experiments/shift_policy_experiment.py --workloads macro sample short 2000 --seeds 7 19 42
+python3 experiments/shift_policy_experiment.py --workloads 10000 --seeds 42 --output-dir output/shift-policy-scale --plot-dir visualizations/shift_policy_scale
+python3 experiments/shift_policy_experiment.py --workloads macro sample short --seeds 7 19 42 --min-gain-ms 5 --cooldown-ms 500 --output-dir output/shift-policy-sensitivity --plot-dir output/shift-policy-sensitivity/plots
+```
 
 The estimate holds current scores fixed over the remaining work. It uses
 known remaining iterations in this model, does not inspect future arrivals,
