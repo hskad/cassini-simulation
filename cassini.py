@@ -112,7 +112,10 @@ def build_workload(args):
         provenance = {"kind": "synthetic", "profiles": "assumed phase durations"}
     if not jobs:
         raise ValueError("The workload contains no jobs.")
-    return jobs, Cluster([], links), provenance
+    routes = {link.link_id: [] for link in links}
+    for index, job in enumerate(sorted(jobs, key=lambda job: (job.arrival_time, job.job_id))):
+        routes[links[index % len(links)].link_id].append(job)
+    return jobs, Cluster([], links, routes), provenance
 
 
 def summarize(name, sim):
@@ -147,6 +150,10 @@ def run_comparison(args):
     jobs, cluster, provenance = build_workload(args)
     snapshot = [asdict(job) for job in jobs]
     digest = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
+    input_routes = {job.job_id: [] for job in jobs}
+    for link in cluster.links:
+        for job in cluster.link_jobs.get(link.link_id, []):
+            input_routes[job.job_id].append(link.link_id)
     out = Path(args.out).resolve()
     prepare_output(out)
     policies = [("uncoordinated", False, None)]
@@ -167,6 +174,8 @@ def run_comparison(args):
         for job in copy.deepcopy(jobs):
             sim.add_job_arrival(job)
         sim.run_simulation()
+        if {jid: list(links) for jid, links in sim.job_to_links.items()} != input_routes:
+            raise ValueError("The simulation changed the fixed input routes.")
         simulations[name] = sim
         summary = summarize(name, sim)
         summaries.append(summary)
@@ -183,6 +192,8 @@ def run_comparison(args):
             write_json(folder / "schedules.json", sim.schedule_history)
     write_json(out / "data" / "workload.json", snapshot)
     write_json(out / "data" / "parameters.json", {**vars(args), "workload_sha256": digest,
+        "input_routes": input_routes,
+        "route_sha256": hashlib.sha256(json.dumps(input_routes, sort_keys=True).encode()).hexdigest(),
         "provenance": provenance, "placement": "fixed routes; identical across policies",
         "network_model": "fluid max-min sharing with per-phase demand caps",
         "correction_action": "delay to the next nominal phase start; simulation assumption",

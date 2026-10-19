@@ -233,8 +233,10 @@ The comparison uses the same jobs, arrivals, routes, capacities, and noise sampl
 - `static-shifts`: the same schedule with drift correction disabled.
   Add `--include-static` to include this comparison.
 
-Routes stay fixed after a job arrives. Unspecified routes use the least occupied
-link, with a stable tie rule. Explicit routes can span several links.
+The command assigns experiment routes before either policy runs. It assigns jobs
+in arrival order across the links using round-robin placement. Demos specify
+their routes directly, including paths that span several links. Both policies
+use the same saved route map, and routes stay fixed after arrival.
 This setup isolates phase scheduling. It does not reproduce Themis or Pollux
 resource allocation, placement search, or migration.
 

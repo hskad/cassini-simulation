@@ -68,6 +68,18 @@ class TestCommandLine(unittest.TestCase):
             self.assertGreater((out / "plots" / "benchmark.png").stat().st_size, 1000)
             self.assertIn("Negative reduction", result.stdout)
 
+    def test_experiment_policies_use_the_saved_input_routes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            result = self.invoke("experiment", "--jobs", "6", "--links", "2",
+                "--iterations", "3", "--no-history", "--include-static", "--out", folder)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            data = Path(folder) / "data"
+            parameters = json.loads((data / "parameters.json").read_text())
+            expected = parameters["input_routes"]
+            self.assertEqual(len(expected), 6)
+            for policy in ["uncoordinated", "static-shifts", "cassini"]:
+                self.assertEqual(json.loads((data / policy / "routes.json").read_text()), expected)
+
     def test_python_entry_from_another_folder(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / "cassini.py"), "--help"],
