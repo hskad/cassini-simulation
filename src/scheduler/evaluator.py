@@ -1,8 +1,8 @@
 import random
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
-from src.core.models import Cluster, Job, Link
-from src.math_engine.graph import AffinityGraph, build_affinity_graph, traverse_affinity_graph, has_cycle
+from src.core.models import Cluster, Job
+from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph, has_cycle
 from src.math_engine.optimizer import optimize_link, score_link
 
 @dataclass

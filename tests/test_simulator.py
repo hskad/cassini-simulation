@@ -7,7 +7,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.models import Phase, Job, Link, Cluster
-from src.scheduler.simulator import Simulator, Event
+from src.scheduler.simulator import Simulator
 
 class TestSimulator(unittest.TestCase):
     def test_simulator_single_job(self):

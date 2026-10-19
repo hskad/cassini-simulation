@@ -7,7 +7,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.models import Phase, Job, Link
-from src.math_engine.optimizer import discretize_phases, calculate_score, optimize_link, score_link, hyperperiod, ProfileLimitError
+from src.math_engine.optimizer import discretize_phases, optimize_link, score_link, hyperperiod, ProfileLimitError
 
 class TestOptimizer(unittest.TestCase):
     def setUp(self):
@@ -35,17 +35,14 @@ class TestOptimizer(unittest.TestCase):
         # Capacity is 25, total demand is 50, so excess is 25 for 114 steps.
         # Average excess = 25 * 114 / 255 = 11.17
         # Score = 1 - (11.17 / 25) = 1 - 0.447 = 0.553
-        arr1 = discretize_phases(self.job1, 255.0, resolution=1.0)
-        arr2 = discretize_phases(self.job2, 255.0, resolution=1.0)
-        score_before = calculate_score([arr1, arr2], self.link.capacity)
+        score_before = score_link([self.job1, self.job2], self.link)
+        self.assertAlmostEqual(score_before, 1 - 114 / 255)
         
         # Now optimize
         optimize_link([self.job1, self.job2], self.link, resolution=1.0)
         
         # After optimization, they should be shifted to not overlap
-        arr1_after = discretize_phases(self.job1, 255.0, resolution=1.0)
-        arr2_after = discretize_phases(self.job2, 255.0, resolution=1.0)
-        score_after = calculate_score([arr1_after, arr2_after], self.link.capacity)
+        score_after = score_link([self.job1, self.job2], self.link)
         
         self.assertGreater(score_after, score_before)
         self.assertEqual(score_after, 1.0) # 100% compatible if perfectly shifted

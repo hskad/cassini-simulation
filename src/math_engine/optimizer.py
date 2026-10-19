@@ -1,4 +1,4 @@
-"""Periodic bandwidth profiles and a discrete, greedy shift search."""
+"""Periodic bandwidth profiles and shift search on a time grid."""
 import math
 import itertools
 from fractions import Fraction
@@ -9,10 +9,6 @@ from src.core.models import Job, Link
 
 class ProfileLimitError(ValueError):
     """The requested profile exceeds the explicit calculation budget."""
-
-
-def lcm(a: int, b: int) -> int:
-    return math.lcm(a, b)
 
 
 def validate_profile(job: Job) -> None:
@@ -49,16 +45,6 @@ def discretize_phases(job: Job, lcm_time: float, resolution: float = 1.0) -> Lis
     ends = np.cumsum([p.duration for p in job.phases])
     indices = np.searchsorted(ends, times, side="right")
     return [job.phases[min(int(i), len(job.phases) - 1)].bandwidth_demand for i in indices]
-
-
-def calculate_score(arrays: List[List[float]], link_capacity: float) -> float:
-    """Score sampled arrays. Fractional boundaries need score_link instead."""
-    if not math.isfinite(link_capacity) or link_capacity <= 0:
-        raise ValueError("Link capacity must be finite and positive.")
-    if not arrays or not len(arrays[0]):
-        return 1.0
-    total = np.sum(np.asarray(arrays, dtype=float), axis=0)
-    return float(1 - np.maximum(0, total - link_capacity).mean() / link_capacity)
 
 
 def score_link(jobs: List[Job], link: Link, horizon: Optional[float] = None,

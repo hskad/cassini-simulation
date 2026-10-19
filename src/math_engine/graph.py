@@ -1,7 +1,7 @@
 from collections import deque
 import math
 from typing import Dict, List, Set, Tuple
-from src.core.models import Cluster, Job, Link
+from src.core.models import Cluster, Job
 
 class AffinityGraph:
     """

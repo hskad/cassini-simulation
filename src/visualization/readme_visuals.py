@@ -56,13 +56,11 @@ def build_readme_visuals(out):
         scratch = Path(scratch)
         plot_comparison(aligned, scratch, window=600, max_jobs=2)
         (out / "bandwidth.png").write_bytes((scratch / "bandwidth.png").read_bytes())
-        (out / "completion.png").unlink(missing_ok=True)
         plot_comparison(jitter, scratch, window=3000, max_jobs=2)
         (out / "drift.png").write_bytes((scratch / "drift.png").read_bytes())
     workload = build_workload_figures(out)
     print("Building circular alignment animation...", flush=True)
     geometric = geometric_animation(out / "geometric-alignment.gif")
-    (out / "phase-alignment.gif").unlink(missing_ok=True)
     print("Building affinity graph animation...", flush=True)
     graph = affinity_animation(out / "affinity-traversal.gif")
     summaries = {}

@@ -6,8 +6,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.core.models import Phase, Job, Link, Cluster, Server
-from src.math_engine.graph import build_affinity_graph, traverse_affinity_graph, AffinityGraph
+from src.core.models import Phase, Job
+from src.math_engine.graph import traverse_affinity_graph, AffinityGraph
 
 class TestGraph(unittest.TestCase):
     def test_affinity_graph_traversal(self):

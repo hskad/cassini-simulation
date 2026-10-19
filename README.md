@@ -259,7 +259,8 @@ link capacity and the measurement duration. Scores can be negative.
 
 By default, scoring covers the full least common multiple of the job periods.
 Fractional phase times are retained. Phase boundaries are integrated directly.
-Sampled arrays are used for legacy plots only.
+Sampled arrays are used for profile plots only. All compatibility scores use
+the exact phase boundaries.
 
 Large common periods can exceed the event budget. The program then stops with
 an error. Set `--score-horizon` to request a finite window explicitly.
