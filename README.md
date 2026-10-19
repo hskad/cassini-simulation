@@ -40,7 +40,6 @@ Use `python3 cassini.py --help` or a subcommand's `--help` to see all options.
 | `python3 cassini.py test` | Run automated checks. | `make test` |
 | `python3 cassini.py demo` | Run a small scheduling example. | `make demo` |
 | `python3 cassini.py showcase` | Run the constructed compatible workload below. | `make showcase` |
-| `python3 cassini.py benchmark` | Compare policies across fixed cases and noise seeds. | `make benchmark` |
 | `python3 cassini.py experiment` | Run generated jobs or a workload file. | `make experiment` |
 | `python3 cassini.py docs` | Rebuild all README plots and animations. | `make docs` |
 
@@ -82,56 +81,6 @@ datacenter trace.
 The simulator validates the results against independent completion-time
 formulas, network-work totals, and link-capacity limits. Exact inputs and
 results are saved under `output/showcase/`.
-
-### Matched benchmark
-
-The benchmark covers compatible and overloaded links, different periods,
-multi-link paths, already aligned arrivals, separate links, and compute jitter.
-It includes both static shifts and shifts with drift correction.
-
-```bash
-python3 cassini.py benchmark --iterations 100 --seeds 0 1 2 3 4
-```
-
-![Matched scheduling results with all noise seeds, gains, and ties](visualizations/readme/benchmark.png)
-
-| Case | Uncoordinated mean JCT | Cassini mean JCT | Reduction |
-| --- | --- | --- | --- |
-| Aligned pair | 15.000 s | 10.025 s | 33.17% |
-| VGG timing profile | 36.900 s | 25.557 s | 30.74% |
-| Multi-link chain | 12.000 s | 10.020 s | 16.50% |
-| Already aligned | 10.000 s | 10.000 s | 0% |
-| Separate links | 10.000 s | 10.000 s | 0% |
-
-Deterministic cases run once; the jitter case runs for every supplied seed.
-Its bars average the per-seed percentage reductions, and dots show all five
-seeds. One seed makes Cassini's mean JCT **0.65% longer**, so correction is not
-always beneficial. All cases and results are retained.
-
-The command checks network work, bandwidth limits, matched compute noise, and
-elapsed job time. Five cases also have analytical completion-time checks.
-Results are saved to `output/benchmark/data/` and the plot to
-`output/benchmark/plots/benchmark.png`.
-
-### Mixed-workload stress case
-
-The mixed case uses 56 synthetic jobs across seven illustrative catalog profiles,
-six 50 Gbps links, seed 42, arrivals over 7,000 ms, and 12–40 iterations per job.
-Routes are fixed before either policy runs. Scheduling uses the greedy solver,
-a 2,000 ms scoring window, and no compute jitter.
-
-![Completion time CDF for 56 synthetic jobs on six shared links](visualizations/readme/workload-cdf.png)
-
-Here, Cassini's mean JCT is **6.25 s versus 6.05 s** for uncoordinated scheduling:
-about **3.3% longer**. Short jobs with mixed periods can lose more time to
-alignment and correction than they gain from reduced contention. A finite
-scoring window also limits the compatibility calculation.
-
-![Mean completion time for each of seven illustrative model profiles](visualizations/readme/model-breakdown.png)
-
-For the CDF plots, a curve further left means shorter completion times. In the
-bar plots, a negative reduction means the policy took longer. Rebuild both
-workload comparisons with `python3 cassini.py docs`.
 
 ## How it works
 
@@ -263,10 +212,9 @@ Runs save `status.json`, a `data/` directory, and a `plots/` directory under
 | `plots/bandwidth.png` | Requested bandwidth, served bandwidth, and capacity. |
 | `plots/drift.png` | Communication-start error relative to the iteration period. |
 
-The benchmark stores raw policy records together in `data/runs.json` and
-produces `plots/benchmark.png`. Timeline, bandwidth, and drift plots show the
-first 600 ms by default. `--plot-window` and `--plot-jobs` change display limits,
-not simulation results or saved events.
+Timeline, bandwidth, and drift plots show the first 600 ms by default.
+`--plot-window` and `--plot-jobs` change display limits, not simulation results
+or saved events.
 
 Use distinct `--out` paths to retain runs: rerunning replaces known generated
 files in that folder while preserving unrelated files. `output/` is excluded
@@ -288,10 +236,9 @@ histories and the other plots. Every iteration is still simulated.
 Trace presets retain the input iteration counts; large runs can take substantial
 time. For a quick trial, use `experiment --trace <file> --jobs 10 --iterations 5`.
 
-`python3 cassini.py docs` regenerates all nine README PNGs and GIFs under
+`python3 cassini.py docs` regenerates the figure collection under
 `visualizations/readme/`. The geometric and graph examples use the exact grid
-solver; the constructed and mixed workloads use the greedy solver. The mixed
-workload uses an explicit 2,000 ms scoring window. The
+solver; the constructed compatible workload uses the greedy solver. The
 [visual manifest](visualizations/readme/manifest.json) records parameters,
 results, package versions, and source hashes.
 
