@@ -425,6 +425,27 @@ cluster in global mode. It is checked at arrival/completion events. Both new
 policies require fixed placement. Completion records include `shift_changes`,
 and `Simulator.shift_stats` reports proposed, accepted, and rejected plans.
 
+Run all four policies on the same inputs and routes:
+
+```bash
+make PYTHON=python3 shift-policy
+python3 experiments/shift_policy_experiment.py --workloads macro sample short 2000 --seeds 7 19 42
+```
+
+The default command compares uncoordinated scheduling, the vanilla model,
+a cooldown control, and the benefit rule on `macro`, `sample`, and a generated
+`short` workload. `--min-gain-ms`, `--cooldown-ms`, `--score-window-ms`, and
+`--num-jobs` control the experiment. Stored traces use the seed for placement;
+`macro` and `short` also use it to generate jobs. The `short` case has 200 jobs,
+4 links, exponential arrivals with mean 8 ms, and 1?5 iterations per job.
+
+Raw completion records go to `output/shift-policy/`. Two plots and a settings,
+source, and results manifest go to `visualizations/` with the `shift_policy_`
+prefix. Other experiment figures are preserved. Use `--output-dir` and
+`--plot-dir` for separate runs. Bar whiskers show the range across seeds, not
+a confidence interval; CDFs use the first requested seed. The manifest also
+reports waiting, shift counts, and whole-simulation wall time.
+
 The estimate holds current scores fixed over the remaining work. It uses
 known remaining iterations in this model, does not inspect future arrivals,
 and does not predict departures or profile uncertainty. It is a prototype
@@ -460,7 +481,7 @@ Future work can compare this simplified model with additional baseline policies:
 
 ## Unit Testing
 
-Run the regression tests (38 tests, including identical-route checks):
+Run the regression tests (46 tests, including shift-policy and identical-route checks):
 ```bash
 python -m unittest discover tests
 ```
