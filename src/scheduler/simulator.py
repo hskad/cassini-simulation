@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 from src.core.models import Job, Link, Cluster
 from src.scheduler.evaluator import PlacementCandidate, generate_mock_candidates, evaluate_placements
-from src.scheduler.shift_policy import estimate_shift_change
+from src.scheduler.policies import ShiftDecision, get_shift_policy
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS, get_score_window, optimize_link, score_link
 
 @dataclass(order=True)
@@ -40,8 +40,7 @@ class Simulator:
                  shift_policy: str = "compatibility", min_gain_ms: float = 0.0,
                  cooldown_ms: float = 100.0):
         get_score_window([], score_window_ms=score_window_ms)
-        if shift_policy not in ("compatibility", "benefit", "cooldown", "score"):
-            raise ValueError("Unknown shift policy.")
+        self._accept_shift_change = get_shift_policy(shift_policy)
         if not math.isfinite(min_gain_ms) or min_gain_ms < 0:
             raise ValueError("Minimum mean gain must be finite and nonnegative.")
         if not math.isfinite(cooldown_ms) or cooldown_ms < 0:
@@ -108,21 +107,16 @@ class Simulator:
             if not any(delay > 1e-9 for delay in added.values()):
                 return score, shifts
             self.shift_stats["proposed"] += 1
-            if self.shift_policy == "compatibility":
-                accept = True
-            elif self.shift_policy == "score":
-                keep_score = keep_score_fn()
-                accept = score > keep_score + 1e-9
-            elif self.shift_policy == "cooldown":
-                accept = self.current_time - last_shift_change.get(key, float("-inf")) >= self.cooldown_ms
-            else:
-                keep_score = keep_score_fn()
-                remaining = {j.job_id: max(0.0, 1.0 - progress[j.job_id]) * j.iteration_time * j.total_iterations
-                             for j in jobs}
-                estimate = estimate_shift_change(remaining, pending_wait, added,
-                                                 current_score=keep_score, proposed_score=score,
-                                                 penalty=self.penalty_factor)
-                accept = estimate.gain_ms > self.min_gain_ms
+            keep_score = keep_score_fn() if self.shift_policy in ("score", "benefit") else None
+            remaining = ({j.job_id: max(0.0, 1.0 - progress[j.job_id]) * j.iteration_time * j.total_iterations
+                          for j in jobs} if self.shift_policy == "benefit" else {})
+            accept = self._accept_shift_change(ShiftDecision(
+                proposed_score=score, current_score=keep_score,
+                remaining_work_ms=remaining, pending_wait_ms=pending_wait,
+                added_wait_ms=added, penalty=self.penalty_factor,
+                min_gain_ms=self.min_gain_ms,
+                elapsed_ms=self.current_time - last_shift_change.get(key, float("-inf")),
+                cooldown_ms=self.cooldown_ms))
             if accept:
                 self.shift_stats["accepted"] += 1
                 last_shift_change[key] = self.current_time
@@ -130,7 +124,8 @@ class Simulator:
             self.shift_stats["rejected"] += 1
             # Recompute the score of the retained offsets. Never keep the
             # proposal's improved score after rejecting its waits.
-            keep_score = keep_score_fn() if self.shift_policy == "cooldown" else keep_score
+            if keep_score is None:
+                keep_score = keep_score_fn()
             return keep_score, {j.job_id: applied_shift[j.job_id] for j in jobs}
 
         def apply_shifts(shifts):

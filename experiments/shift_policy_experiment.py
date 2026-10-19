@@ -26,9 +26,10 @@ from src.core.models import Cluster, Job, Link, Phase
 from src.core.trace_loader import TraceLoader
 from src.math_engine.optimizer import DEFAULT_SCORE_WINDOW_MS
 from src.scheduler.evaluator import make_fixed_placement, verify_paired_placement
+from src.scheduler.policies import SHIFT_POLICIES
 from src.scheduler.simulator import Simulator
 
-POLICIES = ("uncoordinated", "compatibility", "score", "cooldown", "benefit")
+POLICIES = ("uncoordinated", *SHIFT_POLICIES)
 LABELS = {"uncoordinated": "Uncoordinated", "compatibility": "Vanilla model",
           "score": "Score control", "cooldown": "Cooldown control", "benefit": "Benefit rule"}
 COLORS = {"uncoordinated": "#ff007f", "compatibility": "#00ddbb",
@@ -258,6 +259,8 @@ def main(argv=None):
                "experiments/shift_policy_experiment.py", "data/models/real_models.json",
                "data/traces/philly_cluster_trace.json", "data/traces/philly_2000_jobs.json",
                "data/traces/philly_10000_jobs.json"]
+    sources.extend(str(path.relative_to(ROOT)).replace(os.sep, "/")
+                   for path in sorted((ROOT / "src/scheduler/policies").glob("*.py")))
     source_commit = os.environ.get("CASSINI_SOURCE_COMMIT")
     if source_commit is None:
         revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,

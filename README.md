@@ -105,7 +105,9 @@ cassini-simulation/
 │   ├── scheduler/                # Evaluation & discrete-event simulation loop
 │   │   ├── __init__.py
 │   │   ├── evaluator.py          # Candidate evaluation, scoring & loop filtering
-│   │   └── simulator.py          # Master discrete-event cluster simulator (incremental & batch)
+│   │   ├── simulator.py          # Fast event engine and shift-wait accounting
+│   │   ├── shift_policy.py       # Shared remaining-time estimate
+│   │   └── policies/             # Separate compatibility, score, cooldown, and benefit rules
 │   └── utils/                    # Visualization & animation tools
 │       ├── __init__.py
 │       ├── animator.py           # GIF generation for phase & graph animations
@@ -438,6 +440,11 @@ A constant 10 ms offset adds 10 ms once, regardless of iteration count. Later ta
 
 ## Choosing when to apply a shift
 
+Each acceptance rule has its own module in [`src/scheduler/policies/`](src/scheduler/policies/):
+`compatibility.py`, `score.py`, `cooldown.py`, and `benefit.py`. The package registry
+selects the rule; the simulator retains shared progress, waiting, and event handling.
+The remaining-time estimate is shared through `src/scheduler/shift_policy.py`.
+
 The optional `shift_policy="benefit"` compares keeping the current offsets with
 applying Cassini's proposed offsets. It estimates mean remaining completion
 time for all affected jobs, including pending and newly added waits. A change
@@ -453,6 +460,10 @@ control (`shift_policy="score"`) changes offsets only if compatibility strictly
 improves, without considering waiting cost. These decision policies require
 fixed placement. Completion records include `shift_changes`,
 and `Simulator.shift_stats` reports proposed, accepted, and rejected plans.
+
+The score and cooldown controls are comparison methods added in this project,
+not policies reported in the Cassini paper. The paper's worker drift correction
+uses a timing-error threshold rather than our fixed cooldown interval.
 
 Run all five policies on the same inputs and routes:
 
@@ -476,6 +487,8 @@ prefix. Other experiment figures are preserved. Use `--output-dir` and
 a confidence interval; labels report the mean and whiskers show both ends
 of that range. CDFs use the first requested seed. The manifest also
 reports waiting, shift counts, and whole-simulation wall time.
+New manifests hash every policy module as well as the shared simulator sources.
+Existing published manifests retain their original source commits and hashes.
 
 ### Evaluation of shift decisions
 
