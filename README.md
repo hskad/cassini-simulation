@@ -133,17 +133,35 @@ The trace command reads the selected workload file.
 `--jobs` limits the number of loaded records. Trace iteration counts stay intact
 unless `--iterations` is set. That option overrides the count for every loaded job.
 
-The output folder contains:
+Each run has this layout:
+
+```text
+output/<run>/
+|-- status.json
+|-- plots/                 PNG plots
+`-- data/
+    |-- summary.csv
+    |-- summary.json
+    |-- parameters.json
+    |-- workload.json
+    |-- uncoordinated/     Policy event files and totals
+    |-- cassini/
+    `-- static-shifts/     Only with --include-static
+```
+
+The files have these uses:
 
 - `status.json`: whether the run completed or failed.
-- `summary.csv` and `summary.json`: mean, P50, and P95 JCT; waits; adjustment counts.
-- `parameters.json`: run options, units, source details, and a workload hash.
-- `workload.json`: the exact job inputs.
-- One folder per policy: completions, phase events, link events, drift observations,
+- `data/summary.csv` and `data/summary.json`: mean, P50, and P95 JCT; waits; adjustment counts.
+- `data/parameters.json`: run options, units, source details, and a workload hash.
+- `data/workload.json`: the exact job inputs.
+- One folder per policy under `data/`: completions, phase events, link events, drift observations,
   corrections, applied schedule targets, routes, and link totals.
 
 Use a separate `--out` folder to retain each experiment. A repeated run replaces
 its generated result files. Output files are excluded from Git.
+If that folder uses the previous flat layout, the command also removes its known
+old result files. It keeps unrelated files.
 
 Use `--no-history` for large runs. It saves aggregate data and the JCT plot.
 The detailed event files and the other plots are omitted.
@@ -317,5 +335,5 @@ current options. Large scripts keep the original iteration counts and can take
 considerable time. Use `--jobs 10 --iterations 5` for a quick check.
 
 `experiments/micro_test.py` still shows the circular geometric example.
-It now scores phase boundaries and saves its plot under `output/micro/`.
+It now scores phase boundaries and saves its plot under `output/micro/plots/`.
 It illustrates Figure 3's method; it does not reproduce a hardware experiment.

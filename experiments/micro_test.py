@@ -56,7 +56,7 @@ def main():
         print(f"{j.name} Time Shift: {j.time_shift}ms -> Geometric Shift: {degrees:.1f} degrees")
 
     # Save visualization
-    output_dir = os.path.join(PROJECT_ROOT, "output", "micro")
+    output_dir = os.path.join(PROJECT_ROOT, "output", "micro", "plots")
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "micro_test_circular.png")
     plot_circular_alignment(jobs, link, "Micro-Test (Figure 3)", output_path)

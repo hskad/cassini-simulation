@@ -19,6 +19,10 @@ from src.core.trace_loader import TraceLoader
 from src.scheduler.simulator import Simulator
 
 ROOT = Path(__file__).resolve().parent
+PLOT_FILES = ("timeline.png", "bandwidth.png", "drift.png", "jct.png")
+DATA_FILES = ("summary.csv", "summary.json", "parameters.json", "workload.json")
+POLICY_FILES = ("completions.csv", "adjustments.csv", "link_totals.json", "routes.json",
+                "phases.csv", "links.csv", "drift.csv", "schedules.json")
 
 
 def positive_int(value):
@@ -123,13 +127,19 @@ def summarize(name, sim):
 def prepare_output(out):
     """Replace only files that this utility creates."""
     out.mkdir(parents=True, exist_ok=True)
-    for name in ["timeline.png", "bandwidth.png", "drift.png", "jct.png",
-                 "summary.csv", "summary.json", "parameters.json", "workload.json"]:
-        (out / name).unlink(missing_ok=True)
-    for policy in ["uncoordinated", "static-shifts", "cassini"]:
-        for name in ["completions.csv", "adjustments.csv", "link_totals.json", "routes.json",
-                     "phases.csv", "links.csv", "drift.csv", "schedules.json"]:
-            (out / policy / name).unlink(missing_ok=True)
+    for folder, names in [(out / "plots", PLOT_FILES), (out / "data", DATA_FILES)]:
+        folder.mkdir(exist_ok=True)
+        for name in names:
+            (folder / name).unlink(missing_ok=True)
+            # Remove stale files from the previous flat layout on a repeated run.
+            (out / name).unlink(missing_ok=True)
+    for base in [out, out / "data"]:
+        for policy in ["uncoordinated", "static-shifts", "cassini"]:
+            folder = base / policy
+            for name in POLICY_FILES:
+                (folder / name).unlink(missing_ok=True)
+            if folder.is_dir() and not any(folder.iterdir()):
+                folder.rmdir()
     write_json(out / "status.json", {"status": "running"})
 
 
@@ -160,7 +170,7 @@ def run_comparison(args):
         simulations[name] = sim
         summary = summarize(name, sim)
         summaries.append(summary)
-        folder = out / name
+        folder = out / "data" / name
         folder.mkdir(exist_ok=True)
         write_csv(folder / "completions.csv", sim.completed_jobs)
         write_csv(folder / "adjustments.csv", sim.adjustments)
@@ -171,22 +181,23 @@ def run_comparison(args):
             write_csv(folder / "links.csv", sim.link_history)
             write_csv(folder / "drift.csv", sim.drift_history)
             write_json(folder / "schedules.json", sim.schedule_history)
-    write_json(out / "workload.json", snapshot)
-    write_json(out / "parameters.json", {**vars(args), "workload_sha256": digest,
+    write_json(out / "data" / "workload.json", snapshot)
+    write_json(out / "data" / "parameters.json", {**vars(args), "workload_sha256": digest,
         "provenance": provenance, "placement": "fixed routes; identical across policies",
         "network_model": "fluid max-min sharing with per-phase demand caps",
         "correction_action": "delay to the next nominal phase start; simulation assumption",
         "shift_solver": args.solver + " time grid", "units": {"time": "ms", "bandwidth": "Gbps"}})
-    write_json(out / "summary.json", summaries)
-    write_csv(out / "summary.csv", summaries)
+    write_json(out / "data" / "summary.json", summaries)
+    write_csv(out / "data" / "summary.csv", summaries)
     print(f"{'Policy':<18} {'Mean JCT (ms)':>15} {'P95 JCT (ms)':>15} {'Mean wait (ms)':>16} {'Adjustments':>12}")
     for row in summaries:
         print(f"{row['policy']:<18} {row['mean_jct_ms']:>15.3f} {row['p95_jct_ms']:>15.3f} "
               f"{row['mean_wait_ms']:>16.3f} {row['adjustments']:>12}")
     from src.utils.comparison_plots import plot_comparison
-    plot_comparison(simulations, out, args.plot_window, args.plot_jobs)
+    plot_comparison(simulations, out / "plots", args.plot_window, args.plot_jobs)
     write_json(out / "status.json", {"status": "complete", "workload_sha256": digest})
-    print("Results and plots:", out)
+    print("Data:", out / "data")
+    print("Plots:", out / "plots")
     return 0
 
 
@@ -210,7 +221,7 @@ def main(argv=None):
         p.add_argument("--plot-window", type=positive_float, default=600.0, help="Timeline and bandwidth plot window in ms.")
         p.add_argument("--plot-jobs", type=positive_int, default=8, help="Maximum jobs shown on timelines.")
         p.add_argument("--no-history", action="store_true", help="Save aggregate data and JCT plot only.")
-        p.add_argument("--out", default=str(ROOT / "output" / command), help="Result folder. Existing result files are replaced.")
+        p.add_argument("--out", default=str(ROOT / "output" / command), help="Run folder with data/ and plots/. Existing result files are replaced.")
         if command == "demo":
             p.add_argument("--scenario", choices=["aligned", "partial", "multi-link", "dynamic"], default="aligned")
         else:
