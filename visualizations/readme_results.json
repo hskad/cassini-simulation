@@ -1,7 +1,6 @@
 {
-  "model": "fast compatibility-score runtime estimator",
-  "source_commit": "38764ede28a230eecc62269bc6af10fd2f9fda9e",
-  "correction": "select the actual best incremental placement score, including valid scores below -1; retain shared scoring windows and fast runtime formula",
+  "model": "fast compatibility-score runtime estimator with explicit shift waits",
+  "source_commit": "b56321e8c16c0c5a740d6f1d9841e4f02a09e7ee",
   "scoring": {
     "limit_ms": 600,
     "resolution_ms": 1,
@@ -10,7 +9,7 @@
     "estimate": "finite-window estimate when the common period exceeds the limit"
   },
   "runtime_formula": "nominal_iteration_time * (1 + penalty * (1 - compatibility_score))",
-  "shift_waits_charged": false,
+  "shift_waits_charged": true,
   "seed": 42,
   "versions": {
     "numpy": "2.5.4",
@@ -20,9 +19,9 @@
   },
   "source_sha256": {
     "src/math_engine/optimizer.py": "f7438f56f733953f1870750d5f3166a9e3f7d6c2a7a16a9b4287382fa5987b39",
-    "src/math_engine/graph.py": "341a25015ce9ad0dd087b147504c75daff979f180b1eb28b790e69508cec2988",
-    "src/scheduler/evaluator.py": "9c47c94a75766b8a5d72dd9c3f749e5dd8333df9b9f8ab70493955cfa344e561",
-    "src/scheduler/simulator.py": "be262839dbfc6953bca59ce33a21c9cabd824b340573e451563eb99cdcdaa64c",
+    "src/math_engine/graph.py": "a63f37baad03fa93d5f2d59c89833dd6a3fbad6d44e251ce8df1f00fb6c0618b",
+    "src/scheduler/evaluator.py": "5017b5a605018cab098a0e09d3f0645ae13f4e9172b36bafb2db91df089ebf16",
+    "src/scheduler/simulator.py": "4727827914bd32bcd8559a8181fdf4a46d3177168fd4ac1187051f741d1a7fd1",
     "src/core/models.py": "53dca27c5a433d3a6ae500defed53240d9f387a62f4bb80f4df83d05271a906d",
     "src/core/trace_loader.py": "7b312933253f0dedc8e39f9570547304e04e2050d2374e0e8f9054ebf9ab5bd2",
     "data/models/real_models.json": "eb8ade72e9bf82d99bdcb9fe0f81919e57328f8cc9daaca618e5496940303421",
@@ -30,36 +29,36 @@
     "data/traces/philly_2000_jobs.json": "ba23d1f90f461dea4c37c552e7a59d0ec52ca9741071606e23c029f91f12906e",
     "data/traces/philly_10000_jobs.json": "f7b76bee95906218dbfb010e8c2cf5d7236223fbba1ef486bc59699e4e2459fd",
     "experiments/micro_test.py": "ff24518fc4830b9e8cf64490f3d71a4d7648db9cc0d9ac3c1f105c2a31e044cb",
-    "experiments/macro_test.py": "6812ca206beae081e317ac3be2a420c9bbb69cf2471d24cee0a1b661469e88b4",
-    "experiments/real_workload_experiment.py": "386351a0cf65d8d0f437f08ea854f0b25ee6a61dee075498759adecc186d51e8",
-    "experiments/large_scale_2000_jobs.py": "0c62a9ff726078d63594c9ff012a5384562751b6bf94c7e2f421afb436ead3c7",
-    "experiments/scale_10000_jobs.py": "0ff8597121b601c0b66d3ba8f062c40de1a4aa7b67fecccef7b83ae72f6667d9"
+    "experiments/macro_test.py": "be7e8a167c8326a16ae09019f640dd9cab10e047c5857fe7bd4893f0be0b6313",
+    "experiments/real_workload_experiment.py": "87fcd147c2139b0337dca40c73b5589f929e12a29a00e9bdaae433b379bcca1f",
+    "experiments/large_scale_2000_jobs.py": "42419c063e2e9699d68b7c453a8de1328bebc11efad5b5af38a9dd5c1dce1dbe",
+    "experiments/scale_10000_jobs.py": "6f99a70b170692277ec707b3fdbadabab42a400a51d3673639302d056549e464"
   },
   "runs": [
     {
       "case": "micro",
       "command": "python3 experiments/micro_test.py",
-      "wall_seconds": 1.0949606260000024
+      "wall_seconds": 0.885460135999999
     },
     {
       "case": "macro",
       "command": "python3 experiments/macro_test.py",
-      "wall_seconds": 2.107440604000004
+      "wall_seconds": 1.2889320600000005
     },
     {
       "case": "sample",
       "command": "python3 experiments/real_workload_experiment.py",
-      "wall_seconds": 7.892911525000002
+      "wall_seconds": 2.6852541750000007
     },
     {
       "case": "2000",
       "command": "python3 experiments/large_scale_2000_jobs.py",
-      "wall_seconds": 9.258898439999996
+      "wall_seconds": 10.390439057999998
     },
     {
       "case": "10000",
       "command": "python3 experiments/scale_10000_jobs.py",
-      "wall_seconds": 43.654501955000015
+      "wall_seconds": 60.854701729999995
     }
   ],
   "custom_window_checks": [
@@ -68,19 +67,19 @@
       "passed": true
     },
     {
-      "command": "python3 experiments/macro_test.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "command": "python3 experiments/macro_test.py --score-window-ms 1200 --num-jobs 6 --num-links 2",
       "passed": true
     },
     {
-      "command": "python3 experiments/real_workload_experiment.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "command": "python3 experiments/real_workload_experiment.py --score-window-ms 1200 --num-jobs 6 --num-links 2",
       "passed": true
     },
     {
-      "command": "python3 experiments/large_scale_2000_jobs.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "command": "python3 experiments/large_scale_2000_jobs.py --score-window-ms 1200 --num-jobs 6 --num-links 2",
       "passed": true
     },
     {
-      "command": "python3 experiments/scale_10000_jobs.py --score-window-ms 1200 --num-jobs 6 --num-links 1",
+      "command": "python3 experiments/scale_10000_jobs.py --score-window-ms 1200 --num-jobs 6 --num-links 2",
       "passed": true
     }
   ],
@@ -90,34 +89,27 @@
         "case": "macro",
         "policy": "baseline",
         "jobs": 50,
-        "mean_jct_ms": 1335.8725042569383,
-        "simulation_seconds": 0.03873822399999938,
+        "placement_sha256": "4afa57550c54070fe0f6f276b3b58fa8386c6d4e94688a078cc361363fa84168",
+        "mean_jct_ms": 1266.8031464767007,
+        "mean_shift_wait_ms": 0.0,
+        "max_shift_wait_ms": 0.0,
+        "simulation_seconds": 0.034801414000000364,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
         "observed_windows_ms": [
-          40.0,
           50.0,
-          55.0,
           60.0,
-          70.0,
           80.0,
           120.0,
           150.0,
-          180.0,
           200.0,
           240.0,
           280.0,
           300.0,
           350.0,
-          360.0,
-          400.0,
           420.0,
-          440.0,
-          450.0,
-          520.0,
           550.0,
-          560.0,
           600.0
         ],
         "link_capacities_gbps": {
@@ -138,46 +130,36 @@
           "L14": 50.0,
           "L15": 50.0
         },
-        "p50_jct_ms": 1377.1376200066752,
-        "p90_jct_ms": 2036.5309701314907,
-        "p95_jct_ms": 2242.189040533782,
-        "p99_jct_ms": 2428.198290543755
+        "p50_jct_ms": 1315.6054061676818,
+        "p90_jct_ms": 1920.283113377761,
+        "p95_jct_ms": 2097.210386011146,
+        "p99_jct_ms": 2279.7262259434124
       },
       "cassini": {
         "case": "macro",
         "policy": "cassini",
         "jobs": 50,
-        "mean_jct_ms": 1122.4888245367729,
-        "simulation_seconds": 1.2234839089999952,
+        "placement_sha256": "4afa57550c54070fe0f6f276b3b58fa8386c6d4e94688a078cc361363fa84168",
+        "mean_jct_ms": 1206.6328763589124,
+        "mean_shift_wait_ms": 47.8,
+        "max_shift_wait_ms": 150.0,
+        "simulation_seconds": 0.3400913639999992,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
         "observed_windows_ms": [
-          40.0,
           50.0,
-          55.0,
           60.0,
-          70.0,
           80.0,
           120.0,
           150.0,
-          180.0,
           200.0,
-          225.0,
           240.0,
           280.0,
           300.0,
           350.0,
-          360.0,
-          400.0,
           420.0,
-          440.0,
-          450.0,
-          495.0,
-          520.0,
           550.0,
-          560.0,
-          585.0,
           600.0
         ],
         "link_capacities_gbps": {
@@ -198,17 +180,17 @@
           "L14": 50.0,
           "L15": 50.0
         },
-        "p50_jct_ms": 1152.6272282712125,
-        "p90_jct_ms": 1712.0178112704393,
-        "p95_jct_ms": 1907.7258062758465,
-        "p99_jct_ms": 2088.846821660539
+        "p50_jct_ms": 1226.6467190178428,
+        "p90_jct_ms": 1829.1777754859652,
+        "p95_jct_ms": 2010.8338629095595,
+        "p99_jct_ms": 2234.612262176102
       },
       "reduction_percent": {
-        "mean_jct_ms": 15.973356666911664,
-        "p50_jct_ms": 16.30268380398863,
-        "p90_jct_ms": 15.934604659613834,
-        "p95_jct_ms": 14.916816923621765,
-        "p99_jct_ms": 13.975443035470713
+        "mean_jct_ms": 4.749772708185718,
+        "p50_jct_ms": 6.761806141324168,
+        "p90_jct_ms": 4.7443701013202375,
+        "p95_jct_ms": 4.118638915663254,
+        "p99_jct_ms": 1.9789202428743862
       }
     },
     "sample": {
@@ -216,18 +198,15 @@
         "case": "sample",
         "policy": "baseline",
         "jobs": 60,
-        "mean_jct_ms": 4430.707568990283,
-        "simulation_seconds": 0.07430757900000629,
+        "placement_sha256": "1020e725c86377d25e36a20aed73c25eeaa860989526e662e132e33f1202d26d",
+        "mean_jct_ms": 4400.766100557581,
+        "mean_shift_wait_ms": 0.0,
+        "max_shift_wait_ms": 0.0,
+        "simulation_seconds": 0.06974176399999976,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
         "observed_windows_ms": [
-          100.0,
-          117.0,
-          123.0,
-          157.0,
-          255.0,
-          303.0,
           325.0,
           600.0
         ],
@@ -249,27 +228,24 @@
           "L14": 50.0,
           "L15": 50.0
         },
-        "p50_jct_ms": 4512.140708706633,
-        "p90_jct_ms": 5673.162367868551,
-        "p95_jct_ms": 5877.577226553346,
-        "p99_jct_ms": 6139.83603927381
+        "p50_jct_ms": 4467.808281610111,
+        "p90_jct_ms": 5667.923945083259,
+        "p95_jct_ms": 5864.811785384829,
+        "p99_jct_ms": 6136.2407177123005
       },
       "cassini": {
         "case": "sample",
         "policy": "cassini",
         "jobs": 60,
-        "mean_jct_ms": 3918.654876306454,
-        "simulation_seconds": 6.606611135999998,
+        "placement_sha256": "1020e725c86377d25e36a20aed73c25eeaa860989526e662e132e33f1202d26d",
+        "mean_jct_ms": 4150.003071528099,
+        "mean_shift_wait_ms": 138.13333333333333,
+        "max_shift_wait_ms": 765.0,
+        "simulation_seconds": 1.4217067629999995,
         "penalty": 1.5,
         "incremental": false,
         "score_window_limit_ms": 600.0,
         "observed_windows_ms": [
-          100.0,
-          117.0,
-          123.0,
-          157.0,
-          255.0,
-          303.0,
           325.0,
           600.0
         ],
@@ -291,17 +267,17 @@
           "L14": 50.0,
           "L15": 50.0
         },
-        "p50_jct_ms": 3966.5739756186945,
-        "p90_jct_ms": 5070.724874741085,
-        "p95_jct_ms": 5246.770058961877,
-        "p99_jct_ms": 5549.605310628375
+        "p50_jct_ms": 4169.821190853714,
+        "p90_jct_ms": 5391.003130343261,
+        "p95_jct_ms": 5623.230124706808,
+        "p99_jct_ms": 5969.049873406532
       },
       "reduction_percent": {
-        "mean_jct_ms": 11.556905634386547,
-        "p50_jct_ms": 12.09108421719234,
-        "p90_jct_ms": 10.619077228240979,
-        "p95_jct_ms": 10.73243520717428,
-        "p99_jct_ms": 9.613135022987422
+        "mean_jct_ms": 5.698167621262807,
+        "p50_jct_ms": 6.66964811321332,
+        "p90_jct_ms": 4.885753891955774,
+        "p95_jct_ms": 4.119171586717323,
+        "p99_jct_ms": 2.724646114732278
       }
     },
     "2000": {
@@ -309,8 +285,11 @@
         "case": "2000",
         "policy": "baseline",
         "jobs": 2000,
-        "mean_jct_ms": 723703.1649281485,
-        "simulation_seconds": 1.180815367000008,
+        "placement_sha256": "60ec663bbd77fea98b496afa1739effc467ce93e00836c1a9126311a3cc13a87",
+        "mean_jct_ms": 1308617.393833592,
+        "mean_shift_wait_ms": 0.0,
+        "max_shift_wait_ms": 0.0,
+        "simulation_seconds": 1.153221963,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -358,17 +337,20 @@
           "L30": 50.0,
           "L31": 50.0
         },
-        "p50_jct_ms": 564457.7052138447,
-        "p90_jct_ms": 1434617.9763575485,
-        "p95_jct_ms": 1818059.149281208,
-        "p99_jct_ms": 2570585.110694114
+        "p50_jct_ms": 862638.6963899196,
+        "p90_jct_ms": 2874651.8533799476,
+        "p95_jct_ms": 3844395.295024534,
+        "p99_jct_ms": 5889955.005929868
       },
       "cassini": {
         "case": "2000",
         "policy": "cassini",
         "jobs": 2000,
-        "mean_jct_ms": 462281.9913730644,
-        "simulation_seconds": 6.563874976000008,
+        "placement_sha256": "60ec663bbd77fea98b496afa1739effc467ce93e00836c1a9126311a3cc13a87",
+        "mean_jct_ms": 990303.158261349,
+        "mean_shift_wait_ms": 233.127,
+        "max_shift_wait_ms": 1515.0,
+        "simulation_seconds": 7.8955825220000015,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -417,17 +399,17 @@
           "L30": 50.0,
           "L31": 50.0
         },
-        "p50_jct_ms": 362878.5865531162,
-        "p90_jct_ms": 909706.772425872,
-        "p95_jct_ms": 1111397.8141799918,
-        "p99_jct_ms": 1609780.9142280417
+        "p50_jct_ms": 595021.0071415436,
+        "p90_jct_ms": 2248125.4140656227,
+        "p95_jct_ms": 3067678.9406154095,
+        "p99_jct_ms": 5132403.976134184
       },
       "reduction_percent": {
-        "mean_jct_ms": 36.122706963847364,
-        "p50_jct_ms": 35.711996983788225,
-        "p90_jct_ms": 36.588918623786526,
-        "p95_jct_ms": 38.86899583991001,
-        "p99_jct_ms": 37.37686772046363
+        "mean_jct_ms": 24.324469250690775,
+        "p50_jct_ms": 31.023149131651138,
+        "p90_jct_ms": 21.794863213702552,
+        "p95_jct_ms": 20.203862891372303,
+        "p99_jct_ms": 12.86174561661336
       }
     },
     "10000": {
@@ -435,66 +417,11 @@
         "case": "10000",
         "policy": "baseline",
         "jobs": 10000,
-        "mean_jct_ms": 781095.4918782134,
-        "simulation_seconds": 5.832424959999997,
-        "penalty": 1.5,
-        "incremental": true,
-        "score_window_limit_ms": 600.0,
-        "observed_windows_ms": [
-          72.0,
-          100.0,
-          126.0,
-          198.0,
-          234.0,
-          252.0,
-          504.0,
-          600.0
-        ],
-        "link_capacities_gbps": {
-          "L0": 50.0,
-          "L1": 50.0,
-          "L2": 50.0,
-          "L3": 50.0,
-          "L4": 50.0,
-          "L5": 50.0,
-          "L6": 50.0,
-          "L7": 50.0,
-          "L8": 50.0,
-          "L9": 50.0,
-          "L10": 50.0,
-          "L11": 50.0,
-          "L12": 50.0,
-          "L13": 50.0,
-          "L14": 50.0,
-          "L15": 50.0,
-          "L16": 50.0,
-          "L17": 50.0,
-          "L18": 50.0,
-          "L19": 50.0,
-          "L20": 50.0,
-          "L21": 50.0,
-          "L22": 50.0,
-          "L23": 50.0,
-          "L24": 50.0,
-          "L25": 50.0,
-          "L26": 50.0,
-          "L27": 50.0,
-          "L28": 50.0,
-          "L29": 50.0,
-          "L30": 50.0,
-          "L31": 50.0
-        },
-        "p50_jct_ms": 606624.561222476,
-        "p90_jct_ms": 1516849.156057436,
-        "p95_jct_ms": 1949405.4092205719,
-        "p99_jct_ms": 2943742.3393131713
-      },
-      "cassini": {
-        "case": "10000",
-        "policy": "cassini",
-        "jobs": 10000,
-        "mean_jct_ms": 456350.91838545504,
-        "simulation_seconds": 41.888693184000005,
+        "placement_sha256": "4421803ddfb97f4f25d09631ecc9ec81d926c11124ba32aa3d78a905e4868142",
+        "mean_jct_ms": 1995010.9893580566,
+        "mean_shift_wait_ms": 0.0,
+        "max_shift_wait_ms": 0.0,
+        "simulation_seconds": 8.243100306999999,
         "penalty": 1.5,
         "incremental": true,
         "score_window_limit_ms": 600.0,
@@ -543,55 +470,111 @@
           "L30": 50.0,
           "L31": 50.0
         },
-        "p50_jct_ms": 358391.72452862374,
-        "p90_jct_ms": 867943.5099674077,
-        "p95_jct_ms": 1106303.0838620283,
-        "p99_jct_ms": 1688770.5815474023
+        "p50_jct_ms": 1284995.6691690213,
+        "p90_jct_ms": 4470467.391232881,
+        "p95_jct_ms": 6119918.498865485,
+        "p99_jct_ms": 10046895.075670058
+      },
+      "cassini": {
+        "case": "10000",
+        "policy": "cassini",
+        "jobs": 10000,
+        "placement_sha256": "4421803ddfb97f4f25d09631ecc9ec81d926c11124ba32aa3d78a905e4868142",
+        "mean_jct_ms": 1368974.074104639,
+        "mean_shift_wait_ms": 227.39015,
+        "max_shift_wait_ms": 1515.0,
+        "simulation_seconds": 58.788931571,
+        "penalty": 1.5,
+        "incremental": true,
+        "score_window_limit_ms": 600.0,
+        "observed_windows_ms": [
+          72.0,
+          99.0,
+          100.0,
+          126.0,
+          198.0,
+          234.0,
+          252.0,
+          504.0,
+          600.0
+        ],
+        "link_capacities_gbps": {
+          "L0": 50.0,
+          "L1": 50.0,
+          "L2": 50.0,
+          "L3": 50.0,
+          "L4": 50.0,
+          "L5": 50.0,
+          "L6": 50.0,
+          "L7": 50.0,
+          "L8": 50.0,
+          "L9": 50.0,
+          "L10": 50.0,
+          "L11": 50.0,
+          "L12": 50.0,
+          "L13": 50.0,
+          "L14": 50.0,
+          "L15": 50.0,
+          "L16": 50.0,
+          "L17": 50.0,
+          "L18": 50.0,
+          "L19": 50.0,
+          "L20": 50.0,
+          "L21": 50.0,
+          "L22": 50.0,
+          "L23": 50.0,
+          "L24": 50.0,
+          "L25": 50.0,
+          "L26": 50.0,
+          "L27": 50.0,
+          "L28": 50.0,
+          "L29": 50.0,
+          "L30": 50.0,
+          "L31": 50.0
+        },
+        "p50_jct_ms": 776254.5757983141,
+        "p90_jct_ms": 3228338.830544983,
+        "p95_jct_ms": 4571540.803993503,
+        "p99_jct_ms": 7848399.844632338
       },
       "reduction_percent": {
-        "mean_jct_ms": 41.57552781566837,
-        "p50_jct_ms": 40.9203406129173,
-        "p90_jct_ms": 42.779840269460344,
-        "p95_jct_ms": 43.24920416095696,
-        "p99_jct_ms": 42.631847937431125
+        "mean_jct_ms": 31.380123648083774,
+        "p50_jct_ms": 39.59087999881735,
+        "p90_jct_ms": 27.785205706317416,
+        "p95_jct_ms": 25.30062606485727,
+        "p99_jct_ms": 21.882334935115225
       }
     }
   },
   "figures": {
     "micro_test_circular.png": "bd24e8e1b33d7ede4667d183f89188cc00a7028708de38b782dae87003bac8d1",
-    "macro_test_cdf.png": "2c36a3973e1963d11c4b2d491fb5b25479175ae5688d2cf635cc722f48dcbbe9",
-    "real_workload_cdf.png": "c05310ce75f121d338fbacfebb47cd75158dd7860e8940b1fc997c8e5bd3003f",
-    "real_workload_model_breakdown.png": "41cda36d7aa5ba8b407a8050c160b1ff504868d74c7199e0288c2a5bf7906239",
-    "large_scale_2000_jobs_cdf.png": "2dfb80482f8464c474bd1fba4fa1ca722465eeee19a7aca859646f8796b97af6",
-    "large_scale_2000_jobs_breakdown.png": "45f8d7c8ba7164844d36dd756a792ce2cc4ce50b107b44b0a58f98dcd8897f07",
-    "scale_10000_jobs_cdf.png": "f7a79d5182952cd5dfcc2c6052cda990f02d42589f724922fb517cd0cdd5c2d9",
-    "scale_10000_jobs_breakdown.png": "d14825d4795f1f1fadb23fb11d529f0638badeca97caf4eeefab49bf28d996dd"
+    "macro_test_cdf.png": "1864100f7b1f5ecbf721464e1f913374bd0846e6cbff7c56e03d1b5f3fa06823",
+    "real_workload_cdf.png": "2293efa167e91fbd32625968fbf7891cb21551e725f6fc66fd84b85890b0280f",
+    "real_workload_model_breakdown.png": "f865b0d5990eaebca0b98335b963f306b3118d6fae54df7c40c91fccc35830c8",
+    "large_scale_2000_jobs_cdf.png": "8359a69ab003eeecc962c086a624051ebc806cd595c1c2c81d2bb9d3a85292e8",
+    "large_scale_2000_jobs_breakdown.png": "5b9b1ea612eab01196ee38f801efd600985c9402581cd1833573ae4f12a28c50",
+    "scale_10000_jobs_cdf.png": "02f844fda8e9be500898147b1f6dec329abc80a59cc873e2ee3fff46cb0d26db",
+    "scale_10000_jobs_breakdown.png": "99124b7eab84b211d2928abbe25ef02711d83930cf284631227455acb2f916ef"
   },
   "regression_checks": {
-    "four_continuous_jobs_50gbps_100ms_penalty_1": {
-      "expected_jct_ms": 400,
-      "policies": [
-        "baseline",
-        "cassini"
-      ],
-      "modes": [
-        "global",
-        "incremental"
-      ],
-      "passed": true
-    },
-    "overloaded_candidate_selection_below_minus_one": {
-      "expected_sorted_jct_ms": [
-        300,
-        300,
-        300,
-        312.5,
-        312.5,
-        312.5,
-        312.5,
-        312.5
-      ],
-      "passed": true
-    }
-  }
+    "tests_passed": 38,
+    "python_hash_seeds": [
+      1,
+      42
+    ],
+    "paired_routes_with_different_completion_events": true,
+    "parallel_and_sequential_worker_results_match": true,
+    "worker_check_jobs": 6,
+    "shift_waits_checked": true
+  },
+  "placement": {
+    "policy": "fixed seeded random job-to-link map shared by both policies",
+    "seed": 42,
+    "job_order": "arrival_time, then job_id",
+    "link_order": "sorted link IDs",
+    "runtime_load_used": false,
+    "routes_verified_for_every_completion": true
+  },
+  "shift_wait_rule": "additional_wait = (new_shift - previous_shift) % nominal_iteration_time; preserve pending waits; unchanged targets add zero",
+  "completion_estimate": "now + pending_shift_wait + remaining_progress * effective_iteration_time * total_iterations"
 }

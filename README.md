@@ -133,9 +133,17 @@ pip install -r requirements.txt
 
 ### Results configuration
 
-The displayed workload tables and PNGs use the compatibility-only configuration, with shift waits excluded (`shift_waits_charged: false`). The [results manifest](visualizations/readme_results.json) records their settings, values, source version, and figure hashes. Current CLI runs include shift waits, so their completion times can differ from these displayed results. The GIFs illustrate separate alignment and graph examples.
+Each workload comparison uses the same jobs, link capacities, and fixed job-to-link map under both policies. The map is generated once with seed 42, independently of runtime load and completion order. Cassini optimizes shifts; the uncoordinated policy uses zero shifts. Shift waits are included in completion times.
 
-All displayed experiment results use a 600 ms scoring-window limit and 1 ms sampling resolution. JCT is turnaround time from arrival to completion. Reduction is `100 * (baseline - Cassini) / baseline`; a negative value means Cassini takes longer.
+The tables and PNGs below were generated in WSL with a 600 ms scoring-window limit and 1 ms sampling resolution. The [results manifest](visualizations/readme_results.json) records settings, source and figure hashes, per-policy placement hashes, waiting times, and numerical results. Every run checks that both policies completed all jobs on identical planned links. The GIFs illustrate separate alignment and graph examples.
+
+JCT is turnaround time from arrival to completion. Reduction is `100 * (baseline - Cassini) / baseline`; a negative value means Cassini takes longer. These comparisons measure shifting under fixed random placement, rather than the combined benefit of placement selection and shifting.
+
+To generate the experiment figures:
+
+```bash
+make PYTHON=python3 micro-test macro-test real-workload large-scale scale-10k
+```
 
 ## Phase 1: Baseline Validation (Model Examples)
 
@@ -168,30 +176,30 @@ python experiments/micro_test.py --compute-a 30 --comm-a 10 --compute-b 50 --com
 ---
 
 ### 2. The Macro-Test (50-Job Comparison)
-Runs a discrete-event cluster simulation comparing the **CASSINI Scheduler** against a **Random Baseline Scheduler** across 50 multi-iteration distributed ML training jobs competing over bottleneck links.
+Runs a discrete-event cluster simulation comparing the **CASSINI Scheduler** against an **Uncoordinated Baseline** on the same fixed routes across 50 multi-iteration distributed ML training jobs competing over bottleneck links.
 
 ```bash
 python experiments/macro_test.py
 ```
 
 <p align="center">
-  <img src="visualizations/macro_test_cdf.png" alt="Figure 9 Macro-Test CDF Plot" width="650"/>
+  <img src="visualizations/macro_test_cdf.png" alt="50-job JCT comparison with identical placement" width="650"/>
 </p>
 
 ```text
 --- Results Summary ---
-Average JCT (CASSINI): 1122.49ms
-Average JCT (Random) : 1335.87ms
-Mean JCT reduction  : 16.0%
+Average JCT (CASSINI): 1206.63ms
+Average JCT (Baseline): 1266.80ms
+Mean JCT reduction  : 4.7%
 ```
 
 #### How to Interpret the CDF Graph:
 - **X-Axis (Job Completion Time in ms)**: Total turnaround time from job arrival to completion. Lower values (further left) represent faster completions.
 - **Y-Axis (Cumulative Probability)**: The proportion of all 50 cluster jobs completed (from 0% to 100%).
 - **Lower completion time is better**:
-  - **Median JCT (P50)**: Cassini reaches the median at 1152.63 ms; the random baseline reaches it at 1377.14 ms.
-  - **Tail JCT (P90)**: 90% of jobs have estimated JCT below 1712.02 ms with Cassini and 2036.53 ms with the baseline.
-  - **Model behavior**: Reduced communication overlap lowers the penalty used to estimate job duration.
+  - **Median JCT (P50)**: Cassini reaches the median at 1226.65 ms; the baseline reaches it at 1315.61 ms.
+  - **Tail JCT (P90)**: 90% of jobs have estimated JCT below 1829.18 ms with Cassini and 1920.28 ms with the baseline.
+  - **Model behavior**: Reduced communication overlap lowers the work-rate penalty; shift waits contribute to the completion time.
 
 Custom cluster experiments can be passed directly via CLI:
 ```bash
@@ -221,10 +229,10 @@ python experiments/real_workload_experiment.py
 
 | Metric (ms) | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| Mean JCT | 4430.71 | 3918.65 | 11.6% |
-| Median (P50) | 4512.14 | 3966.57 | 12.1% |
-| P90 JCT | 5673.16 | 5070.72 | 10.6% |
-| P95 JCT | 5877.58 | 5246.77 | 10.7% |
+| Mean JCT | 4400.77 | 4150.00 | 5.7% |
+| Median (P50) | 4467.81 | 4169.82 | 6.7% |
+| P90 JCT | 5667.92 | 5391.00 | 4.9% |
+| P95 JCT | 5864.81 | 5623.23 | 4.1% |
 
 Run with custom cluster parameters or a generated model mixture:
 ```bash
@@ -253,22 +261,22 @@ python experiments/large_scale_2000_jobs.py
 
 | Metric (minutes) | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| Mean JCT | 12.06 | 7.70 | 36.1% |
-| Median (P50) | 9.41 | 6.05 | 35.7% |
-| P90 JCT | 23.91 | 15.16 | 36.6% |
-| P95 JCT | 30.30 | 18.52 | 38.9% |
+| Mean JCT | 21.81 | 16.51 | 24.3% |
+| Median (P50) | 14.38 | 9.92 | 31.0% |
+| P90 JCT | 47.91 | 37.47 | 21.8% |
+| P95 JCT | 64.07 | 51.13 | 20.2% |
 
 Mean JCT by model (minutes):
 
 | Model | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| BERT-Base | 9.99 | 6.36 | 36.3% |
-| BERT-Large | 21.36 | 13.39 | 37.3% |
-| DLRM | 6.08 | 4.17 | 31.4% |
-| GPT-2-Medium | 19.77 | 12.67 | 35.9% |
-| ResNet-50 | 8.57 | 5.44 | 36.5% |
-| VGG-16 | 17.39 | 11.09 | 36.2% |
-| ViT-Base | 8.26 | 5.28 | 36.0% |
+| BERT-Base | 17.68 | 13.33 | 24.6% |
+| BERT-Large | 39.38 | 29.77 | 24.4% |
+| DLRM | 11.49 | 9.08 | 21.0% |
+| GPT-2-Medium | 35.09 | 26.51 | 24.5% |
+| ResNet-50 | 15.49 | 11.71 | 24.4% |
+| VGG-16 | 30.84 | 22.91 | 25.7% |
+| ViT-Base | 15.67 | 12.03 | 23.2% |
 
 ---
 
@@ -293,23 +301,23 @@ make scale-10k
 
 | Metric (minutes) | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| Mean JCT | 13.02 | 7.61 | 41.6% |
-| Median (P50) | 10.11 | 5.97 | 40.9% |
-| P90 JCT | 25.28 | 14.47 | 42.8% |
-| P95 JCT | 32.49 | 18.44 | 43.2% |
-| P99 JCT | 49.06 | 28.15 | 42.6% |
+| Mean JCT | 33.25 | 22.82 | 31.4% |
+| Median (P50) | 21.42 | 12.94 | 39.6% |
+| P90 JCT | 74.51 | 53.81 | 27.8% |
+| P95 JCT | 102.00 | 76.19 | 25.3% |
+| P99 JCT | 167.45 | 130.81 | 21.9% |
 
 Mean JCT by model (minutes):
 
 | Model | Baseline | Cassini | Reduction |
 | --- | ---: | ---: | ---: |
-| BERT-Base | 11.11 | 6.49 | 41.6% |
-| BERT-Large | 23.96 | 13.61 | 43.2% |
-| DLRM | 6.69 | 4.17 | 37.6% |
-| GPT-2-Medium | 21.32 | 12.60 | 40.9% |
-| ResNet-50 | 9.03 | 5.30 | 41.3% |
-| VGG-16 | 18.90 | 10.99 | 41.9% |
-| ViT-Base | 9.50 | 5.49 | 42.2% |
+| BERT-Base | 28.00 | 19.01 | 32.1% |
+| BERT-Large | 59.51 | 40.20 | 32.4% |
+| DLRM | 17.83 | 12.48 | 30.0% |
+| GPT-2-Medium | 55.75 | 39.16 | 29.7% |
+| ResNet-50 | 23.24 | 15.88 | 31.7% |
+| VGG-16 | 47.71 | 32.72 | 31.4% |
+| ViT-Base | 25.44 | 17.87 | 29.8% |
 
 ---
 
@@ -360,7 +368,6 @@ one seeded random job-to-link map before execution. Pass it as
 completion times; `use_cassini` controls only shift optimization. Completion
 records include `link_id` for checking paired routes. Without a supplied map,
 the simulator retains its joint placement/shift search for standalone demos.
-
 
 ### Placement and runtime model
 
@@ -426,7 +433,7 @@ Future work can compare this simplified model with additional baseline policies:
 
 ## Unit Testing
 
-Run the regression tests:
+Run the regression tests (38 tests, including identical-route checks):
 ```bash
 python -m unittest discover tests
 ```
