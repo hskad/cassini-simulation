@@ -238,6 +238,26 @@ from 200 to 400 iterations with seed 42. Both policies use the same inputs,
 routes, and link rates. All alignment waits count towards completion time.
 The command saves the exact inputs and results under `output/showcase/`.
 
+![Completion times for a constructed workload with eight compatible jobs per link](visualizations/readme/compatible-cdf.png)
+
+| Metric | Uncoordinated | Cassini | Reduction |
+| --- | --- | --- | --- |
+| Mean JCT | 56.22 s | 31.78 s | 43.47% |
+| P95 JCT | 105.15 s | 60.37 s | 42.59% |
+
+The ratio of uncoordinated mean JCT to Cassini mean JCT is about 1.77.
+Cassini's initial waits average 47.5 ms per job. These waits are included above.
+
+![Mean completion time for each constructed synthetic timing profile](visualizations/readme/compatible-breakdown.png)
+
+The simulator checks these results against independent completion-time formulas.
+For a job with `N` iterations, compute time `c`, and transfer time `u`, the
+uncoordinated completion time is `N c + u sum(min(N, N_k))`, where `N_k` is the
+iteration count of each job on the same link. The jobs remain in step until they
+finish. For Cassini, completion time is `N (c + u) + s`, where `s` is the
+initial slot offset. Checks also verify network work and link capacity.
+This result applies to the stated constructed conditions.
+
 ## Mixed-workload stress check
 
 The following figures use 56 synthetic jobs: eight jobs per catalog profile,

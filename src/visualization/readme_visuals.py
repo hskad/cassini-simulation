@@ -61,6 +61,7 @@ def build_readme_visuals(out):
         plot_comparison(jitter, scratch, window=3000, max_jobs=2)
         (out / "drift.png").write_bytes((scratch / "drift.png").read_bytes())
     workload = build_workload_figures(out)
+    compatible = build_workload_figures(out, scenario="compatible")
     benchmark_rows, benchmark_inputs, _ = run_benchmarks()
     plot_benchmarks(benchmark_rows, out / "benchmark.png")
     print("Building circular alignment animation...", flush=True)
@@ -74,7 +75,7 @@ def build_readme_visuals(out):
             "mean_wait_ms": float(np.mean([r["wait_time"] for r in sim.completed_jobs])),
             "adjustments": len(sim.adjustments),
         } for name, sim in simulations.items()}
-    sources = ["cassini.py", "src/core/models.py", "src/core/trace_loader.py",
+    sources = ["cassini.py", "src/core/models.py", "src/core/trace_loader.py", "src/workloads.py",
                "src/benchmark.py", "src/scheduler/simulator.py", "src/math_engine/optimizer.py",
                "src/math_engine/graph.py", "src/scheduler/evaluator.py",
                "src/visualization/comparison_plots.py", "src/visualization/readme_visuals.py",
@@ -90,6 +91,7 @@ def build_readme_visuals(out):
                    "drift_threshold": 0.05, "plot_window_ms": 3000},
         "correction_action": "delay to the next nominal phase start; simulation assumption",
         "summaries": summaries, "affinity_graph": graph, "geometric": geometric, "workload_comparison": workload,
+        "compatible_workload": compatible,
         "benchmark": {"iterations": 100, "jitter_seeds": [0, 1, 2, 3, 4],
             "solver": "greedy", "score_horizon_ms": None, "drift_threshold": 0.05,
             "validated_runs": len(benchmark_rows), "rows": benchmark_rows,

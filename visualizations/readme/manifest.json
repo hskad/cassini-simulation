@@ -98,17 +98,18 @@
     "links": 6,
     "capacity_gbps": 50,
     "seed": 42,
-    "compute_jitter": 0,
     "arrival_span_ms": 7000,
     "iteration_range": [
       12,
       40
     ],
+    "profile_source": "data/models/real_models.json; source limits apply",
+    "compute_jitter": 0,
     "solver": "greedy",
     "score_horizon_ms": 2000,
     "resolution_ms": 1,
     "routing": "fixed before either policy runs; identical across policies",
-    "profile_source": "data/models/real_models.json; source limits apply",
+    "analytical_completion_checks": false,
     "model_counts": {
       "ViT-Base": 8,
       "VGG-16": 8,
@@ -151,6 +152,123 @@
         "BERT-Large": 10228.970597999349,
         "GPT-2-Medium": 9362.526015094358,
         "DLRM": 3004.759077399893
+      }
+    }
+  },
+  "compatible_workload": {
+    "kind": "synthetic",
+    "generator": "src/workloads.py::compatible_workload",
+    "design": "constructed favorable case for phase interleaving; not a datacenter trace",
+    "seed": 42,
+    "jobs": 56,
+    "links": 7,
+    "jobs_per_link": 8,
+    "capacity_gbps": 50.0,
+    "arrival_span_ms": 0,
+    "iteration_range": [
+      200,
+      400
+    ],
+    "profile_source": "assumed synthetic timings; no measured model names",
+    "profiles": [
+      {
+        "name": "Period 40 ms",
+        "compute_ms": 35,
+        "communication_ms": 5,
+        "period_ms": 40,
+        "jobs": 8
+      },
+      {
+        "name": "Period 64 ms",
+        "compute_ms": 56,
+        "communication_ms": 8,
+        "period_ms": 64,
+        "jobs": 8
+      },
+      {
+        "name": "Period 80 ms",
+        "compute_ms": 70,
+        "communication_ms": 10,
+        "period_ms": 80,
+        "jobs": 8
+      },
+      {
+        "name": "Period 96 ms",
+        "compute_ms": 84,
+        "communication_ms": 12,
+        "period_ms": 96,
+        "jobs": 8
+      },
+      {
+        "name": "Period 120 ms",
+        "compute_ms": 105,
+        "communication_ms": 15,
+        "period_ms": 120,
+        "jobs": 8
+      },
+      {
+        "name": "Period 160 ms",
+        "compute_ms": 140,
+        "communication_ms": 20,
+        "period_ms": 160,
+        "jobs": 8
+      },
+      {
+        "name": "Period 200 ms",
+        "compute_ms": 175,
+        "communication_ms": 25,
+        "period_ms": 200,
+        "jobs": 8
+      }
+    ],
+    "compute_jitter": 0,
+    "solver": "greedy",
+    "score_horizon_ms": null,
+    "resolution_ms": 1,
+    "routing": "fixed before either policy runs; identical across policies",
+    "analytical_completion_checks": true,
+    "model_counts": {
+      "Period 40 ms": 8,
+      "Period 64 ms": 8,
+      "Period 80 ms": 8,
+      "Period 96 ms": 8,
+      "Period 120 ms": 8,
+      "Period 160 ms": 8,
+      "Period 200 ms": 8
+    },
+    "workload_sha256": "1a79418cd04ca3cbfba5bb5cc38dad2d4235c7a8c55e6ba8e46849df4e61bae5",
+    "summaries": {
+      "uncoordinated": {
+        "mean_jct_ms": 56221.03571428572,
+        "p95_jct_ms": 105150.0,
+        "mean_wait_ms": 0.0,
+        "adjustments": 0
+      },
+      "cassini": {
+        "mean_jct_ms": 31780.928571428572,
+        "p95_jct_ms": 60370.0,
+        "mean_wait_ms": 47.5,
+        "adjustments": 0
+      }
+    },
+    "mean_jct_ms_by_model": {
+      "uncoordinated": {
+        "Period 40 ms": 19427.5,
+        "Period 64 ms": 36754.0,
+        "Period 80 ms": 35980.0,
+        "Period 96 ms": 56427.0,
+        "Period 120 ms": 64792.5,
+        "Period 160 ms": 77660.0,
+        "Period 200 ms": 102506.25
+      },
+      "cassini": {
+        "Period 40 ms": 11067.5,
+        "Period 64 ms": 20796.0,
+        "Period 80 ms": 20445.0,
+        "Period 96 ms": 31518.0,
+        "Period 120 ms": 36892.5,
+        "Period 160 ms": 43710.0,
+        "Period 200 ms": 58037.5
       }
     }
   },
@@ -689,19 +807,20 @@
     }
   },
   "source_sha256": {
-    "cassini.py": "54defc6599485b79267cf36fff668ee802e93e24f1a71c714806037d7144ab5a",
+    "cassini.py": "140eade994e23f8f5f1689a9ca2b605e5eeb721dc2532c57ebc23bc3b1dc8de9",
     "src/core/models.py": "b90f362fbafadc609ac2dfda04bbacc115bf511402d9f11887d6d90a4202a8e8",
     "src/core/trace_loader.py": "8fd32a93f01dfcb7c8d544cdbd1c2da956ff70b4126f16810ad8b6113a5d9849",
+    "src/workloads.py": "510a4707d4da4a74e62202ffde6ba5b97ef20579a15d3d59d0fb8078ad53b2d2",
     "src/benchmark.py": "e62c1a79503333d744c50ecf3651399e531ccd5325b428142d2684c586cac916",
     "src/scheduler/simulator.py": "c01c633c5510e0b01b727dddf36186507f5cffd4fa0a2d2beb4001b7452da874",
     "src/math_engine/optimizer.py": "c5e99bf01faba68f358cf413d24091aa2d2f81b1295769e318b9a150d66defdf",
     "src/math_engine/graph.py": "d2827d152ef712ff4d61375f199ae1c55add238ed820657f169c0319d21b4f11",
     "src/scheduler/evaluator.py": "fa5102706e75633c18bb3360c9f8a9a033e9508a54a90a6d1b946ceb02f2da15",
     "src/visualization/comparison_plots.py": "acddba8572bd7194b74664325806c27bf30a8edc87f6d957a8b82ebe05261c2c",
-    "src/visualization/readme_visuals.py": "8e4cad0336046c1eda1310613773e3fc0ca49e0be8555c3766dc538d94a28c3b",
+    "src/visualization/readme_visuals.py": "0876212669d2e22bec5a1da4c6ea337eb118b99b72d4715f39b6b41a422a6465",
     "src/visualization/plot_style.py": "e1d43186c8be1eb8e978e851d37db2fc6a870dbae6ad431211da12f72d34778d",
     "src/visualization/readme_animations.py": "8b79cb1b8195f2282e1735500fafb67083a692df34697a1d586eef827bf661fc",
-    "src/visualization/readme_workload.py": "a22b458fbaaa05919e4968e12cbfbf163dddb2ace9663d4d632d444638a0635c",
+    "src/visualization/readme_workload.py": "b803755272fdbbc20282dcd326a96cfdb54d7f06453d2f412c4fd6792b9e24ea",
     "data/models/real_models.json": "6d4366f6ea9ab4cc5f3c21b5551b00f918aa7202d8c37ced8ca6adc37bbc5b6d",
     "src/visualization/benchmark_plots.py": "77fbdd8205b9fc68bdade700c2ee87da326d39f3191d32f964c88b392dccd5d4"
   },
