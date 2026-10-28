@@ -1,5 +1,6 @@
 % BTP1 final report, reviewed in parts.
-% Part 1 contains the title, abstract, introduction, and cited references.
+% The opening draft contains the title, abstract, introduction, Cassini
+% background, and cited references.
 % Paste this entire file into main.tex in the supplied Overleaf template.
 % Compile with pdfLaTeX. No additional files are required for this part.
 % The complete report will be 6--8 pages; this partial draft is shorter.
@@ -39,21 +40,19 @@ Roll Number}
 \maketitle
 
 \begin{abstract}
-Communication alignment can reduce network contention, but applying a shift
-also adds waiting time. We study shift costs and traffic-score accuracy in a
-lightweight Cassini-based simulator. A remaining-work benefit rule accepts a
-change only when it predicts a reduction in mean remaining completion time
-after accounting for the added wait. On a 200-job synthetic short-job workload,
-the rule reduces mean
-completion time by 9.30 percent relative to the compatibility-based baseline
-with identical placement, averaged over three seeds. Systematic remaining-work
-estimate errors of up to 50 percent retain gains between 8.07 and 10.35 percent
-on this workload. A separate phase-event check evaluates traffic scores over
-complete common periods. The 600 millisecond score is optimistic in 15 of 21
-synthetic cases, although the loss in selected-shift quality is much smaller.
-The results identify why waiting cost and score accuracy must be checked
-separately. Completion-time gains follow the simulator's runtime model; they
-are not measurements from deployed training systems.
+Training jobs can slow each other down when they send data over the same
+network link at the same time. Cassini reduces this overlap by choosing where
+jobs run and adjusting when they communicate. We build a simplified simulator
+based on this approach and study when its timing adjustments are worthwhile.
+Our shift-selection rule uses the work left in each job to check whether a
+new delay is expected to shorten average completion time. On a 200-job
+synthetic short-job workload, it reduces mean completion time by 9.30 percent
+compared with selecting shifts from traffic overlap alone, averaged over
+three seeds with the same jobs and placement. Further experiments test
+inaccurate work estimates. A separate traffic check shows that examining only
+a short part of a repeating pattern can give an overly favourable score.
+The findings come from model-based experiments on synthetic or illustrative
+workloads, rather than measurements from a deployed training cluster.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -64,45 +63,50 @@ discrete-event simulation, periodic traffic
 \section{Introduction}
 \label{sec:introduction}
 
-Distributed training jobs exchange gradients and activations over shared
-network links. Their communication phases can overlap and exceed a link's
-capacity. Cassini considers periodic communication patterns during placement
-and shifts training iterations to reduce such overlap. Its geometric
-representation and affinity graph coordinate jobs across shared
-links~\cite{cassini}.
+Training a model on several graphics processing units (GPUs) requires both
+computation and communication. Workers calculate model updates and exchange
+data so that training can continue. In a shared cluster, several jobs may
+use the same network links. If their communication bursts occur together,
+their combined demand can exceed the available bandwidth. Training can then
+slow down even when sufficient compute resources have been assigned.
 
-A shift adds waiting time that must be recovered through less contention
-during the remaining work. A long job may recover this cost, while a short job
-may finish sooner if it keeps its current offset. Repeated changes can add
-further waiting. A decision rule should therefore consider the expected
-completion-time benefit as well as the traffic compatibility score.
+The timing of these bursts offers a scheduling opportunity. While one job
+computes, another may be able to use the network. Coordinating them could
+reduce competition for a link without increasing its capacity or changing
+the model being trained. We chose communication scheduling as our problem
+because it offers this scheduling-level way to improve resource sharing.
 
-A second issue concerns the interval used to evaluate compatibility. For
-jobs with different iteration periods, the full combined pattern repeats
-after their least common multiple (LCM). This interval can become large even
-when each job has a short period. The simulator limits its default scoring
-window to 600~ms to bound the calculation cost. A shift that looks favourable
-within that window may encounter greater traffic overlap later. Score
-accuracy and shift quality are distinct: several shifts may have similar
-long-term quality despite different short-window scores.
+Cassini provides a concrete starting point for studying this idea. It extends
+an existing job scheduler with information about repeating communication
+patterns. It compares possible worker placements and calculates delays that
+help jobs share network links at different times~\cite{cassini}. Implementing
+these ideas gives us a testbed in which the waiting cost and traffic score
+of each decision can be examined separately.
 
-We investigate these questions using a Cassini-based simulator that advances
-between job arrivals and completions. It estimates contention from periodic
-bandwidth profiles and charges the waiting time caused by offset changes.
-Every policy receives identical jobs and fixed job-to-link placement, so
-placement differences are excluded from the shift-policy comparison.
+Our investigation focuses on the difference between a favourable traffic
+pattern and a useful scheduling decision. Creating a new alignment requires
+a job to wait. A long job may recover this cost through less competition
+later; a short job may finish sooner if it keeps its current timing. The
+decision also depends on the score used to predict traffic overlap. Examining
+only the beginning of a repeating pattern saves calculation time, but can
+miss overlap that occurs later.
 
-The first study compares a remaining-work benefit rule with the starting
-compatibility-based model, a score control, and a cooldown control. The benefit
-rule compares estimated mean remaining completion times with and without a
-proposed shift. We also perturb its remaining-work estimates while keeping
-actual job lengths unchanged.
+These observations lead to two research questions:
+\begin{enumerate}
+    \item When does a timing shift save enough time to justify the wait it adds?
+    \item How does a shorter traffic-evaluation interval affect score accuracy
+    and the quality of the selected shifts?
+\end{enumerate}
 
-The second study integrates offered bandwidth between phase-boundary events
-and checks selected shifts over a later complete LCM interval. Short-period
-controls and longer-period cases reveal the effect of truncation. The study
-measures score error, shift quality, selection time, and traced memory
-allocation independently of the simulator's completion-time estimates.
+We address the first question with a rule that considers the work remaining
+in each affected job before accepting a new shift. We compare it with the
+starting simulator and two simpler controls. The score control accepts only
+higher scores; the cooldown control limits how often shifts can change.
+We also test errors in the remaining-work estimates. Every policy receives
+identical jobs and fixed job-to-link placement. We address the second question with a separate
+traffic checker that evaluates selected shifts over a complete repeating
+pattern. This separates score validation from the simulator's completion-time
+formula.
 
 The completed work has three main contributions:
 \begin{itemize}
@@ -114,14 +118,68 @@ The completed work has three main contributions:
     from losses in selected-shift quality and measures their calculation cost.
 \end{itemize}
 
-The workloads are synthetic or illustrative, rather than verified production
-records. Completion-time results follow a compatibility-based slowdown model;
-individual training iterations and network transfers are not executed. The
-separate traffic checker validates offered-load calculations, but does not
-validate the mapping from compatibility to completion time. These limits
-define the scope of our comparison with Cassini's published system.
+\section{Background: How Cassini Coordinates Jobs}
+\label{sec:cassini-background}
 
-% Next reviewed part: Background and Related Work.
+\subsection{Computation, Communication, and Timing Shifts}
+
+A training iteration can contain intervals of computation and intervals of
+network communication. A \emph{traffic profile} describes the bandwidth a job
+requests over time. When the iteration repeats, a similar profile may repeat
+with it. Different jobs can have different iteration lengths and several
+communication bursts within one iteration.
+
+Consider a simplified example with two jobs, each computing for 60~ms and
+communicating for 40~ms per iteration. Assume each job needs the full link
+capacity while communicating. If they start together, both request
+the network during the same final 40~ms. Delaying the second job by 40~ms
+separates their communication intervals in this ideal repeating pattern.
+This delay is a \emph{time shift}. The example explains the opportunity, but
+also its cost: the second job must first wait for 40~ms.
+
+\subsection{Placement and Compatibility}
+
+\emph{Placement} determines which servers run a job's workers and therefore
+which network links carry its traffic. Cassini evaluates candidate placements
+provided by an underlying scheduler. It favours combinations whose traffic
+patterns can be interleaved on shared links. Its compatibility score expresses
+how well those patterns can fit together after suitable shifts~\cite{cassini}.
+
+To calculate shifts, Cassini represents a repeating iteration as a circle.
+Intervals on the circle describe its traffic demand; rotating the circle
+changes the job's timing offset. For jobs with different periods, the common
+representation uses their \emph{least common multiple} (LCM). For example,
+40~ms and 60~ms periods repeat together every 120~ms. Larger combinations can
+produce a much longer common period and a more expensive calculation.
+
+\subsection{Coordinating Jobs Across Links}
+
+A job can use several links and share each with different jobs. Separate
+link-level decisions might therefore request different shifts for the same
+job. Cassini represents these relationships with an \emph{affinity graph}.
+Its two types of vertices represent jobs and links; an edge indicates that
+a job uses a link. For an acyclic graph, its traversal method obtains one
+consistent shift for each job. The published method rejects placement
+candidates whose affinity graphs contain cycles. Server agents then apply
+the selected delays to the next iteration and correct timing drift during
+execution~\cite{cassini}.
+
+\subsection{Connection to Our Study}
+
+The published system already applies real delays to training iterations.
+Our first study adds a completion-time test to the shift-selection rule in
+our simplified simulator. The second study examines the 600~ms scoring limit
+used in our implementation; this limit is not presented as a setting from
+the original Cassini system.
+
+Our workloads are synthetic or illustrative. The fast simulator advances
+between job arrivals and completions and estimates slowdown from compatibility,
+without executing individual training operations or network transfers. The
+separate checker directly calculates requested bandwidth over time, but does
+not validate the simulator's mapping from traffic scores to completion time.
+We use these limits when interpreting the experimental results.
+
+% Next reviewed part: Related Work and System Model.
 % Later parts will add the model, methods, setup, results, and conclusion here.
 
 \begin{thebibliography}{00}
