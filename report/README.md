@@ -10,7 +10,8 @@ The report is written in parts on `docs/btp1-report`.
 
 The current draft is self-contained: title, placeholders for two authors,
 abstract, a problem-led introduction, Cassini background, related work,
-system model, and cited references. The background introduces repeating traffic, placement, shifts,
+system model, shift policies, experimental setup, and cited references.
+The background introduces repeating traffic, placement, shifts,
 compatibility, and affinity graphs for readers who have not read the paper.
 It needs no images, separate section files, or bibliography file.
 
@@ -18,6 +19,9 @@ Related work connects the study to Cassini, Eclipse, and periodic offset
 assignment. The system model defines traffic compatibility, shift waiting,
 event progress, completion metrics, and the independent full-period check.
 Its equations were checked against the simulator and traffic-checker code.
+The policy section explains the decision rules and gives a numerical example.
+The setup includes a workload table, paired comparisons, estimate scaling,
+and the LCM scoring protocol. Settings were checked against saved manifests.
 
 The final report will contain 6--8 pages in the prescribed double-column
 format. This partial draft is intentionally shorter. Later sections will be

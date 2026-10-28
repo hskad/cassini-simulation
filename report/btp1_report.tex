@@ -1,6 +1,7 @@
 % BTP1 final report, reviewed in parts.
 % The current draft contains the title, abstract, introduction, Cassini
-% background, related work, system model, and cited references.
+% background, related work, system model, shift policies, experimental
+% setup, and cited references.
 % Paste this entire file into main.tex in the supplied Overleaf template.
 % Compile with pdfLaTeX. No additional files are required for this part.
 % The complete report will be 6--8 pages; this partial draft is shorter.
@@ -332,8 +333,178 @@ under different window limits using this common full-period measure. The
 runtime experiments thus assess completion time within the event model,
 while the traffic experiments assess the repeating demand patterns directly.
 
-% Next reviewed part: Shift Policies and Experimental Setup.
-% Later parts will add results and a brief conclusion before the bibliography.
+\section{Shift Policies}
+\label{sec:policies}
+
+All coordinated policies receive proposals from the same greedy shift
+search. They differ in whether they apply a proposal that adds waiting time.
+The uncoordinated case provides a reference with zero offsets and no shift
+waits. It uses the same traffic-scoring and slowdown calculations, with
+identical jobs and placement.
+
+\subsection{Vanilla, Score, and Cooldown Controls}
+
+The \emph{vanilla model} applies every proposed alignment and charges the
+resulting waits. This term identifies our Cassini-based simulator baseline.
+It provides the reference for the reported policy gains.
+
+The \emph{score control} accepts a change only when the proposed score is
+greater than the score of the retained offsets by more than $10^{-9}$.
+It checks for an improvement in traffic compatibility. The amount of waiting
+time and the work remaining in each job do not enter this decision.
+
+The \emph{cooldown control} permits the first change, then requires at least
+100~ms between accepted changes. Its timer is maintained per link in
+incremental mode and for the cluster in global mode. The timer is checked
+at existing scheduling events; reaching the cooldown time alone does not
+trigger an event. This control tests whether reducing change frequency
+improves completion time.
+
+\subsection{Remaining-Work Benefit Rule}
+
+The \emph{benefit rule} compares the estimated remaining completion time
+under the retained and proposed plans. Let $\mathcal{A}$ be the affected
+jobs, $S_0$ the retained-plan score, $S_1$ the proposed-plan score, and
+$\widehat{R}_j$ the estimated remaining nominal work. Using the slowdown
+function from~\eqref{eq:slowdown}, the two mean estimates are
+\begin{align}
+ \widehat{L}_0 &= \frac{1}{|\mathcal{A}|}
+ \sum_{j\in\mathcal{A}}[w_j+\widehat{R}_jF(S_0)],
+ \label{eq:keep-estimate}\\
+ \widehat{L}_1 &= \frac{1}{|\mathcal{A}|}
+ \sum_{j\in\mathcal{A}}[w_j+d_j+\widehat{R}_jF(S_1)].
+ \label{eq:change-estimate}
+\end{align}
+The rule accepts a change when
+$\widehat{L}_0-\widehat{L}_1>\varepsilon$, with
+$\varepsilon=0$~ms in the main experiments. All affected jobs enter the
+comparison, including those whose offsets stay unchanged. Pending waits
+are preserved under both plans. Rejected changes retain the old offsets
+and their recomputed score.
+
+These estimates hold each candidate score fixed over the remaining work.
+At later arrivals or completions, the simulator makes a new decision from
+the updated state. The main tests use the known remaining iteration count
+to set $\widehat{R}_j=R_j$. A separate sensitivity study varies this input.
+
+\subsection{Illustrative Decision}
+
+Suppose a proposal raises compatibility from 0.6 to 0.8, with
+$\lambda=1.5$ and an average added wait of 40~ms. The estimated slowdown
+falls from 1.6 to 1.3. With 100~ms of average remaining nominal work, the
+predicted processing-time saving is 30~ms. After the added wait, the net
+gain is $-10$~ms, so the benefit rule retains the current plan. With
+1000~ms of remaining work, the predicted saving is 300~ms and the net gain
+is 260~ms, so it accepts the proposal. The score control accepts both
+proposals; the cooldown control decides from its timer. This example
+shows how remaining work connects a traffic improvement to its timing cost.
+
+\section{Experimental Setup}
+\label{sec:setup}
+
+\subsection{Workloads and Shared Settings}
+
+Table~\ref{tab:workloads} summarises the completion-time workloads.
+All links have 50~Gbps capacity. The simulator uses a 1~ms traffic resolution,
+a 600~ms scoring limit, and penalty $\lambda=1.5$. Each paired comparison
+starts from fresh copies of the same jobs. A shared seeded map assigns jobs
+to links, and completed-job records verify that each policy follows that map.
+
+\begin{table}[t]
+\caption{Completion-Time Workloads}
+\label{tab:workloads}
+\centering
+\begin{tabular}{lrrll}
+\hline
+Case & Jobs & Links & Input & Mode \\
+\hline
+Generated & 50 & 16 & Synthetic & Global \\
+Sample & 60 & 16 & Illustrative & Global \\
+Short & 200 & 4 & Synthetic & Incremental \\
+Large & 2000 & 32 & Synthetic & Incremental \\
+Scale & 10000 & 32 & Synthetic & Incremental \\
+\hline
+\end{tabular}
+\end{table}
+
+The generated case has computation phases of 25, 35, 45, or 55~ms and
+communication phases of 15, 20, or 25~ms. Communication demand is 40 or
+50~Gbps, arrival times range from 0 to 400~ms, and jobs contain 5--25
+iterations. The short case uses 40, 60, or 80~ms of computation and 10 or
+20~ms of communication at 50~Gbps. Jobs have 1--5 iterations, with
+exponentially distributed interarrival times of mean 8~ms. This case
+directly tests decisions for jobs with little remaining work.
+
+The sample case loads 60 jobs from the illustrative cluster trace and uses
+model profiles with a configured communication demand of 25~Gbps. The
+2000- and 10000-job inputs are locally generated synthetic traces, created
+with generator seed 42 and arrival parameters of 2.5 and 12.5 hours,
+respectively. These two cases use model profiles with 50~Gbps communication
+demand. The stored trace and model parameters define the inputs for these
+experiments.
+
+\subsection{Policy Comparisons and Estimate Sensitivity}
+
+The main study evaluates all five policies on the first four workloads
+using seeds 7, 19, and 42, giving 60 policy runs. For generated workloads,
+the seed controls job generation and placement. For stored inputs, it
+changes placement while preserving the stored jobs. The 10000-job scale
+case evaluates all five policies with seed 42 in five additional runs.
+A parameter check uses a 5~ms minimum benefit and a 500~ms cooldown on
+the generated, sample, and short cases with the same three seeds.
+
+To assess remaining-work estimates, we set
+$\widehat{R}_j=\alpha R_j$, with
+$\alpha\in\{0.5,0.75,1,1.25,1.5\}$. The same factor applies to all jobs
+at every decision. Actual job lengths and progress calculations stay fixed.
+The four main workloads and three seeds give 60 paired cases, each running
+the vanilla and benefit policies, for 120 policy runs. Input and placement
+hashes, together with vanilla completion records, verify that changing
+$\alpha$ changes only the benefit rule's estimate.
+
+For a policy $p$ and seed $s$, mean-JCT reduction relative to vanilla is
+\begin{equation}
+ g_{p,s}=100\frac{\overline{\mathrm{JCT}}_{v,s}
+                    -\overline{\mathrm{JCT}}_{p,s}}
+                   {\overline{\mathrm{JCT}}_{v,s}}.
+ \label{eq:paired-gain}
+\end{equation}
+Positive values indicate shorter completion times. Multi-seed summaries
+average these paired percentages. Reported seed ranges show the observed
+minimum and maximum. We also compare 95th-percentile JCT, mean accumulated
+wait, and the total number of offset changes.
+
+\subsection{LCM Scoring Protocol}
+
+The traffic study uses seven period families, in milliseconds:
+$(40,60)$, $(80,120,160)$, $(100,140)$, $(96,104)$, $(100,101)$,
+$(80,100,140)$, and $(96,100,104)$. Three seeds per family give 21 cases.
+Each profile has one or two communication bursts occupying 20--65 percent
+of its period. Two-job cases request 50~Gbps per job; three-job cases draw
+each job's demand from 25, 40, and 50~Gbps. Link capacity is 50~Gbps.
+
+Each case runs the unchanged shift search with limits of 600, 1200, and
+6000~ms, and with the complete LCM period $H$. The independent checker
+evaluates every selected plan over $[H,2H)$ using~\eqref{eq:full-period-score}.
+This later interval contains one complete repeat of the stationary traffic.
+The full-window search supplies a common reference plan; its three-job
+search retains the same ordered greedy procedure. The 21 cases produce
+84 selected plans.
+
+Score optimism is the short-window score minus the full-period score for
+the same plan. Selected-shift quality is measured against the full-period
+score of the full-window reference plan. Both differences are reported in
+percentage points. Optimizer time is the median of three calls, with job
+copying and reference checks outside the timed region. A separate untimed
+call measures peak traced allocation. Analytical examples with increasing
+numbers of prime-valued periods show how the common period grows.
+
+Saved experiment manifests record settings, seeds, source commits, input
+identities, and results. These records connect each reported comparison to
+the code and workload used to produce it.
+
+% Next reviewed part: Results and Discussion.
+% A brief conclusion will follow the results before the bibliography.
 
 \begin{thebibliography}{00}
 \bibitem{cassini}
