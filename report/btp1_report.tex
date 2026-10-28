@@ -1,0 +1,135 @@
+% BTP1 final report, reviewed in parts.
+% Part 1 contains the title, abstract, introduction, and cited references.
+% Paste this entire file into main.tex in the supplied Overleaf template.
+% Compile with pdfLaTeX. No additional files are required for this part.
+% The complete report will be 6--8 pages; this partial draft is shorter.
+%
+% Result provenance:
+% Shift policies: visualizations/shift_policy_results.json, source 89bc23a.
+% Estimate errors: visualizations/remaining_work/remaining_work_results.json,
+%                 source bb5f6df.
+% LCM study: research/lcm-scoring:visualizations/lcm_scoring/lcm_results.json,
+%            source 2e8df9a.
+
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+
+\begin{document}
+
+\title{Evaluating Communication Shift Costs and Scoring Accuracy in a Cassini-Based Simulator}
+
+% Author details are intentionally left as placeholders for two students.
+\author{
+\IEEEauthorblockN{Student One}
+\IEEEauthorblockA{\textit{Department Name} \\
+\textit{Institute Name} \\
+Roll Number}
+\and
+\IEEEauthorblockN{Student Two}
+\IEEEauthorblockA{\textit{Department Name} \\
+\textit{Institute Name} \\
+Roll Number}
+}
+
+\maketitle
+
+\begin{abstract}
+Communication alignment can reduce network contention, but applying a shift
+also adds waiting time. We study shift costs and traffic-score accuracy in a
+lightweight Cassini-based simulator. A remaining-work benefit rule accepts a
+change only when it predicts a reduction in mean remaining completion time
+after accounting for the added wait. On a 200-job synthetic short-job workload,
+the rule reduces mean
+completion time by 9.30 percent relative to the compatibility-based baseline
+with identical placement, averaged over three seeds. Systematic remaining-work
+estimate errors of up to 50 percent retain gains between 8.07 and 10.35 percent
+on this workload. A separate phase-event check evaluates traffic scores over
+complete common periods. The 600 millisecond score is optimistic in 15 of 21
+synthetic cases, although the loss in selected-shift quality is much smaller.
+The results identify why waiting cost and score accuracy must be checked
+separately. Completion-time gains follow the simulator's runtime model; they
+are not measurements from deployed training systems.
+\end{abstract}
+
+\begin{IEEEkeywords}
+distributed training, network-aware scheduling, communication alignment,
+discrete-event simulation, periodic traffic
+\end{IEEEkeywords}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Distributed training jobs exchange gradients and activations over shared
+network links. Their communication phases can overlap and exceed a link's
+capacity. Cassini considers periodic communication patterns during placement
+and shifts training iterations to reduce such overlap. Its geometric
+representation and affinity graph coordinate jobs across shared
+links~\cite{cassini}.
+
+A shift adds waiting time that must be recovered through less contention
+during the remaining work. A long job may recover this cost, while a short job
+may finish sooner if it keeps its current offset. Repeated changes can add
+further waiting. A decision rule should therefore consider the expected
+completion-time benefit as well as the traffic compatibility score.
+
+A second issue concerns the interval used to evaluate compatibility. For
+jobs with different iteration periods, the full combined pattern repeats
+after their least common multiple (LCM). This interval can become large even
+when each job has a short period. The simulator limits its default scoring
+window to 600~ms to bound the calculation cost. A shift that looks favourable
+within that window may encounter greater traffic overlap later. Score
+accuracy and shift quality are distinct: several shifts may have similar
+long-term quality despite different short-window scores.
+
+We investigate these questions using a Cassini-based simulator that advances
+between job arrivals and completions. It estimates contention from periodic
+bandwidth profiles and charges the waiting time caused by offset changes.
+Every policy receives identical jobs and fixed job-to-link placement, so
+placement differences are excluded from the shift-policy comparison.
+
+The first study compares a remaining-work benefit rule with the starting
+compatibility-based model, a score control, and a cooldown control. The benefit
+rule compares estimated mean remaining completion times with and without a
+proposed shift. We also perturb its remaining-work estimates while keeping
+actual job lengths unchanged.
+
+The second study integrates offered bandwidth between phase-boundary events
+and checks selected shifts over a later complete LCM interval. Short-period
+controls and longer-period cases reveal the effect of truncation. The study
+measures score error, shift quality, selection time, and traced memory
+allocation independently of the simulator's completion-time estimates.
+
+The completed work has three main contributions:
+\begin{itemize}
+    \item A reproducible fast simulator with explicit shift-wait accounting
+    and controlled comparisons under identical placement.
+    \item An evaluation of remaining-work shift decisions against score and
+    cooldown controls, including tests with systematic estimate errors.
+    \item An independent LCM scoring study that separates optimistic scores
+    from losses in selected-shift quality and measures their calculation cost.
+\end{itemize}
+
+The workloads are synthetic or illustrative, rather than verified production
+records. Completion-time results follow a compatibility-based slowdown model;
+individual training iterations and network transfers are not executed. The
+separate traffic checker validates offered-load calculations, but does not
+validate the mapping from compatibility to completion time. These limits
+define the scope of our comparison with Cassini's published system.
+
+% Next reviewed part: Background and Related Work.
+% Later parts will add the model, methods, setup, results, and conclusion here.
+
+\begin{thebibliography}{00}
+\bibitem{cassini}
+S.~Rajasekaran, M.~Ghobadi, and A.~Akella,
+``CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters,''
+in \emph{Proc. 21st USENIX Symposium on Networked Systems Design and
+Implementation (NSDI)}, 2024, pp.~1403--1420.
+\end{thebibliography}
+
+\end{document}

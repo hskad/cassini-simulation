@@ -12,6 +12,8 @@ This project provides a standalone mathematical testbed for periodic traffic ali
 For our shift-policy research, including methods, results, plots, and experiment
 commands, see [RESEARCH.md](RESEARCH.md).
 
+For the BTP1 report draft and Overleaf instructions, see [report/README.md](report/README.md).
+
 ### Features
 
 - Sampled periodic traffic profiles and greedy phase alignment.
