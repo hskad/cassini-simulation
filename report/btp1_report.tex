@@ -1,10 +1,7 @@
-% BTP1 final report, reviewed in parts.
-% The current draft contains the title, abstract, introduction, Cassini
-% background, related work, system model, shift policies, experimental
-% setup, and cited references.
+% BTP1 complete draft, reviewed in parts.
 % Paste this entire file into main.tex in the supplied Overleaf template.
-% Compile with pdfLaTeX. No additional files are required for this part.
-% The complete report will be 6--8 pages; this partial draft is shorter.
+% Compile with pdfLaTeX. Plots and bibliography are included in this file.
+% The prescribed report length is 6--8 pages.
 %
 % Result provenance:
 % Shift policies: visualizations/shift_policy_results.json, source 89bc23a.
@@ -20,6 +17,15 @@
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\pgfplotsset{reportaxis/.style={
+ width=\columnwidth,height=4.9cm,
+ tick label style={font=\footnotesize},label style={font=\footnotesize},
+ legend style={font=\footnotesize,draw=none},
+ grid=major,grid style={gray!20},
+ axis line style={black!70},
+}}
 
 \begin{document}
 
@@ -503,8 +509,209 @@ Saved experiment manifests record settings, seeds, source commits, input
 identities, and results. These records connect each reported comparison to
 the code and workload used to produce it.
 
-% Next reviewed part: Results and Discussion.
-% A brief conclusion will follow the results before the bibliography.
+\section{Results and Discussion}
+\label{sec:results}
+
+\subsection{Completion-Time Improvements}
+
+Table~\ref{tab:policy-gains} compares the policies with the vanilla model.
+The benefit rule reduces mean JCT on every evaluated workload. Its largest
+gain is 9.30 percent on short jobs, with paired seed gains from 7.95 to
+10.84 percent. On this workload, score control achieves 5.23 percent and
+cooldown control achieves 3.97 percent. The benefit rule also reduces
+95th-percentile JCT by 8.04 percent, averaged over paired seeds. It beats
+both controls on each seed of the generated, sample, and short workloads.
+
+\begin{table}[t]
+\caption{Mean JCT Reduction Relative to the Vanilla Model (\%)}
+\label{tab:policy-gains}
+\centering
+\begin{tabular}{lrrrr}
+\hline
+Case & Uncoord. & Score & Cooldown & Benefit \\
+\hline
+Generated & $-5.15$ & 0.33 & $-0.18$ & 1.55 \\
+Sample & $-5.62$ & 0.72 & $-0.46$ & 1.98 \\
+Short & 2.28 & 5.23 & 3.97 & 9.30 \\
+Large & $-32.72$ & 0.98 & $-0.01$ & 0.98 \\
+Scale & $-45.73$ & 3.11 & $-0.003$ & 3.11 \\
+\hline
+\end{tabular}
+\par\smallskip
+\footnotesize Positive values mean shorter JCT. The first four rows average
+paired gains over three seeds; Scale uses seed 42 only.
+\end{table}
+
+Figure~\ref{fig:short-waits} shows the corresponding shift waits. On short
+jobs, the benefit rule reduces mean accumulated wait from 109.87 to
+29.42~ms. Mean offset changes per run fall from 479.67 to 144.33. Across
+the three seeds, mean JCT falls from 1441.98 to 1308.91~ms. These
+measurements support the rule's design: use the work left in a job to
+decide whether a new alignment is worth its initial wait.
+
+% Plot data: shift_policy_results.json, summary.short, source 89bc23a.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[reportaxis,ybar,bar width=18pt,
+ ymin=0,ymax=125,ylabel={Mean shift wait (ms)},
+ symbolic x coords={Vanilla,Score,Cooldown,Benefit},
+ xtick=data,nodes near coords,
+ every node near coord/.append style={font=\footnotesize},
+ point meta=y]
+\addplot[fill=blue!45,draw=blue!70!black] coordinates
+ {(Vanilla,109.87) (Score,66.07) (Cooldown,75.63) (Benefit,29.42)};
+\end{axis}
+\end{tikzpicture}
+\caption{Mean accumulated shift wait per job on the short workload,
+averaged over seeds 7, 19, and 42. All coordinated policies pay shift waits.}
+\label{fig:short-waits}
+\end{figure}
+
+The uncoordinated case improves on vanilla by 2.28 percent for short jobs.
+This establishes why selective coordination matters: the benefit rule keeps
+the value of alignment while avoiding waits that offer too little return.
+For the larger synthetic traces, coordination has a stronger advantage over
+the uncoordinated case. The score and benefit rules produce the same results
+on the 2000-job tests and the single-seed 10000-job test. On these inputs,
+the score test is sufficient to obtain the observed additional gain. The
+remaining-work test provides its clearest extra value on the smaller
+workloads, especially short jobs.
+
+\subsection{Policy Parameters and Work Estimates}
+
+With a 5~ms minimum benefit, mean-JCT reductions are 1.45, 2.00, and
+9.90 percent on the generated, sample, and short cases. The 500~ms cooldown
+achieves 7.16 percent on short jobs, compared with 3.97 percent at 100~ms.
+On generated and sample jobs, its changes in mean JCT are $-1.05$ and
+$-1.72$ percent relative to vanilla. The different responses show why
+remaining-work decisions are useful alongside a fixed timer: the rule
+adapts its acceptance test to the expected return of each proposal.
+
+Figure~\ref{fig:estimate-results} shows systematic estimate scaling. The
+benefit rule improves mean JCT relative to vanilla in all 60 paired cases.
+For short jobs, reductions range from 10.35 percent at $\alpha=0.5$ to
+8.07 percent at $\alpha=1.5$. Mean waiting time increases from 16.98 to
+37.30~ms across those settings. Larger work estimates make a shift appear
+more valuable and lead to more changes. Lower estimates encourage more
+conservative decisions.
+
+% Plot data: remaining_work_results.json, summary, source bb5f6df.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[reportaxis,xlabel={Remaining-work estimate error (\%)},
+ ylabel={Mean JCT reduction (\%)},xmin=-55,xmax=55,ymin=0,ymax=13,
+ xtick={-50,-25,0,25,50},
+ legend columns=2,legend pos=north east]
+\addplot[blue,mark=*,thick] coordinates
+ {(-50,1.6044) (-25,1.6335) (0,1.5495) (25,1.5113) (50,1.4945)};
+\addlegendentry{Generated}
+\addplot[orange!80!black,mark=square*,thick] coordinates
+ {(-50,2.0262) (-25,2.0045) (0,1.9820) (25,1.9911) (50,1.9354)};
+\addlegendentry{Sample}
+\addplot[teal!80!black,mark=triangle*,thick] coordinates
+ {(-50,10.3502) (-25,9.9391) (0,9.2969) (25,8.9999) (50,8.0674)};
+\addlegendentry{Short}
+\addplot[purple,mark=diamond*,thick] coordinates
+ {(-50,0.9824) (-25,0.9824) (0,0.9824) (25,0.9824) (50,0.9824)};
+\addlegendentry{Large}
+\end{axis}
+\end{tikzpicture}
+\caption{Benefit-rule mean-JCT reduction relative to vanilla under
+systematic estimate error. Points average paired gains over three seeds;
+actual jobs and placement remain fixed across estimate settings.}
+\label{fig:estimate-results}
+\end{figure}
+
+The generated and sample cases retain gains close to their accurate-estimate
+results. The 2000-job case remains at approximately 0.98 percent across
+the tested factors. Accurate remaining-work input does not necessarily
+give the best realised outcome, since each decision estimates future
+slowdown from the current score. Conservative acceptance can be useful
+as active jobs change. The sweep demonstrates performance under the stated
+systematic-bias model and identifies short jobs as the most responsive case.
+
+\subsection{Scoring Accuracy over Long Common Periods}
+
+Figure~\ref{fig:lcm-results} compares mean score optimism across the seven
+period families. The 600~ms limit produces optimistic scores in 15 of the
+21 cases. The six cases whose complete common periods fit inside 600~ms
+agree with the full-period checker within numerical precision. For periods
+$(96,100,104)$~ms, the common period is 31200~ms. Mean optimism falls from
+8.42 percentage points with a 600~ms limit to 2.20 points at 1200~ms and
+1.34 points at 6000~ms.
+
+% Plot data: research/lcm-scoring:lcm_results.json, source 2e8df9a.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[reportaxis,xlabel={Period family},
+ ylabel={Score optimism (percentage points)},
+ xmin=0.7,xmax=7.3,ymin=-0.4,ymax=10,
+ xtick={1,2,3,4,5,6,7},
+ legend columns=3,legend pos=north west]
+\addplot[blue,mark=*,thick] coordinates
+ {(1,0) (2,0) (3,1.3889) (4,1.8750) (5,6.8982) (6,2.5623) (7,8.4239)};
+\addlegendentry{600 ms}
+\addplot[orange!80!black,mark=square*,thick] coordinates
+ {(1,0) (2,0) (3,0) (4,1.2094) (5,6.3427) (6,1.2063) (7,2.1976)};
+\addlegendentry{1200 ms}
+\addplot[teal!80!black,mark=triangle*,thick] coordinates
+ {(1,0) (2,0) (3,0) (4,0) (5,1.0316) (6,0) (7,1.3429)};
+\addlegendentry{6000 ms}
+\end{axis}
+\end{tikzpicture}
+\caption{Mean score optimism over three seeds. Families 1--7 follow the
+period-family order in Section~\ref{sec:setup}. Each score is checked
+against the same plan over one full common period.}
+\label{fig:lcm-results}
+\end{figure}
+
+Score optimism and selected-shift quality give different information. Across
+the 600~ms tests, the largest positive quality gap to the full-window search
+is only 0.0802 percentage points. Thus, a large score difference need not
+mean a similarly large loss from the selected offsets. In the
+$(100,101)$~ms case at seed 42, the short-window estimated gain over zero
+offsets is 17.50 percentage points, while the full-period gain is zero.
+With two coprime integer periods, integer offsets reorder the phase pairs
+visited over the common period. This explains why their complete-period
+demand distribution can stay the same despite a favourable prefix score.
+
+\subsection{Calculation Cost and Research Outcome}
+
+For the $(96,100,104)$~ms family, median optimizer time across seeds rises
+from 0.375~ms at the 600~ms limit to 2.918~ms with the full 31200~ms period.
+Peak traced allocation rises from 11.48 to 489.70~KiB. These measurements
+show the accuracy--cost trade-off directly. Analytical examples make the
+growth clearer: periods 101, 103, and 107~ms have an LCM of 1113121~ms;
+adding 109~ms raises it to 121330189~ms. A dense float32 array per job over
+that four-job period would occupy about 1.94~GB. This storage estimate
+describes that representation, while the measured cases use much smaller
+common periods.
+
+The two studies answer complementary questions. Remaining-work decisions
+turn traffic-score improvements into a test that includes waiting cost.
+Full-period checking establishes how well a bounded interval represents
+repeating traffic. The first study yields a tested policy improvement;
+the second supplies evidence for designing efficient, representative
+scoring methods. All completion-time gains refer to the event model under
+the stated workloads, while the LCM results concern offered traffic.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This project develops a reproducible Cassini-based simulator and evaluates
+communication-shift decisions under shared placement. A remaining-work
+benefit rule reduces mean completion time by 9.30 percent and
+95th-percentile completion time by 8.04 percent on the short-job workload,
+averaged over three seeds. The estimate-scaling study preserves positive
+mean-JCT gains across all tested paired cases. An independent LCM study
+separates score accuracy from selected-shift quality and measures the cost
+of longer scoring intervals. Together, these results establish a basis for
+cost-aware communication coordination and efficient traffic evaluation.
+Further work can test representative short windows and evaluate the policies
+with a more detailed execution model.
 
 \begin{thebibliography}{00}
 \bibitem{cassini}

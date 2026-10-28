@@ -10,10 +10,12 @@ The report is written in parts on `docs/btp1-report`.
 
 The current draft is self-contained: title, placeholders for two authors,
 abstract, a problem-led introduction, Cassini background, related work,
-system model, shift policies, experimental setup, and cited references.
+system model, shift policies, experimental setup, results and discussion,
+conclusion, and cited references.
 The background introduces repeating traffic, placement, shifts,
 compatibility, and affinity graphs for readers who have not read the paper.
-It needs no images, separate section files, or bibliography file.
+The three plots use PGFPlots with data included in the TeX source. It needs
+no image uploads, separate section files, or bibliography file.
 
 Related work connects the study to Cassini, Eclipse, and periodic offset
 assignment. The system model defines traffic compatibility, shift waiting,
@@ -23,9 +25,11 @@ The policy section explains the decision rules and gives a numerical example.
 The setup includes a workload table, paired comparisons, estimate scaling,
 and the LCM scoring protocol. Settings were checked against saved manifests.
 
-The final report will contain 6--8 pages in the prescribed double-column
-format. This partial draft is intentionally shorter. Later sections will be
-added before the bibliography after review. Future work will remain brief.
+The complete draft builds locally to six pages, including references, within
+the prescribed 6--8 page limit and double-column format. Check the page count
+again after replacing the author placeholders in Overleaf.
+The results cover policy gains, shift waits, estimate sensitivity,
+and LCM score accuracy and calculation cost. Future work remains brief.
 The IEEE class controls margins, fonts, and columns; these are not overridden.
 
 Numerical claims were checked against the saved shift-policy and estimate-error
