@@ -1,6 +1,6 @@
 % BTP1 final report, reviewed in parts.
-% The opening draft contains the title, abstract, introduction, Cassini
-% background, and cited references.
+% The current draft contains the title, abstract, introduction, Cassini
+% background, related work, system model, and cited references.
 % Paste this entire file into main.tex in the supplied Overleaf template.
 % Compile with pdfLaTeX. No additional files are required for this part.
 % The complete report will be 6--8 pages; this partial draft is shorter.
@@ -183,8 +183,157 @@ and selected-shift quality. Completion-time results therefore describe the
 simulator's runtime model, while traffic results describe the evaluated
 bandwidth profiles.
 
-% Next reviewed part: Related Work and System Model.
-% Later parts will add the model, methods, setup, results, and conclusion here.
+\section{Related Work}
+\label{sec:related-work}
+
+\subsection{Communication-Aware Training Schedules}
+
+Cassini combines worker placement with communication timing. Its geometric
+representation and affinity graph let the scheduler compare how jobs share
+links~\cite{cassini}. Our implementation uses these ideas as the basis for
+controlled experiments. We hold job-to-link placement fixed across policies
+and study the decision to accept a proposed shift. This isolates the effect
+of timing decisions on modelled completion time. Our score and cooldown
+controls are experimental decision rules introduced in this study.
+
+\subsection{Scheduling with a Cost of Change}
+
+Changing a schedule can consume time before it produces a benefit. Eclipse
+studies this trade-off in hybrid circuit and packet networks, where circuit
+reconfiguration introduces a delay. Its scheduling method balances this
+cost against the traffic served by a configuration~\cite{eclipse}. This
+provides a related design principle for our remaining-work rule: a shift
+should offer enough expected benefit to cover its waiting cost. We apply
+that principle to training-job offsets and estimated remaining completion
+time, whereas Eclipse schedules switch configurations and traffic service.
+
+\subsection{Offsets in Periodic Systems}
+
+Offset assignment also appears in real-time systems. Ladeira \emph{et al.}
+propose GCD+ for periodic tasks under a FIFO protocol and evaluate it using
+synthetic task sets and a UAV telemetry application~\cite{gcdplus}. This work
+shows the wider use of timing offsets to manage repeated resource demands.
+Our traffic study examines bandwidth profiles on shared links and the
+evaluation interval used to score them. It measures score accuracy and
+selected-shift quality as the common period grows. Together, these studies
+place our work at the intersection of communication scheduling, change-cost
+decisions, and periodic traffic analysis.
+
+\section{System Model}
+\label{sec:system-model}
+
+\subsection{Jobs, Profiles, and Shared Links}
+
+A job $j$ arrives at time $a_j$ and contains $N_j$ training iterations.
+Its nominal iteration period $T_j$ is the sum of its phase durations.
+A periodic profile $b_j(u)$ gives its requested bandwidth at phase position
+$u\in[0,T_j)$. Computation phases have zero bandwidth demand; communication
+phases have a specified demand. Durations are expressed in milliseconds and
+bandwidth in gigabits per second.
+
+For the policy comparisons, each job is assigned to one primary bottleneck
+link. A seeded placement map is generated once per workload case and shared
+by all policies. Let $\mathcal{J}_{\ell}$ denote the active jobs assigned to
+link $\ell$, whose capacity is $C_{\ell}$. A positive offset $\theta_j$
+delays the profile. The aggregate requested bandwidth in the scoring model is
+\begin{equation}
+ B_{\ell}(u;\boldsymbol{\theta}) =
+ \sum_{j\in\mathcal{J}_{\ell}}
+ b_j\bigl((u-\theta_j)\bmod T_j\bigr).
+ \label{eq:offered-load}
+\end{equation}
+The coordinate $u$ describes periodic profile alignment. Arrival times and
+finite job lengths are handled separately by the event simulator.
+
+\subsection{Traffic Compatibility and Shift Proposals}
+
+For a scoring interval with $M$ samples at spacing $\delta$, compatibility
+is defined by the normalised excess demand:
+\begin{equation}
+ S_{\ell} = 1 - \frac{1}{M C_{\ell}}
+ \sum_{k=0}^{M-1}
+ \max\{0,B_{\ell}(k\delta;\boldsymbol{\theta})-C_{\ell}\}.
+ \label{eq:compatibility}
+\end{equation}
+A score of one indicates that sampled demand stays within capacity. Larger
+excess demand lowers the score, which can be negative under heavy load.
+Links with at most one active job receive a score of one in the runtime
+model; the evaluated profiles have individual demands within link capacity.
+
+At the default $\delta=1$~ms resolution, the scoring interval is the smaller
+of the sampled common period and the configured limit $W=600$~ms. Both the
+shift search and runtime scoring use this interval. The search anchors the
+first job at zero and adds the other jobs greedily. It checks offsets at
+1~ms spacing for two-job links and 2~ms spacing for larger groups, retaining
+the candidate with the smallest sampled excess demand at each step.
+
+The decision policy then accepts the proposed offsets or retains the
+previous offsets. Retained offsets are scored again for the current set of
+active jobs. This keeps each runtime score consistent with the timing plan
+that the simulator actually applies.
+
+\subsection{Shift Waiting and Event Progress}
+
+Let $\theta_j$ be the applied offset and $\theta'_j$ a proposed offset,
+both reduced modulo $T_j$. Applying a change adds the forward wait
+\begin{equation}
+ d_j = (\theta'_j-\theta_j)\bmod T_j.
+ \label{eq:shift-wait}
+\end{equation}
+An unchanged offset adds no wait. A smaller target offset wraps forward
+through the next period. Added waits accumulate with any pending wait, and
+a job makes progress only after its pending wait has elapsed.
+
+The simulator processes arrivals and predicted completions. In the
+incremental mode, an event updates the affected link. In the global mode,
+it recalculates the active cluster plan. Incremental mode uses the affected
+link score; global mode uses the mean score over links with multiple jobs,
+or one when there are no such links. The placement map remains fixed in
+both modes for the policy experiments.
+
+Given the applicable score $S$, the model uses the slowdown factor
+\begin{equation}
+ F(S)=1+\lambda(1-S),
+ \label{eq:slowdown}
+\end{equation}
+where $\lambda$ is a configured penalty, set to 1.5 in the policy
+experiments. This factor scales the whole nominal iteration time. If
+$r_j$ is the completed fraction of a job, its remaining nominal work is
+$R_j=(1-r_j)N_jT_j$. At event time $t$, with pending wait $w_j$, its
+predicted completion is
+\begin{equation}
+ \widehat{c}_j=t+w_j+R_jF(S).
+ \label{eq:predicted-completion}
+\end{equation}
+Between events, useful elapsed time advances the completed fraction at the
+current effective rate. New events update the score and completion
+prediction while preserving completed work and pending waits.
+
+\subsection{Completion Metrics and Independent Traffic Checks}
+
+The recorded job completion time is $\mathrm{JCT}_j=c_j-a_j$, where $c_j$
+is the simulated completion timestamp. We compare mean and 95th-percentile
+JCT and record cumulative shift waits and the number of offset changes.
+Paired policy comparisons use the same arrivals, job profiles, iteration
+counts, and placement map.
+
+The LCM study uses a separate phase-boundary checker to integrate excess
+requested bandwidth. For integer-millisecond periods, let
+$H=\operatorname{lcm}(T_1,\ldots,T_n)$. Its full-period score is
+\begin{equation}
+ S_H=1-\frac{1}{H C_{\ell}}\int_H^{2H}
+ \max\{0,B_{\ell}(u;\boldsymbol{\theta})-C_{\ell}\}\,du.
+ \label{eq:full-period-score}
+\end{equation}
+The checker integrates the constant-demand intervals between phase
+boundaries directly. We compare a plan's short-window score with its
+full-period score to measure score optimism. We also compare plans selected
+under different window limits using this common full-period measure. The
+runtime experiments thus assess completion time within the event model,
+while the traffic experiments assess the repeating demand patterns directly.
+
+% Next reviewed part: Shift Policies and Experimental Setup.
+% Later parts will add results and a brief conclusion before the bibliography.
 
 \begin{thebibliography}{00}
 \bibitem{cassini}
@@ -192,6 +341,18 @@ S.~Rajasekaran, M.~Ghobadi, and A.~Akella,
 ``CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters,''
 in \emph{Proc. 21st USENIX Symposium on Networked Systems Design and
 Implementation (NSDI)}, 2024, pp.~1403--1420.
+\bibitem{eclipse}
+S.~B.~Venkatakrishnan, M.~Alizadeh, and P.~Viswanath,
+``Costly circuits, submodular schedules and approximate Carath\'eodory theorems,''
+in \emph{Proc. ACM SIGMETRICS}, 2016,
+doi: 10.1145/2896377.2901479.
+\bibitem{gcdplus}
+M.~Ladeira, E.~Grolleau, F.~Bonneval, G.~Hattenberger, Y.~Ouhammou,
+and Y.~H\'erouard,
+``Scheduling offset-free systems under FIFO priority protocol,''
+in \emph{Proc. 34th Euromicro Conference on Real-Time Systems (ECRTS)},
+vol.~231, 2022, pp.~11:1--11:19,
+doi: 10.4230/LIPIcs.ECRTS.2022.11.
 \end{thebibliography}
 
 \end{document}
