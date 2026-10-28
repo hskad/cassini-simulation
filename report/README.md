@@ -23,3 +23,5 @@ Numerical claims were checked against the saved shift-policy and estimate-error
 manifests on `research/shift-policies`, and the scoring diagnostic manifest on
 `research/lcm-scoring`. Source commits are recorded in comments in the TeX file.
 The report distinguishes completion-time estimates from offered-traffic checks.
+The text presents the research questions, methods, and results in a project
+narrative. Model and workload details define the experimental scope.

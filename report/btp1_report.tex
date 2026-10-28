@@ -42,17 +42,18 @@ Roll Number}
 \begin{abstract}
 Training jobs can slow each other down when they send data over the same
 network link at the same time. Cassini reduces this overlap by choosing where
-jobs run and adjusting when they communicate. We build a simplified simulator
+jobs run and adjusting when they communicate. We build a discrete-event simulator
 based on this approach and study when its timing adjustments are worthwhile.
 Our shift-selection rule uses the work left in each job to check whether a
 new delay is expected to shorten average completion time. On a 200-job
 synthetic short-job workload, it reduces mean completion time by 9.30 percent
 compared with selecting shifts from traffic overlap alone, averaged over
-three seeds with the same jobs and placement. Further experiments test
-inaccurate work estimates. A separate traffic check shows that examining only
-a short part of a repeating pattern can give an overly favourable score.
-The findings come from model-based experiments on synthetic or illustrative
-workloads, rather than measurements from a deployed training cluster.
+three seeds with the same jobs and placement. Further experiments assess
+sensitivity to errors in work estimates. A separate traffic study compares
+scores from short evaluation intervals with scores over a complete repeating
+pattern. Together, these simulation studies use synthetic and illustrative
+workloads to examine the trade-offs between shift cost, completion time,
+and traffic-score accuracy.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -167,17 +168,20 @@ execution~\cite{cassini}.
 \subsection{Connection to Our Study}
 
 The published system already applies real delays to training iterations.
-Our first study adds a completion-time test to the shift-selection rule in
-our simplified simulator. The second study examines the 600~ms scoring limit
-used in our implementation; this limit is not presented as a setting from
-the original Cassini system.
+Our first study evaluates a completion-time test for selecting shifts in
+a Cassini-based discrete-event model. The second study compares a 600~ms
+evaluation interval, chosen for our implementation, with longer intervals
+and a complete common period. These studies connect the timing cost of a
+scheduling decision with the traffic information used to make it.
 
-Our workloads are synthetic or illustrative. The fast simulator advances
-between job arrivals and completions and estimates slowdown from compatibility,
-without executing individual training operations or network transfers. The
-separate checker directly calculates requested bandwidth over time, but does
-not validate the simulator's mapping from traffic scores to completion time.
-We use these limits when interpreting the experimental results.
+The evaluation uses synthetic and illustrative workloads. The fast simulator
+advances between job arrivals and completions, accounts for shift waiting
+time, and estimates job slowdown from compatibility. This event-level model
+supports controlled comparisons of scheduling policies. A separate traffic
+checker calculates requested bandwidth over time to assess score accuracy
+and selected-shift quality. Completion-time results therefore describe the
+simulator's runtime model, while traffic results describe the evaluated
+bandwidth profiles.
 
 % Next reviewed part: Related Work and System Model.
 % Later parts will add the model, methods, setup, results, and conclusion here.
