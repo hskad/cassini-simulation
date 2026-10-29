@@ -159,6 +159,10 @@ $$\text{Score}(\tau) = \frac{1}{K} \sum_{k=0}^{K-1} \text{Score}_k(\tau)$$
 
 ### Empirical Results across 7 Period Families (Seeds 7, 19, 42)
 
+All score differences in the following historical table are percentage points,
+despite the percent signs in its cells. They are signed seed averages; the
+independent comparison below reports absolute errors to avoid cancellation.
+
 | Family | Periods (ms) | Full LCM | Prefix 1x600ms Optimism | Strided 3x200ms Optimism | Strided 5x120ms Optimism | Prefix 1x1200ms (2x Budget) | Strided Ref Gap |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | short_pair | 40 / 60 | 120 ms | 0.000% | 0.000% | 0.000% | 0.000% | 0.000% |
@@ -235,6 +239,49 @@ the published and additional seeds and include only cases with LCM above
 Optimizer times are medians of three calls, excluding cloning and validation.
 Sources must match their recorded commit before results are published.
 This comparison measures stationary offered traffic, not completion time.
+
+### Results of the independent comparison
+
+The saved run uses source commit `9ef218b`: seven period families and six
+seeds give 42 cases and 168 bounded-search plans. All 51 unit tests pass.
+A separate direct enumeration of every integer millisecond matched all
+168 full-period scores. Source hashes, profiles, plans, sample windows,
+and raw timings are saved in
+[`strided_validation_results.json`](visualizations/lcm_scoring/strided_validation_results.json).
+
+The table includes the 30 cases whose LCM exceeds the 600 ms budget.
+Errors and quality gains are percentage points. Positive quality gain means
+better full-period traffic compatibility than the prefix-600 plan.
+
+| Method | Mean absolute score error | Mean quality gain vs prefix-600 | Better / equal / worse quality |
+| --- | ---: | ---: | ---: |
+| Prefix 600 ms | 3.7291 | 0.0000 | 0 / 30 / 0 |
+| Three windows, total 600 ms | 4.2472 | +0.0191 | 6 / 23 / 1 |
+| Five windows, total 600 ms | 3.0826 | +0.0081 | 5 / 22 / 3 |
+| Prefix 1200 ms | 1.9340 | +0.0094 | 6 / 21 / 3 |
+
+Five windows reduce aggregate mean absolute error by 17.3%. The original
+three seeds show a 6.5% reduction and the additional three show 31.5%.
+Error decreases in 17 of the 30 cases and increases in 13. Thus the result
+supports an average accuracy improvement on these inputs, not a per-case
+guarantee. A contiguous 1200 ms budget gives lower average error here,
+using twice as many samples.
+
+Improved score accuracy does not consistently select better shifts. The
+five-window mean quality gain is only 0.0081 percentage points; it is negative
+on the original three seeds and positive on the additional three. Three
+windows have worse average score accuracy yet a larger mean quality gain.
+Most plans tie the prefix plan under the complete-period measure. The full
+search is an ordered greedy reference for three jobs, not an optimal schedule.
+
+<p align="center">
+  <img src="visualizations/lcm_scoring/strided_validation.png" alt="Independent full-period comparison of absolute score error, selected-shift quality, and optimizer time" width="1200"/>
+</p>
+
+The figure uses all six seeds, including the short-period controls. Whiskers
+show observed ranges across seeds. Timing is measured separately for each
+case; using the same sample budget does not ensure equal calculation cost.
+The fast simulator and its runtime formula are unchanged by this comparison.
 
 ## Related work
 
