@@ -283,6 +283,17 @@ show observed ranges across seeds. Timing is measured separately for each
 case; using the same sample budget does not ensure equal calculation cost.
 The fast simulator and its runtime formula are unchanged by this comparison.
 
+## Random positions within period strata
+
+The optional `sampling_seed` argument to `get_strided_windows`, `optimize_link`,
+and `score_link` selects random segment starts inside equal parts of the full
+common period. With five windows and a 600 ms budget, each segment lasts
+120 ms. Windows stay inside their own part and cannot overlap. The same seed
+fixes the windows for all candidate offsets and for their final sampled score.
+The RNG is local and does not change workload generation. If the complete
+period fits inside the budget, the method evaluates that complete period.
+The default prefix/evenly-spaced behaviour and event runtime are unchanged.
+
 ## Related work
 
 [GCD+ (ECRTS 2022)](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ECRTS.2022.11)

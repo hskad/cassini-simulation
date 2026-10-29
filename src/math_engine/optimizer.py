@@ -1,5 +1,6 @@
 import math
-from typing import List, Tuple
+import random
+from typing import List, Tuple, Optional
 import numpy as np
 from src.core.models import Job, Link
 
@@ -63,12 +64,15 @@ def get_score_window(jobs: List[Job], resolution: float = 1.0,
 
 def get_strided_windows(jobs: List[Job], resolution: float = 1.0,
                         score_window_ms: float = DEFAULT_SCORE_WINDOW_MS,
-                        num_windows: int = 1) -> List[Tuple[float, float]]:
+                        num_windows: int = 1, *,
+                        sampling_seed: Optional[int] = None) -> List[Tuple[float, float]]:
     """
     Returns a list of (start_time_ms, duration_ms) segments.
     If num_windows == 1 or LCM <= score_window_ms, returns a single window [(0.0, window_ms)].
     Otherwise, splits the total budget (score_window_ms) into num_windows segments
     spread evenly across the true hyperperiod [0, LCM].
+    With sampling_seed, place one segment uniformly inside each of K equal
+    integer-sample strata. A local RNG keeps workload randomness unchanged.
     """
     if not math.isfinite(resolution) or resolution <= 0:
         raise ValueError("Scoring resolution must be finite and positive.")
@@ -95,6 +99,16 @@ def get_strided_windows(jobs: List[Job], resolution: float = 1.0,
     seg_duration_ms = seg_steps * resolution
     actual_windows = min(num_windows, total_budget_steps // seg_steps)
 
+    if sampling_seed is not None:
+        rng = random.Random(sampling_seed)
+        windows = []
+        for k in range(actual_windows):
+            left = k * common_steps // actual_windows
+            right = (k + 1) * common_steps // actual_windows
+            start = rng.randint(left, right - seg_steps)
+            windows.append((start * resolution, seg_duration_ms))
+        return windows
+
     span = full_lcm_ms - seg_duration_ms
     windows = []
     for k in range(actual_windows):
@@ -106,9 +120,10 @@ def get_strided_windows(jobs: List[Job], resolution: float = 1.0,
 
 def score_link(jobs: List[Job], link: Link, resolution: float = 1.0,
                score_window_ms: float = DEFAULT_SCORE_WINDOW_MS,
-               num_windows: int = 1) -> float:
+               num_windows: int = 1, *, sampling_seed: Optional[int] = None) -> float:
     """Score the link over a contiguous window or multiple strided windows."""
-    windows = get_strided_windows(jobs, resolution, score_window_ms, num_windows)
+    windows = get_strided_windows(jobs, resolution, score_window_ms, num_windows,
+                                  sampling_seed=sampling_seed)
     arrays = []
     for job in jobs:
         job_slices = [
@@ -121,7 +136,7 @@ def score_link(jobs: List[Job], link: Link, resolution: float = 1.0,
 
 def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0, *,
                   score_window_ms: float = DEFAULT_SCORE_WINDOW_MS,
-                  num_windows: int = 1) -> None:
+                  num_windows: int = 1, sampling_seed: Optional[int] = None) -> None:
     """
     Finds the optimal time-shift for a set of jobs to maximize compatibility.
     (Fast circular sliding and greedy multi-job phase alignment).
@@ -129,7 +144,8 @@ def optimize_link(jobs: List[Job], link: Link, resolution: float = 1.0, *,
     strided windows spread across the hyperperiod.
     Modifies the jobs in-place with their new time_shift.
     """
-    windows = get_strided_windows(jobs, resolution, score_window_ms, num_windows)
+    windows = get_strided_windows(jobs, resolution, score_window_ms, num_windows,
+                                  sampling_seed=sampling_seed)
     if len(jobs) < 2:
         return
     
