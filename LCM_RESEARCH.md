@@ -175,15 +175,18 @@ $$\text{Score}(\tau) = \frac{1}{K} \sum_{k=0}^{K-1} \text{Score}_k(\tau)$$
 
 ### Key Insights:
 1. **Dramatic Error Reduction on Large LCMs**: For the coprime pair (100/101 ms, LCM 10,100 ms), the 5x120 ms strided partition cuts score optimism from **+6.898% down to +3.843%**—a **44.3% reduction in estimation error** using the exact same 600 ms sampling budget. It outperforms even the contiguous 1,200 ms prefix (+6.343%), which consumes twice the sample budget.
-2. **Preserved Shift Decision Quality**: The gap to the full-LCM search remains virtually zero ($< 0.08$ percentage points), proving that strided sampling preserves schedule optimality while eliminating score blindness.
+2. **Small but nonzero shift-quality gaps**: The largest individual strided gap to the full-window reference is 0.1714 percentage points. This is a comparison with the same greedy search over a longer window, not a proof of schedule optimality.
+3. **Use absolute error to assess accuracy**: Signed optimism can cancel across seeds. Across the 15 published cases with LCM above 600 ms, five windows reduce mean absolute error from 4.230 to 3.955 percentage points (6.5%). Error falls in seven cases and rises in eight. Three windows increase mean absolute error to 5.165 points. The method does not improve every case, and the same sample budget does not imply the same runtime.
 
 ---
 
-## Experiment 2: End-to-End Cluster JCT Sweep Across Scoring Windows (Option 2)
+## Experiment 2: Runtime-Model Sensitivity to Scoring Windows (Option 2)
 
-To evaluate whether expanding the scoring window translates to better end-to-end Job Completion Times (JCT) in dynamic clusters with finite jobs and arrival churn, we performed an end-to-end sweep across scoring windows ($W \in [150, 300, 600, 1200, 2400]\text{ ms}$) on two distinct workloads:
-1. **Sample Workload**: 60 jobs using empirical Microsoft Philly profiles (ResNet-50, VGG-16, BERT, GPT-2, DLRM) across 16 links.
-2. **2,000-Job Production Trace**: 2,000 jobs, 32 links, dynamic Poisson arrival trace over 2.5 hours.
+This sweep varies the scoring window ($W \in [150, 300, 600, 1200, 2400]\text{ ms}$) on two workloads:
+1. **Sample Workload**: 60 jobs from the illustrative cluster input, with model profiles across 16 links.
+2. **2,000-Job Synthetic Trace**: 2,000 locally generated jobs across 32 links, with a 2.5-hour arrival parameter.
+
+These results measure sensitivity of the fast runtime model. The window changes both selected offsets and the score used to estimate slowdown. The uncoordinated reference uses the default 600 ms window throughout. The sweep therefore changes the runtime assessment as well as the scheduling method; it does not establish independently measured completion-time gains. It uses contiguous windows only: the `num_windows` function argument is currently unused by the simulator calls.
 
 ### Cluster JCT Results
 
@@ -195,7 +198,7 @@ To evaluate whether expanding the scoring window translates to better end-to-end
 | | 600 ms (Default) | 4,150.00 ms | +5.70% | +4.12% | 138.13 ms | 7.29s |
 | | 1,200 ms | 4,204.39 ms | +4.46% | +1.46% | 136.53 ms | 8.28s |
 | | 2,400 ms | 4,264.02 ms | +3.11% | +2.01% | 135.95 ms | 10.41s |
-| **2,000 Jobs (Production)** | Uncoordinated Baseline | 1,308,617.39 ms | — | — | 0.00 ms | 3.82s |
+| **2,000 Jobs (Synthetic)** | Uncoordinated Baseline | 1,308,617.39 ms | — | — | 0.00 ms | 3.82s |
 | | 150 ms | 415,510.46 ms | **+68.25%** | **+73.89%** | 76.20 ms | 18.85s |
 | | 300 ms | 864,672.26 ms | +33.92% | +33.17% | 209.09 ms | 38.78s |
 | | 600 ms (Default) | 990,303.16 ms | +24.32% | +20.20% | 233.13 ms | 15.11s |
@@ -206,10 +209,11 @@ To evaluate whether expanding the scoring window translates to better end-to-end
   <img src="visualizations/lcm_scoring/jct_window_sweep.png" alt="Cluster JCT Reduction and Wall Time vs Scoring Window" width="1100"/>
 </p>
 
-### Why Smaller Scoring Windows Win in Dynamic Clusters:
-1. **Shift Wait Penalty Inflation**: Expanding the scoring window directly inflates the candidate shift search space. On the 2,000-job cluster, jobs under a 2,400 ms window wait an average of **259.77 ms** before launch, compared to only **76.20 ms** under a 150 ms window. This initial wait penalty directly subtracts from net job turnaround time.
-2. **Arrival Invalidation**: In a dynamic cluster, new jobs arrive continuously. A 2,400 ms scoring window attempts to synthesize a fine-grained, stationary interleaving for the next 2.4 seconds—an assumption shattered as soon as new jobs arrive 500 ms later.
-3. **Local Deconfliction Sufficiency**: Synchronizing and deconflicting the immediate burst clashes in the near-term ($150\text{--}300\text{ ms}$) provides the lion's share of congestion mitigation without incurring long upfront queuing delays.
+### Interpretation
+
+The saved 2,000-job sweep records mean waits of 76.20 ms at 150 ms and 259.77 ms at 2,400 ms. These are accumulated shift waits, including changes during execution. The candidate offset range is determined by each job's iteration period, not by the scoring-window length. A longer window changes the traffic objective used to select offsets; it does not directly expand the offset search range.
+
+Arrivals can change the active job set, but this sweep does not isolate their contribution. The shorter-window completion-time estimates must be separated from score-estimation effects before claiming a scheduling improvement. Independent full-period traffic evaluation provides a fixed assessment for comparing selected offsets; it measures offered traffic, not job completion time.
 
 ---
 
