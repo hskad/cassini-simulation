@@ -1,0 +1,128 @@
+[
+  {
+    "workload": "sample",
+    "jobs": 60,
+    "seed": 42,
+    "baseline": {
+      "mean_jct_ms": 4400.766082966768,
+      "p50_jct_ms": 4467.808264184193,
+      "p95_jct_ms": 5864.811765401512,
+      "wall_time_seconds": 0.08449180005118251
+    },
+    "sweep": [
+      {
+        "window_ms": 150.0,
+        "mean_jct_ms": 3632.85244249627,
+        "p50_jct_ms": 3644.31185887182,
+        "p95_jct_ms": 5049.376212992157,
+        "mean_reduction_percent": 17.449544601852836,
+        "p95_reduction_percent": 13.903865716882553,
+        "mean_wait_ms": 27.25,
+        "wall_time_seconds": 1.2641844998579472
+      },
+      {
+        "window_ms": 300.0,
+        "mean_jct_ms": 4090.011486390932,
+        "p50_jct_ms": 4111.92126857324,
+        "p95_jct_ms": 5628.257208307252,
+        "mean_reduction_percent": 7.061375013287271,
+        "p95_reduction_percent": 4.033455233632133,
+        "mean_wait_ms": 126.73333333333333,
+        "wall_time_seconds": 2.6279608998447657
+      },
+      {
+        "window_ms": 600.0,
+        "mean_jct_ms": 4150.003072184672,
+        "p50_jct_ms": 4169.821192839521,
+        "p95_jct_ms": 5623.230121203432,
+        "mean_reduction_percent": 5.698167229398491,
+        "p95_reduction_percent": 4.119171319755759,
+        "mean_wait_ms": 138.13333333333333,
+        "wall_time_seconds": 7.292946400120854
+      },
+      {
+        "window_ms": 1200.0,
+        "mean_jct_ms": 4204.386074465,
+        "p50_jct_ms": 4136.511641604211,
+        "p95_jct_ms": 5779.005120920487,
+        "mean_reduction_percent": 4.462405063106174,
+        "p95_reduction_percent": 1.4630758481837,
+        "mean_wait_ms": 136.53333333333333,
+        "wall_time_seconds": 8.284262599889189
+      },
+      {
+        "window_ms": 2400.0,
+        "mean_jct_ms": 4264.021800567703,
+        "p50_jct_ms": 4287.880174569775,
+        "p95_jct_ms": 5746.757670497758,
+        "mean_reduction_percent": 3.1072835915622923,
+        "p95_reduction_percent": 2.012922146968035,
+        "mean_wait_ms": 135.95,
+        "wall_time_seconds": 10.405307400040329
+      }
+    ]
+  },
+  {
+    "workload": "2000",
+    "jobs": 2000,
+    "seed": 42,
+    "baseline": {
+      "mean_jct_ms": 1308617.3915195335,
+      "p50_jct_ms": 862638.6981519051,
+      "p95_jct_ms": 3844395.277485074,
+      "wall_time_seconds": 3.820361000020057
+    },
+    "sweep": [
+      {
+        "window_ms": 150.0,
+        "mean_jct_ms": 415510.46002000396,
+        "p50_jct_ms": 329390.0806436151,
+        "p95_jct_ms": 1003823.4172496306,
+        "mean_reduction_percent": 68.24813251660031,
+        "p95_reduction_percent": 73.88865231604613,
+        "mean_wait_ms": 76.20475,
+        "wall_time_seconds": 18.85127119999379
+      },
+      {
+        "window_ms": 300.0,
+        "mean_jct_ms": 864672.2589595284,
+        "p50_jct_ms": 541569.3518483151,
+        "p95_jct_ms": 2569313.3539175717,
+        "mean_reduction_percent": 33.92474648716896,
+        "p95_reduction_percent": 33.167295023877855,
+        "mean_wait_ms": 209.0885,
+        "wall_time_seconds": 38.782708999933675
+      },
+      {
+        "window_ms": 600.0,
+        "mean_jct_ms": 990303.1562714898,
+        "p50_jct_ms": 595021.0110235694,
+        "p95_jct_ms": 3067678.939991815,
+        "mean_reduction_percent": 24.324469268930105,
+        "p95_reduction_percent": 20.203862543535617,
+        "mean_wait_ms": 233.127,
+        "wall_time_seconds": 15.107798399869353
+      },
+      {
+        "window_ms": 1200.0,
+        "mean_jct_ms": 1100751.343560511,
+        "p50_jct_ms": 645304.849505795,
+        "p95_jct_ms": 3402280.9227253315,
+        "mean_reduction_percent": 15.884402064812361,
+        "p95_reduction_percent": 11.500231449898273,
+        "mean_wait_ms": 250.16725,
+        "wall_time_seconds": 17.31284709996544
+      },
+      {
+        "window_ms": 2400.0,
+        "mean_jct_ms": 1173911.1228538402,
+        "p50_jct_ms": 673553.3846396632,
+        "p95_jct_ms": 3704476.053487132,
+        "mean_reduction_percent": 10.293785604459659,
+        "p95_reduction_percent": 3.6395639339530796,
+        "mean_wait_ms": 259.77275,
+        "wall_time_seconds": 19.96637050015852
+      }
+    ]
+  }
+]
