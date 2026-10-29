@@ -304,6 +304,55 @@ All sampling trials are saved. Averages first combine trials within each
 workload case, then weight workload cases equally. No best seed is selected.
 The original prefix-1200 and three-window controls remain in raw records.
 
+### Random-window results
+
+Source commit `d6dfa42` was used for 42 workload cases: seven period
+families and six workload seeds. Each case includes ten random-window trials
+plus four deterministic controls, giving 588 plans in total. All 55 tests
+pass. A separate direct integer-millisecond check matched all 588 saved
+full-period scores. The
+[manifest](visualizations/lcm_scoring/random_window_results.json) saves all
+sampling seeds, source hashes, profiles, sample windows, offsets, timing
+repetitions, and independent traffic measurements.
+
+The main summary covers 30 cases with H above 600 ms. Random-window values
+first average ten trials within each workload case. All score differences
+are percentage points, not completion-time gains.
+
+| Method | Mean absolute score error | Mean quality gain vs prefix-600 | Better / equal / worse case mean quality |
+| --- | ---: | ---: | ---: |
+| Prefix 600 ms | 3.7291 | 0.0000 | 0 / 30 / 0 |
+| Evenly spaced five windows | 3.0826 | +0.0081 | 5 / 22 / 3 |
+| Random five windows | 3.4934 | -0.0039 | 7 / 14 / 9 |
+
+Random windows reduce aggregate average absolute score error by 6.3% versus
+prefix-600, compared with 17.3% for evenly spaced five windows. Their
+original-seed average quality gain is -0.0231 points; the additional-seed
+gain is +0.0152 points. Across the 300 random trials for long-period cases,
+51 select better shifts than prefix-600, 208 tie it, and 41 select worse
+shifts. Larger losses outweigh the gains in the overall average. The worst
+trial loses 0.4857 points relative to prefix-600.
+
+The ten sampling seeds give overall mean quality gains from -0.0193 to
++0.0159 points. Seven have negative mean gains. We retain all trials;
+choosing the best sampling seed after inspecting these results would not
+provide an independent test. The random method therefore does not meet
+the primary target of a consistent shift-quality improvement on this test
+set. It remains an optional experimental method rather than the default.
+
+<p align="center">
+  <img src="visualizations/lcm_scoring/random_windows.png" alt="Random versus evenly spaced and prefix windows at the same sample budget" width="1200"/>
+</p>
+
+Points average the six workload seeds. Random points first average ten
+sampling trials per case; whiskers span the case means. All three methods
+use the same 600 ms budget, or the full period for short controls. Mean
+optimizer time across the long-period cases is 0.602 ms for prefix-600,
+0.945 ms for evenly spaced windows, and 0.924 ms per random trial on this
+machine. Ten trials are an evaluation of variation, not a method that picks
+the best plan using ten times the budget. These are offered-traffic results;
+the event simulator and report have not been changed.
+
 ## Related work
 
 [GCD+ (ECRTS 2022)](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ECRTS.2022.11)
