@@ -12,6 +12,8 @@ This project provides a standalone mathematical testbed for periodic traffic ali
 For the LCM scoring study, see [LCM_RESEARCH.md](LCM_RESEARCH.md).
 Run `make PYTHON=python3 strided-validation` to compare sampling methods
 with one independent full-period traffic measure and six recorded seeds.
+Run `make PYTHON=python3 random-windows` to test random window positions
+against prefix and evenly spaced sampling, with the same 600 ms budget.
 
 ### Features
 

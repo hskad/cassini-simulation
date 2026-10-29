@@ -3,6 +3,7 @@ import random
 import unittest
 
 from experiments.strided_lcm_experiment import build_case
+from experiments.strided_validation import evaluate_case
 from src.analysis.periodic_traffic import periodic_traffic
 from src.core.models import Link
 from src.math_engine.optimizer import get_strided_windows, optimize_link, score_link
@@ -36,3 +37,13 @@ class TestRandomWindows(unittest.TestCase):
         repeated = copy.deepcopy(jobs)
         optimize_link(repeated, link, **kwargs)
         self.assertEqual([j.time_shift for j in jobs], [j.time_shift for j in repeated])
+
+    def test_sampling_trials_share_one_reference_without_best_seed_selection(self):
+        result = evaluate_case("coprime_pair", 42, build_case("coprime_pair", 42),
+                               repetitions=1, sampling_seeds=(11,23))
+        trials = [r for r in result["runs"] if r["sampling_seed"] is not None]
+        self.assertEqual([r["sampling_seed"] for r in trials], [11,23])
+        for row in trials:
+            self.assertEqual(row["actual_samples"], 600)
+            self.assertAlmostEqual(row["gain_vs_zero_pp"], 0, places=8)
+            self.assertAlmostEqual(row["quality_gain_vs_prefix_pp"], 0, places=8)

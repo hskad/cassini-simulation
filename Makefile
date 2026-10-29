@@ -2,7 +2,7 @@
 
 PYTHON ?= python
 
-.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload large-scale scale-10k validate-baseline lcm-scoring strided-lcm strided-validation jct-window-sweep clean-png clean
+.PHONY: help test demo-link demo-affinity demo-evaluator demo-simulator demo-all micro-test macro-test real-workload large-scale scale-10k validate-baseline lcm-scoring strided-lcm strided-validation random-windows jct-window-sweep clean-png clean
 
 help:
 	@echo "CASSINI Simulation - Available Targets:"
@@ -20,6 +20,7 @@ help:
 	@echo "  make lcm-scoring        - Check scoring windows against full-LCM traffic"
 	@echo "  make strided-lcm        - Compare strided multi-window sampling vs contiguous prefix"
 	@echo "  make strided-validation - Validate all shift plans with one exact traffic measure"
+	@echo "  make random-windows    - Test seeded random window positions at fixed budget"
 	@echo "  make jct-window-sweep   - Sweep scoring windows (150ms-2400ms) on cluster JCT"
 	@echo "  make test               - Run unit tests"
 	@echo "  make clean-png          - Delete generated PNG files (Preserves GIF files)"
@@ -67,6 +68,9 @@ strided-lcm:
 
 strided-validation:
 	$(PYTHON) experiments/strided_validation.py
+
+random-windows:
+	$(PYTHON) experiments/random_window_experiment.py
 
 jct-window-sweep:
 	$(PYTHON) experiments/jct_window_sweep.py

@@ -30,7 +30,8 @@ PUBLISHED_SEEDS = (7, 19, 42)
 ADDITIONAL_SEEDS = (101, 202, 303)
 
 
-def evaluate_case(name, seed, jobs, *, repetitions=3, max_lcm_ms=100000):
+def evaluate_case(name, seed, jobs, *, repetitions=3, max_lcm_ms=100000,
+                  sampling_seeds=()):
     """Select plans, then evaluate every plan with exact integration on [H,2H)."""
     if repetitions < 1:
         raise ValueError("Repetitions must be positive.")
@@ -51,23 +52,26 @@ def evaluate_case(name, seed, jobs, *, repetitions=3, max_lcm_ms=100000):
     optimize_link(reference, link, score_window_ms=horizon)
     reference_score = periodic_traffic(reference, 50, horizon, horizon)["score"]
     runs = []
-    for method, budget, count in METHODS:
+    methods = [(*spec, None) for spec in METHODS]
+    methods.extend((f"random-5-{s}", 600, 5, s) for s in sampling_seeds)
+    for method, budget, count, sampling_seed in methods:
+        sampling = {"sampling_seed": sampling_seed} if sampling_seed is not None else {}
         timings, plans = [], []
         for _ in range(repetitions):
             selected = copy.deepcopy(zero)
             start = time.perf_counter()
-            optimize_link(selected, link, score_window_ms=budget, num_windows=count)
+            optimize_link(selected, link, score_window_ms=budget, num_windows=count, **sampling)
             timings.append(time.perf_counter() - start)
             plans.append([j.time_shift for j in selected])
         if any(p != plans[0] for p in plans):
             raise ValueError("Repeated searches selected different plans.")
-        windows = get_strided_windows(selected, score_window_ms=budget, num_windows=count)
+        windows = get_strided_windows(selected, score_window_ms=budget, num_windows=count, **sampling)
         duration = sum(d for _, d in windows)
         if duration > budget or any(s < 0 or d <= 0 or s+d > horizon for s, d in windows):
             raise ValueError("Sampling windows exceed their budget or common period.")
         if any(a+d > b for (a, d), (b, _) in zip(windows, windows[1:])):
             raise ValueError("Sampling windows overlap.")
-        estimated = score_link(selected, link, score_window_ms=budget, num_windows=count)
+        estimated = score_link(selected, link, score_window_ms=budget, num_windows=count, **sampling)
         checked = sum(periodic_traffic(selected, 50, s, d)["score"] * d
                       for s, d in windows) / duration
         if not math.isclose(estimated, checked, abs_tol=2e-6):
@@ -76,6 +80,7 @@ def evaluate_case(name, seed, jobs, *, repetitions=3, max_lcm_ms=100000):
         optimism = 100 * (estimated - validation["score"])
         runs.append({
             "method": method, "budget_ms": budget, "num_windows": count,
+            "sampling_seed": sampling_seed,
             "actual_samples": int(duration), "windows_ms": windows,
             "shifts_ms": {j.job_id: j.time_shift for j in selected},
             "estimated_score": estimated, "independent_sample_score": checked,
@@ -122,9 +127,10 @@ def summarize(cases, seeds):
     return result
 
 
-def provenance():
+def provenance(extra_sources=()):
     paths = ["experiments/strided_validation.py", "experiments/strided_lcm_experiment.py",
              "src/math_engine/optimizer.py", "src/analysis/periodic_traffic.py", "src/core/models.py"]
+    paths.extend(extra_sources)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     records = {}
     for path in paths:

@@ -294,6 +294,16 @@ The RNG is local and does not change workload generation. If the complete
 period fits inside the budget, the method evaluates that complete period.
 The default prefix/evenly-spaced behaviour and event runtime are unchanged.
 
+Run `make PYTHON=python3 random-windows` to compare prefix-600, evenly spaced
+five-window sampling, and random five-window sampling. Workload seeds remain
+7, 19, 42, 101, 202, 303. Ten separate sampling seeds are fixed before running:
+11, 23, 37, 51, 67, 79, 97, 113, 131, 149. Every trial uses 600 samples
+when H exceeds 600 ms; short-period controls use the exact full period.
+Every selected plan receives the same independent full-period assessment.
+All sampling trials are saved. Averages first combine trials within each
+workload case, then weight workload cases equally. No best seed is selected.
+The original prefix-1200 and three-window controls remain in raw records.
+
 ## Related work
 
 [GCD+ (ECRTS 2022)](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ECRTS.2022.11)
