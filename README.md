@@ -10,6 +10,8 @@ A lightweight, purely algorithmic and discrete-event Python simulation of **CASS
 This project provides a standalone mathematical testbed for periodic traffic alignment, affinity graphs, and estimated job completion times. It runs on a CPU without GPUs or a deep learning framework. The fast simulator advances between arrivals and completions rather than executing individual training iterations or network transfers.
 
 For the LCM scoring study, see [LCM_RESEARCH.md](LCM_RESEARCH.md).
+Run `make PYTHON=python3 strided-validation` to compare sampling methods
+with one independent full-period traffic measure and six recorded seeds.
 
 ### Features
 

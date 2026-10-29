@@ -217,6 +217,25 @@ Arrivals can change the active job set, but this sweep does not isolate their co
 
 ---
 
+## Independent comparison of selected shifts
+
+Run `make PYTHON=python3 strided-validation` or
+`python3 experiments/strided_validation.py --output-dir output/strided-check`.
+The command compares prefix-600, three and five windows sharing a 600 ms
+budget, and prefix-1200. It uses published seeds 7, 19, 42 and additional
+seeds 101, 202, 303. Every plan is checked by the same phase-event integration
+over `[H,2H)`, independently of its selection samples. Each sampled score is
+also checked by direct integration over the actual sampling windows.
+
+Records include input profiles and hashes, selected offsets, actual sampling
+windows, full-period gain over zero shifts and prefix-600, absolute score
+error, and the gap to a full-window greedy reference. Summary groups separate
+the published and additional seeds and include only cases with LCM above
+600 ms. Short-period controls remain in the detailed records and plots.
+Optimizer times are medians of three calls, excluding cloning and validation.
+Sources must match their recorded commit before results are published.
+This comparison measures stationary offered traffic, not completion time.
+
 ## Related work
 
 [GCD+ (ECRTS 2022)](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ECRTS.2022.11)
