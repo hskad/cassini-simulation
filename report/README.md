@@ -14,8 +14,10 @@ system model, shift policies, experimental setup, results and discussion,
 conclusion, and cited references.
 The background introduces repeating traffic, placement, shifts,
 compatibility, and affinity graphs for readers who have not read the paper.
-The three plots use PGFPlots with data included in the TeX source. It needs
-no image uploads, separate section files, or bibliography file.
+The three results plots and three explanatory figures use PGFPlots and TikZ
+inside the TeX source. The explanatory figures show communication timing,
+the benefit-rule decision, and a scoring prefix within a full common period.
+They need no image uploads, separate section files, or bibliography file.
 
 Related work connects the study to Cassini, Eclipse, and periodic offset
 assignment. The system model defines traffic compatibility, shift waiting,
@@ -25,9 +27,10 @@ The policy section explains the decision rules and gives a numerical example.
 The setup includes a workload table, paired comparisons, estimate scaling,
 and the LCM scoring protocol. Settings were checked against saved manifests.
 
-The complete draft builds locally to six pages, including references, within
-the prescribed 6--8 page limit and double-column format. Check the page count
-again after replacing the author placeholders in Overleaf.
+The report uses the prescribed double-column format. The required final
+length is 6--8 pages. With all six figures, the current draft builds locally
+to seven pages, including references. Check the page count after each refinement and after
+replacing the author placeholders in Overleaf.
 The results cover policy gains, shift waits, estimate sensitivity,
 and LCM score accuracy and calculation cost. Future work remains brief.
 The IEEE class controls margins, fonts, and columns; these are not overridden.
