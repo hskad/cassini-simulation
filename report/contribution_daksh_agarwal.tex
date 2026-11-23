@@ -1,0 +1,108 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=0.68in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{tabularx}
+\usepackage{graphicx}
+
+% Clean color palette
+\definecolor{primaryblue}{RGB}{20, 65, 130}
+\definecolor{subtleblue}{RGB}{240, 244, 250}
+\definecolor{darkgray}{RGB}{40, 40, 40}
+
+% Section styling
+\titleformat{\section}{\large\bfseries\color{primaryblue}}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{7pt}{3pt}
+
+\setlist[itemize]{noitemsep, topsep=1.5pt, leftmargin=1.1em}
+
+\pagestyle{empty}
+
+\begin{document}
+
+% -----------------------------------------------------------------------------
+% Header
+% -----------------------------------------------------------------------------
+\begin{center}
+    {\Large\bfseries\color{primaryblue} B.Tech Project -- I (CS4901P): Individual Contribution Statement}\\[3pt]
+    {\large\textbf{Cost-Aware Communication Scheduling for Distributed Deep Learning}}
+\end{center}
+
+\vspace{-4pt}
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lXr@{}}
+    \textbf{Student Name:} Daksh Agarwal & & \textbf{Roll Number:} 230101123 \\
+    \textbf{Project Partner:} Aditya Shukla & & \textbf{Partner Roll No:} 230101115
+\end{tabularx}
+\end{center}
+\vspace{-6pt}
+\hrule
+\vspace{4pt}
+
+% -----------------------------------------------------------------------------
+% Scope & Executive Summary
+% -----------------------------------------------------------------------------
+\section*{Assigned Domain: Cost-Aware Shift Policies, The Benefit Rule \& Cluster Evaluation}
+The BTP-1 project was divided into two equal and complementary halves: (1)~\emph{Shift Decision Policies, The Benefit Rule \& Cluster Evaluation} (Daksh Agarwal), and (2)~\emph{Periodic Traffic Modeling, Graph Search \& LCM Optimization} (Aditya Shukla).
+
+\vspace{2pt}
+\noindent
+\textbf{Focus Area:} Identifying the hidden cost of pausing GPUs during phase shifts, deriving the mathematical Benefit Rule to evaluate shift profitability, building the discrete-event queueing simulation pipeline, and validating performance across realistic cluster workloads.
+
+% -----------------------------------------------------------------------------
+% Key Technical Contributions
+% -----------------------------------------------------------------------------
+\section*{Key Technical Contributions}
+
+\begin{itemize}[leftmargin=1.2em, itemsep=3.5pt]
+    \item \textbf{Modeling the Hidden Cost of Forward Phase Shifts:}
+    Identified that existing schedulers (such as Cassini) treat phase shifting as cost-free. Modeled the reality that phase adjustments cannot travel backwards in time; moving a job forward to a new offset forces GPUs to sit idle for:
+    \[
+    d_j = (\theta_j' - \theta_j) \bmod T_j \quad \text{[Forward Idling Delay]}
+    \]
+    Proved that for short jobs, this upfront stall delay can easily exceed the network congestion time it aims to prevent.
+
+    \item \textbf{Mathematical Derivation of the Benefit Rule:}
+    Formulated a closed-form decision condition that compares future network savings against the upfront pause delay:
+    \[
+    \widehat{L}_0 - \widehat{L}_1 = \frac{1}{|\mathcal{A}|}\sum_{j \in \mathcal{A}}\Big[ \underbrace{\widehat{R}_j \cdot \big(F(S_0) - F(S_1)\big)}_{\text{Expected Future Contention Savings}} - \underbrace{d_j}_{\text{Upfront Pause}} \Big] > \varepsilon
+    \]
+    Accepts a shift only if projected network savings strictly exceed the pause cost over remaining iterations $\widehat{R}_j$. Evaluates in microseconds without requiring full cluster simulation.
+
+    \item \textbf{Modular Shift Policy Framework:}
+    Architected and implemented five interchangeable scheduling policies within the simulation runtime: (1)~Uncoordinated FIFO, (2)~Vanilla Cassini, (3)~Score Control, (4)~Cooldown Timer, and (5)~the proposed Benefit Rule, including active state tracking of accumulated shift pauses and completion progress.
+
+    \item \textbf{Discrete-Event Simulation Pipeline Across 5 Workloads:}
+    Engineered an event-driven packet queueing simulator modeling link bandwidth limits, switch buffer congestion, and both global batch and incremental streaming arrivals across 5 workloads: \emph{Generated} (50 jobs), \emph{Sample} (Philly ResNet/VGG traces), \emph{Short} (200 jobs), \emph{Large} (2,000 jobs), and enterprise \emph{Scale} (10,000 jobs, 27M iterations).
+
+    \item \textbf{Empirical Findings: 73\% Wait Reduction \& Robustness to Noise:}
+    Discovered that Uncoordinated FIFO beats Vanilla Cassini by \textbf{+2.28\%} on short workloads because blind pauses hurt performance. Proved that the Benefit Rule rejects 70\% of wasteful shift proposals, slashing mean idle wait from 109.87\,ms to 29.42\,ms (\textbf{73\% reduction}) and delivering a \textbf{+9.30\% speedup}. Demonstrated robustness across $\pm 50\%$ estimation noise.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+% Quantitative Impact Table
+% -----------------------------------------------------------------------------
+\section*{Key Experimental Results: Cluster Policy Performance across Diverse Workloads}
+\vspace{-1pt}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Workload Scope} & \textbf{Vanilla Cassini} & \textbf{Uncoordinated FIFO} & \textbf{Benefit Rule (Ours)} & \textbf{Core Takeaway \& Impact} \\
+\midrule
+Short Workload (200 Jobs)  & Baseline (0.0\%) & \textbf{+2.28\%} (Beats Vanilla!) & \textbf{+9.30\% speedup} & Slashes idle pause waste by 73\% \\
+Philly Sample (60 Jobs)    & Baseline (0.0\%) & $-5.62\%$ slowdown & \textbf{+1.98\% speedup} & Validated on real ResNet/VGG traces \\
+Large Cluster (2,000 Jobs) & Baseline (0.0\%) & $-32.72\%$ slowdown & \textbf{+0.98\% speedup} & Long jobs easily amortize pause cost \\
+Enterprise Scale (10,000 Jobs)& Baseline (0.0\%) & $-45.73\%$ slowdown & \textbf{+3.11\% speedup} & Scales across 12.5 hrs \& 27M iterations \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+
+\end{document}

@@ -178,6 +178,7 @@ def run_experiment(seeds=(7, 19, 42)):
     plt.savefig(plot_path, dpi=300)
     plt.close()
     print(f"[+] Saved comparison plot to: {plot_path}")
+    return all_results
 
 
 if __name__ == "__main__":

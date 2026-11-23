@@ -1,0 +1,109 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=0.68in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{tabularx}
+\usepackage{graphicx}
+
+% Clean color palette
+\definecolor{primaryblue}{RGB}{20, 65, 130}
+\definecolor{subtleblue}{RGB}{240, 244, 250}
+\definecolor{darkgray}{RGB}{40, 40, 40}
+
+% Section styling
+\titleformat{\section}{\large\bfseries\color{primaryblue}}{}{0em}{}[\titlerule]
+\titlespacing*{\section}{0pt}{7pt}{3pt}
+
+\setlist[itemize]{noitemsep, topsep=1.5pt, leftmargin=1.1em}
+
+\pagestyle{empty}
+
+\begin{document}
+
+% -----------------------------------------------------------------------------
+% Header
+% -----------------------------------------------------------------------------
+\begin{center}
+    {\Large\bfseries\color{primaryblue} B.Tech Project -- I (CS4901P): Individual Contribution Statement}\\[3pt]
+    {\large\textbf{Cost-Aware Communication Scheduling for Distributed Deep Learning}}
+\end{center}
+
+\vspace{-4pt}
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lXr@{}}
+    \textbf{Student Name:} Aditya Shukla & & \textbf{Roll Number:} 230101115 \\
+    \textbf{Project Partner:} Daksh Agarwal & & \textbf{Partner Roll No:} 230101123
+\end{tabularx}
+\end{center}
+\vspace{-6pt}
+\hrule
+\vspace{4pt}
+
+% -----------------------------------------------------------------------------
+% Scope & Executive Summary
+% -----------------------------------------------------------------------------
+\section*{Assigned Domain: Periodic Traffic Modeling, Graph Search \& LCM Optimization}
+The BTP-1 project was divided into two equal and complementary halves: (1)~\emph{Periodic Traffic Modeling, Graph Search \& LCM Optimization} (Aditya Shukla), and (2)~\emph{Shift Decision Policies, The Benefit Rule \& Cluster Evaluation} (Daksh Agarwal). 
+
+\vspace{2pt}
+\noindent
+\textbf{Focus Area:} Formulating the mathematical representation of periodic network traffic, designing graph algorithms to assign conflict-free start times across shared cluster links, and solving the computational explosion that occurs when calculating full-cycle traffic schedules.
+
+% -----------------------------------------------------------------------------
+% Key Technical Contributions
+% -----------------------------------------------------------------------------
+\section*{Key Technical Contributions}
+
+\begin{itemize}[leftmargin=1.2em, itemsep=3.5pt]
+    \item \textbf{Mathematical Traffic Modeling \& Compatibility Formulation:}
+    Modeled the cyclic communication bursts of distributed AI training jobs across time. Expressed total offered load on any link as $B_\ell(u;\boldsymbol{\theta}) = \sum_{j} b_j((u - \theta_j) \bmod T_j)$ and implemented the numerical integration engine for the physical link \emph{Compatibility Score}:
+    \[
+    S_\ell = 1 - \frac{1}{M C_\ell} \sum_{k=0}^{M-1} \max\big\{0,\, B_\ell(k\delta;\boldsymbol{\theta}) - C_\ell\big\} \quad \in [0.0,\, 1.0]
+    \]
+    where $S_\ell = 1.0$ represents collision-free interleaving, and lower scores quantify packet congestion.
+
+    \item \textbf{Affinity Graph Construction, BFS Traversal \& Cycle Detection:}
+    Represented the multi-link cluster as a bipartite \emph{Affinity Graph} connecting jobs to shared links.
+    \begin{itemize}[itemsep=1pt, topsep=1pt]
+        \item \emph{Tree Topologies:} Built a Breadth-First Search (BFS) spanning-tree traversal that assigns globally consistent start offsets ($\theta_j$) across links without phase conflicts.
+        \item \emph{Cycle Topologies:} Designed cycle-detection algorithms to identify and reject topological conflicts where shared links demand contradictory offsets for the same job (e.g., $40 \neq 55$\,ms).
+    \end{itemize}
+
+    \item \textbf{Discovery \& Quantification of the LCM Explosion Problem:}
+    Discovered and mathematically formalized the \emph{Least Common Multiple (LCM) scaling dilemma}: when jobs have co-prime iteration periods, their joint traffic pattern explodes combinatorially. Proved that for just four realistic jobs with prime periods (101, 103, 107, 109\,ms), the exact schedule cycle takes \textbf{over 33 hours} and consumes \textbf{1.94\,GB of memory} to evaluate a single candidate shift.
+
+    \item \textbf{Window Truncation \& Multi-Window Strided Sampling Framework:}
+    To make scheduling practical in real-time, designed an online \textbf{600\,ms observation window} to replace the 33-hour exhaustive search. Built a diagnostic benchmark covering \textbf{7 distinct period families} and evaluated both single contiguous windows and multi-window strided sampling ($3\times 200$\,ms, $5\times 120$\,ms).
+
+    \item \textbf{Empirical Proof of Near-Optimal Scheduling Decisions:}
+    Proved that while a 600\,ms window causes modest score optimism on co-prime periods (6\% to 8\%), candidate shift \emph{rankings} remain near-perfect. The optimality gap to a 33-hour full search is \textbf{$\le 0.08$ percentage points} (average $\le 0.008$\%), while reducing calculation runtime to \textbf{$< 1.5$\,ms} (\textbf{99.9\% schedule accuracy}).
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+% Quantitative Impact Table
+% -----------------------------------------------------------------------------
+\section*{Key Experimental Results: LCM Truncation Benchmark across 7 Period Families}
+\vspace{-1pt}
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Period Family} & \textbf{Job Periods (ms)} & \textbf{True Repeat Cycle (LCM)} & \textbf{600\,ms Optimality Gap} & \textbf{Execution Runtime} & \textbf{Outcome} \\
+\midrule
+Short Pair             & $(40, 60)$            & 120\,ms           & $+0.000\%$ (Exact)              & 0.34\,ms & Collision-Free \\
+Shared Pair            & $(100, 140)$          & 700\,ms           & $+0.000\%$ (Exact)              & 0.71\,ms & Near-Optimal \\
+Coprime Pair           & $(100, 101)$          & 10,100\,ms        & $+0.000\%$ (Exact)              & 0.51\,ms & Robust \\
+Near-Shared Triple     & $(96, 100, 104)$      & 31,200\,ms        & \textbf{+0.008\%} (Near-Optimal) & \textbf{0.57\,ms} & Sub-ms Scheduling \\
+4-Prime Stress Case    & $(101, 103, 107, 109)$& $>$ \textbf{33 Hours}      & \textbf{$\le 0.027\%$} (Near-Optimal)    & \textbf{$< 1.00$\,ms} & \textbf{Bypasses 1.94\,GB RAM} \\
+\bottomrule
+\end{tabular}%
+}
+\end{center}
+
+\end{document}

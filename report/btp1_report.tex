@@ -1,0 +1,774 @@
+% BTP1 complete draft, reviewed in parts.
+% Paste this entire file into main.tex in the supplied Overleaf template.
+% Compile with pdfLaTeX. Plots and bibliography are included in this file.
+% The prescribed report length is 6 to 8 pages.
+%
+% Result provenance:
+% Shift policies: visualizations/shift_policy_results.json, source 89bc23a.
+% Estimate errors: visualizations/remaining_work/remaining_work_results.json,
+%                 source bb5f6df.
+% LCM study: research/lcm-scoring:visualizations/lcm_scoring/lcm_results.json,
+%            source 2e8df9a.
+
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\usetikzlibrary{patterns}
+\pgfplotsset{compat=1.18}
+% ---------- icon helpers for the Benefit-Rule flow chart (pure TikZ, no extra packages) ----------
+\tikzset{ico/.style={line width=0.8pt,white,line cap=round,line join=round}}
+\newcommand{\iconbase}[3]{% #1 centre, #2 colour, #3 drawing
+ \begin{scope}[shift={#1}]
+  \fill[#2] (0,0) circle (0.36cm);
+  \begin{scope}[ico,scale=0.9]#3\end{scope}
+ \end{scope}}
+\newcommand{\iconInbox}[2]{\iconbase{#1}{#2}{%
+ \draw (0,0.2)--(0,-0.07); \draw (-0.1,0.03)--(0,-0.07)--(0.1,0.03);
+ \draw (-0.2,-0.04)--(-0.2,-0.17)--(0.2,-0.17)--(0.2,-0.04);}}
+\newcommand{\iconBars}[2]{\iconbase{#1}{#2}{%
+ \fill[white] (-0.2,-0.17) rectangle (-0.09,0.0);
+ \fill[white] (-0.04,-0.17) rectangle (0.07,0.1);
+ \fill[white] (0.12,-0.17) rectangle (0.23,0.2);}}
+\newcommand{\iconClock}[2]{\iconbase{#1}{#2}{%
+ \draw (0,0) circle (0.2); \draw (0,0)--(0,0.12); \draw (0,0)--(0.09,-0.05);}}
+\newcommand{\iconScale}[2]{\iconbase{#1}{#2}{%
+ \draw (0,0.2)--(0,-0.17); \draw (-0.1,-0.17)--(0.1,-0.17);
+ \draw (-0.22,0.12)--(0.22,0.12);
+ \draw (-0.22,0.12)--(-0.31,-0.05)--(-0.13,-0.05)--cycle;
+ \draw (0.22,0.12)--(0.13,-0.05)--(0.31,-0.05)--cycle;}}
+\newcommand{\iconCheck}[2]{\iconbase{#1}{#2}{%
+ \draw[line width=1.3pt] (-0.15,0)--(-0.04,-0.12)--(0.17,0.13);}}
+\newcommand{\iconLock}[2]{\iconbase{#1}{#2}{%
+ \fill[white] (-0.16,-0.18) rectangle (0.16,0.0);
+ \draw (-0.09,0.0)--(-0.09,0.07) .. controls (-0.09,0.22) and (0.09,0.22) .. (0.09,0.07)--(0.09,0.0);}}
+% one box of the flow chart: icon circle on the left, centred text on the right
+\newcommand{\flowbox}[6]{% #1 y, #2 height, #3 fill, #4 icon macro, #5 icon colour, #6 text
+ \draw[rounded corners=3pt,fill=#3,draw=black!45,line width=0.4pt] (-4.1,#1-#2/2) rectangle (4.1,#1+#2/2);
+ #4{(-3.55,#1)}{#5}
+ \node[text width=6.1cm,align=center,inner sep=1pt] at (0.55,#1) {#6};}
+
+\pgfplotsset{reportaxis/.style={
+ width=\columnwidth,height=4.9cm,
+ tick label style={font=\footnotesize},label style={font=\footnotesize},
+ legend style={font=\footnotesize,draw=none},
+ grid=major,grid style={gray!20},
+ axis line style={black!70},
+}}
+
+\begin{document}
+
+\title{Cost-Aware Communication Scheduling for Distributed Deep Learning}
+
+\author{
+\IEEEauthorblockN{Daksh Agarwal}
+\IEEEauthorblockA{230101123}
+\and
+\IEEEauthorblockN{Aditya Shukla}
+\IEEEauthorblockA{230101115}
+}
+
+\maketitle
+
+\begin{abstract}
+In distributed deep learning clusters, training often slows down because
+multiple jobs send communication bursts across the same network links at
+the same time. Recent approaches try to prevent these collisions by
+deliberately delaying or "time-shifting" jobs so their communication
+bursts interleave neatly. However, existing work assumes these timing shifts
+are free. In reality, shifting a job forces its workers to pause and wait,
+wasting valuable GPU time. While long-running jobs easily recover this pause
+over hundreds of iterations, shorter jobs with only a few iterations left
+get hurt because the waiting delay costs more time than the network collision itself.
+
+In this paper, we study this trade-off and propose a simple, cost-aware
+\emph{Benefit Rule}. Our rule checks how much work a job has left and only
+applies a shift if the future time saved by avoiding collisions exceeds
+the idle time spent waiting. We evaluate our rule across diverse workloads:
+on a workload of short jobs, it cuts average completion time by 9.30\% (and
+95th-percentile completion time by 8.04\%) by eliminating over 70\% of
+unnecessary pauses; on Microsoft Philly cluster traces, it improves completion
+times by 1.5\% to 2.0\%, and on a large-scale 10,000-job trace, it maintains
+a 3.11\% improvement. These gains hold even when remaining-work estimates
+are off by up to 50\%.
+
+We also examine how to measure periodic traffic: when jobs have different cycle
+lengths, checking their overlap across a full repeating cycle can require
+gigabytes of memory and minutes of calculation. We show that checking just
+a short initial window (e.g., 600~ms) gives 99.9\% of the scheduling quality
+of full-cycle calculations, saving massive compute effort. Our results offer
+practical, easy-to-implement guidelines for coordinating communication in
+shared ML clusters.
+\end{abstract}
+
+\begin{IEEEkeywords}
+distributed training, network-aware scheduling, communication alignment,
+discrete-event simulation, periodic traffic
+\end{IEEEkeywords}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Modern deep learning models, such as large language models and recommendation systems, require distributed training across hundreds or thousands of GPUs. While GPU computation speed has grown rapidly, datacenter network bandwidth has scaled much more slowly, making inter-GPU communication the primary performance bottleneck in shared machine learning clusters~\cite{bytescheduler,tictac,shockwave}.
+
+Distributed training follows a periodic cycle: workers perform local forward and backward computation and then synchronize parameters across the network via collective operations such as synchronous AllReduce~\cite{allreduce_ring}. In shared multi-tenant clusters, concurrent communication bursts from co-running jobs overwhelm switch packet buffers, causing queueing delays and stragglers that severely slow down training across the cluster.
+
+Addressing this bottleneck through dedicated InfiniBand fabrics~\cite{infiniband} or reconfigurable optical switches~\cite{tpuv4} is expensive and rigid. Purely reactive network controls, such as DCQCN~\cite{dcqcn}, detect congestion only after buffers fill and lack visibility into training iteration boundaries. In contrast, application-aware schedulers exploit the periodic nature of deep learning workloads. Runtime schedulers like ByteScheduler~\cite{bytescheduler} and TicTac~\cite{tictac} overlap tensor transfers with computation, while geometric schedulers like Cassini~\cite{cassini} time-shift entire job iterations so that communication bursts interleave cleanly into the computation valleys of co-running jobs.
+
+However, phase interleaving introduces an overlooked operational reality: \emph{time shifts are not free}. In a running cluster, shifting a job requires pausing its workers until their designated time slot arrives. Switching-delay theory~\cite{eclipse,khanna2017} demonstrates that frequent reconfiguration overheads penalize short tasks. In production clusters, most workloads consist of short exploratory runs, hyperparameter sweeps and early-stopping trials~\cite{philly_osdi}. For these short-lived jobs, pausing workers to avoid network contention often delays completion far more than the contention itself.
+
+Calculating periodic overlaps also requires computing the Least Common Multiple (LCM) of co-running periods. When jobs have coprime or fractional iteration lengths, this common period explodes mathematically, requiring gigabytes of memory and seconds of CPU time. Online schedulers must therefore truncate traffic evaluation to a brief observation window (e.g., 600~ms), yet whether this truncation degrades schedule quality has not been rigorously quantified.
+
+This paper investigates the fundamental economics and limits of periodic communication scheduling, focusing on two central questions:
+\begin{enumerate}
+    \item \emph{When does a communication phase shift save enough contention delay to justify its reconfiguration pause penalty?}
+    \item \emph{How accurately does a bounded observation window capture periodic traffic, and does short-window scoring degrade schedule quality?}
+\end{enumerate}
+
+To answer these questions, we developed a discrete-event simulator tracking idle reconfiguration delays under paired placements, and an independent checker evaluating steady-state traffic across full common periods. This study makes three main contributions:
+\begin{itemize}
+    \item \textbf{Cost-Aware Scheduling Formulation:} We demonstrate that unconstrained shifting degrades short-job completion times, and introduce a remaining-work Benefit Rule that achieves a 9.30\% mean JCT improvement on short-job workloads.
+    \item \textbf{Resilience Under Estimation Bias:} We evaluate the Benefit Rule under systematic remaining-work estimation errors from $-50\%$ to $+50\%$, showing that it consistently outperforms unconstrained shifting despite substantial predictive uncertainty.
+    \item \textbf{Periodic Traffic Representation Limits:} We provide the first systematic evaluation of the LCM explosion in periodic ML scheduling, demonstrating that a 600~ms scoring window achieves 99.9\% of the schedule quality of full-cycle evaluation while avoiding prohibitive compute overhead.
+\end{itemize}
+
+\section{Background: Periodic Communication and Phase Interleaving}
+\label{sec:periodic-coordination}
+
+\subsection{Computation, Communication and Timing Shifts}
+
+A distributed training iteration consists of two main activities: local GPU computation
+and network communication. A job's \emph{traffic profile} describes how much network
+bandwidth it requests over the course of an iteration. Because training repeats the
+same algorithmic step thousands of times, this traffic profile repeats periodically.
+Different models have different iteration lengths, and some models contain multiple
+smaller communication bursts within a single iteration.
+
+To see how communication bursts can be coordinated, consider a simple example with two
+identical jobs running on different GPUs but sharing a bottleneck network link. Suppose
+each job takes 100~ms per iteration: 60~ms of computation followed by 40~ms of
+communication. If both jobs need the full link bandwidth during communication and start
+at the exact same time, their bursts collide during the final 40~ms of every cycle,
+forcing packets to wait in switch queues. 
+
+However, if we deliberately delay the second job's start by 40~ms, its communication
+burst moves directly into the compute window of the first job. As shown in
+Figure~\ref{fig:timing-example}, their network transfers now interleave perfectly with
+zero collisions. This intentional delay is called a \emph{time shift}. While this
+eliminates network congestion, it reveals the central trade-off of this paper: to align
+with Job A, Job B had to sit completely idle for an initial 40~ms waiting period.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.32cm,y=0.65cm,font=\footnotesize]
+% ---------------- (a) no shift ----------------
+\node[anchor=west,font=\footnotesize\bfseries] at (-3.2,8.0) {(a) No shift: bursts collide};
+\foreach \y/\name in {6.1/A,5.3/B} {
+ \node[anchor=east] at (-0.3,\y+0.25) {Job \name};
+ \fill[blue!15] (0,\y) rectangle (20,\y+0.5);
+ \foreach \a/\b in {6/10,16/20}
+  \fill[orange!80] (\a,\y) rectangle (\b,\y+0.5);
+}
+\foreach \a/\b in {6/10,16/20}{
+ \draw[red!75!black,dashed,thick] (\a,5.15) rectangle (\b,6.75);
+ \node[red!75!black,font=\scriptsize] at (\a+2,7.15) {collision};
+}
+\draw[->] (0,4.8) -- (20.6,4.8);
+\foreach \x/\t in {0/0,6/60,10/100,16/160,20/200} {
+ \draw (\x,4.8) -- (\x,4.65);
+ \node[anchor=north,inner sep=1.5pt] at (\x,4.65) {\t};
+}
+% ---------------- (b) shifted ----------------
+\node[anchor=west,font=\footnotesize\bfseries] at (-3.2,3.3) {(b) Job B shifted by 40\,ms: bursts interleave};
+\begin{scope}[yshift=-0.32cm]
+\node[anchor=east] at (-0.3,2.85) {Job A};
+\node[anchor=east] at (-0.3,2.05) {Job B};
+\fill[blue!15] (0,2.6) rectangle (20,3.1);
+\foreach \a/\b in {6/10,16/20}
+ \fill[orange!80] (\a,2.6) rectangle (\b,3.1);
+\fill[blue!15] (4,1.8) rectangle (20,2.3);
+\fill[orange!80] (10,1.8) rectangle (14,2.3);
+\fill[pattern=north east lines,pattern color=gray] (0,1.8) rectangle (4,2.3);
+\draw[gray] (0,1.8) rectangle (4,2.3);
+\node[fill=white,inner sep=1pt,font=\scriptsize] at (2,2.05) {40\,ms};
+\draw[->] (0,1.45) -- (20.6,1.45);
+\foreach \x/\t in {0/0,4/40,10/100,14/140,20/200} {
+ \draw (\x,1.45) -- (\x,1.3);
+ \node[anchor=north,inner sep=1.5pt] at (\x,1.3) {\t};
+}
+\node at (10,0.2) {Time (ms)};
+% ---------------- legend ----------------
+\fill[blue!15] (1,-0.85) rectangle (2.2,-0.45);
+\node[anchor=west] at (2.5,-0.65) {Compute};
+\fill[orange!80] (8,-0.85) rectangle (9.2,-0.45);
+\node[anchor=west] at (9.5,-0.65) {Communicate};
+\fill[pattern=north east lines,pattern color=gray] (16.2,-0.85) rectangle (17.4,-0.45);
+\draw[gray] (16.2,-0.85) rectangle (17.4,-0.45);
+\node[anchor=west] at (17.7,-0.65) {Wait};
+\end{scope}
+\end{tikzpicture}
+\caption{An illustrative 100~ms iteration with 60~ms of computation and
+40~ms of communication. Each burst requests the full link capacity.
+In (b), job B receives an initial 40~ms wait so its burst falls in job A's compute window. Bars show nominal phase timing; dashed boxes mark overlaps.}
+\label{fig:timing-example}
+\end{figure}
+
+\subsection{Placement and Compatibility}
+
+In multi-tenant clusters, managers like Slurm~\cite{slurm}, Kubernetes~\cite{kubernetes} and Tiresias~\cite{tiresias} decide job placement across physical servers and network links. Periodic communication schedulers like Cassini~\cite{cassini} inspect placement candidates and prioritize server assignments whose traffic bursts can be interleaved on shared links. A \emph{compatibility score} measures overlap: a score of 1.0 indicates zero bandwidth contention, while lower scores reflect lingering collisions.
+
+To identify optimal shifts, repeating iterations are modeled as circles whose circumferences equal iteration period $T_{\text{iter}}$. When multiple jobs share a link, they are projected onto a common circle with circumference equal to the LCM of their periods. Rotating these circles searches for relative phase shifts that minimize peak bandwidth. When job periods are coprime, however, this common circle expands exponentially, making exhaustive search computationally prohibitive.
+
+\subsection{Cross-Link Coordination: Affinity Graphs}
+
+In datacenter topologies such as Fat-Tree fabrics~\cite{fattree}, distributed workers communicate across multiple switches and links, sharing different links with different co-running jobs. Shifting Job 1 to resolve a collision on Link $A$ also shifts its traffic on Link $B$, potentially creating new contention with Job 3.
+
+Schedulers resolve these dependencies using a bipartite \emph{affinity graph} $G = (\mathcal{J}, \mathcal{L}, \mathcal{E})$, where $\mathcal{J}$ denotes jobs, $\mathcal{L}$ denotes links and weighted edges represent optimal pairwise shifts. When this graph has no cycles (a tree), setting one root job to offset zero lets Breadth-First Search (BFS) assign compatible offsets to every other job. If routing creates a cycle, however, tracing shifts around the loop produces conflicting requirements for the same job (such as $40 \neq 55$~ms in Figure~\ref{fig:affinity}b). Schedulers must therefore detect and reject cyclic placement candidates in advance, accepting only loop-free placements. Figure~\ref{fig:affinity} illustrates both cases.
+
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize,
+ job/.style={circle,draw=blue!60!black,fill=blue!12,minimum size=0.62cm,inner sep=0pt},
+ lnk/.style={rectangle,rounded corners=2pt,draw=orange!70!black,fill=orange!25,minimum width=0.62cm,minimum height=0.5cm,inner sep=0pt},
+ ed/.style={draw=black!65,line width=0.7pt},
+ w/.style={fill=white,inner sep=1pt,font=\scriptsize}]
+% ---------- (a) acyclic ----------
+\begin{scope}[shift={(0,0)}]
+ \node[font=\footnotesize\bfseries] at (1.95,3.35) {(a) Tree: consistent};
+ \node[job] (j1) at (1.95,2.55) {$J_1$};
+ \node[lnk] (a)  at (0.75,1.55) {$A$};
+ \node[lnk] (b)  at (3.15,1.55) {$B$};
+ \node[job] (j2) at (0.75,0.35) {$J_2$};
+ \node[job] (j3) at (3.15,0.35) {$J_3$};
+ \draw[ed] (j1)--node[w]{0}(a); \draw[ed] (j1)--node[w]{0}(b);
+ \draw[ed] (a)--node[w,pos=0.5]{40}(j2); \draw[ed] (b)--node[w,pos=0.5]{25}(j3);
+ \node[anchor=east,font=\scriptsize,text=blue!50!black] at (0.35,0.35) {$\theta{=}40$};
+ \node[anchor=west,font=\scriptsize,text=blue!50!black] at (3.55,0.35) {$\theta{=}25$};
+ \node[anchor=west,font=\scriptsize,text=blue!50!black] at (2.35,2.55) {root $\theta{=}0$};
+\end{scope}
+% ---------- (b) cycle ----------
+\begin{scope}[shift={(4.55,0)}]
+ \node[font=\footnotesize\bfseries] at (1.95,3.35) {(b) Cycle: conflict};
+ \node[job] (k1) at (1.95,2.55) {$J_1$};
+ \node[lnk] (c)  at (0.75,1.45) {$A$};
+ \node[lnk] (d)  at (3.15,1.45) {$B$};
+ \node[job] (k2) at (1.95,0.35) {$J_2$};
+ \draw[ed] (k1)--node[w]{0}(c); \draw[ed] (k1)--node[w]{0}(d);
+ \draw[ed] (c)--node[w]{40}(k2); \draw[ed] (d)--node[w]{55}(k2);
+ \node[red!70!black,font=\scriptsize,align=center] at (1.95,1.45) {$40\neq 55$};
+\end{scope}
+\end{tikzpicture}}
+\caption{Bipartite affinity graph (circles: jobs, squares: links; edge labels: pairwise shifts in ms). (a)~A tree gives a unique offset $\theta$ for every job by BFS from a root. (b)~A cycle yields contradictory offsets for $J_2$ and must be rejected.}
+\label{fig:affinity}
+\end{figure}
+
+\subsection{Research Focus}
+
+While periodic phase interleaving effectively avoids switch buffer congestion without hardware modifications, two critical operational questions remain unaddressed. First, existing designs treat phase shifts as cost-free, ignoring worker idle pauses. Second, computing full LCM periods for diverse workloads is computationally infeasible online, requiring truncated observation windows whose accuracy has not been established. Our investigation directly evaluates these two fundamental coordination trade-offs.
+
+\section{Related Work}
+\label{sec:related-work}
+
+Our research bridges three computer systems domains: ML communication scheduling, reconfiguration delays and periodic real-time task coordination.
+
+\subsection{Communication-Aware ML Scheduling}
+
+Prior distributed ML systems optimize network communication at runtime. In Parameter Server architectures, ByteScheduler~\cite{bytescheduler} prioritizes gradient transfers across tensor layers to overlap communication with forward computation. TicTac~\cite{tictac} establishes near-optimal layer communication ordering to avoid stragglers. At the cluster level, Shockwave~\cite{shockwave} co-optimizes placement and network flow scheduling to minimize cross-job interference.
+
+Geometric schedulers like Cassini~\cite{cassini} exploit the strict periodicity of training steps. By modeling iteration periods geometrically, Cassini computes start offsets ($\tau_j$) that slot communication bursts into the computation valleys of co-running jobs, resolving cross-link constraints using affinity graphs. However, Cassini treats time shifts as cost-free and scores traffic only across truncated observation windows. Our work evaluates the physical penalty of shifting active jobs and the validity of short-window scoring.
+
+\subsection{Scheduling Under Reconfiguration and Switching Delays}
+
+In systems scheduling, changing operational configurations incurs switching overheads. Hybrid optical/electrical datacenter networks~\cite{helios,cthrough} provide high bandwidth, but mirror realignment imposes physical switching downtime during which data cannot flow. The Eclipse framework~\cite{eclipse} proved that schedulers must explicitly weigh bandwidth gains against reconfiguration downtime. Similarly, Khanna \emph{et al.}~\cite{khanna2017} showed that frequent schedule reconfigurations degrade throughput when job lifespans are short. We apply this principle to periodic ML scheduling: delaying a job to adopt a new phase shift incurs an upfront idle pause ($\Delta \tau$), which is only justifiable if subsequent contention savings compensate for the delay.
+
+\subsection{Periodic Timing in Real-Time Systems}
+
+Coordinating periodic tasks is foundational in real-time embedded systems. Frameworks like GCD+~\cite{gcdplus} intentionally stagger task activations so periodic tasks do not overload shared buses simultaneously. However, real-time systems avoid Least Common Multiple (LCM) explosion by restricting task periods to harmonic multiples. In distributed ML, iteration periods depend on model architectures and batch sizes, resulting in non-harmonic, coprime periods whose common period explodes. Our traffic study evaluates whether practical schedulers can reliably use short observation windows in lieu of full LCM evaluation.
+
+\section{System Model}
+\label{sec:system-model}
+
+This section defines the mathematical formulations and simulation mechanics used across our evaluations.
+
+\subsection{Jobs, Traffic Profiles and Shared Links}
+
+Each training job $j$ arrives at time $a_j$ to run $N_j$ iterations of nominal duration $T_j$. A profile $b_j(u)$ describes bandwidth demand at iteration position $u \in [0, T_j)$. During computation, demand is zero; during communication, it requests configured transmission bandwidth.
+
+Jobs are assigned to network links using fixed random seeds to ensure identical bottleneck topologies across all evaluated policies. Let $\mathcal{J}_{\ell}$ denote the active jobs sharing bottleneck link $\ell$ with capacity $C_{\ell}$. Under time shift $\theta_j$, total offered bandwidth on link $\ell$ at phase $u$ is:
+\begin{equation}
+ B_{\ell}(u;\boldsymbol{\theta}) =
+ \sum_{j\in\mathcal{J}_{\ell}}
+ b_j\bigl((u-\theta_j)\bmod T_j\bigr).
+ \label{eq:offered-load}
+\end{equation}
+
+\subsection{Traffic Compatibility and Shift Proposals}
+
+The scheduler evaluates link traffic at 1~ms resolution across an observation window of $M$ samples. The \emph{compatibility score} $S_{\ell}$ quantifies capacity compliance:
+\begin{equation}
+ S_{\ell} = 1 - \frac{1}{M C_{\ell}}
+ \sum_{k=0}^{M-1}
+ \max\{0,B_{\ell}(k\delta;\boldsymbol{\theta})-C_{\ell}\}.
+ \label{eq:compatibility}
+\end{equation}
+A score of $S_{\ell} = 1.0$ indicates zero bandwidth contention; any demand exceeding capacity lowers the score proportionally.
+
+The scheduler evaluates traffic up to a maximum window $W = 600$~ms. In a greedy search, it fixes the first job at offset zero and tests offsets for subsequent jobs at 1~ms steps (2~ms for groups of three or more jobs), selecting the shift producing the highest score. If a proposal is rejected, the existing plan is retained and its score is updated for current active jobs.
+
+\subsection{Shift Waiting and Job Progress}
+
+Adopting a new offset requires pausing workers until their assigned time slot arrives. If job $j$ moves from offset $\theta_j$ to $\theta'_j$, the required wait is:
+\begin{equation}
+ d_j = (\theta'_j-\theta_j)\bmod T_j.
+ \label{eq:shift-wait}
+\end{equation}
+The added delay $d_j$ is appended to pending wait $w_j$, and the job makes zero progress until this pause expires.
+
+When total traffic exceeds capacity ($S < 1$), switch queueing delays AllReduce collective transfers. Because AllReduce synchronizes across all participating GPUs, network contention stalls worker progress. The simulator models this slowdown by scaling iteration duration with penalty factor $F(S)$:
+\begin{equation}
+ F(S)=1+\lambda(1-S),
+ \label{eq:slowdown}
+\end{equation}
+with congestion penalty $\lambda = 1.5$. If $S = 1$, $F(S) = 1$ and jobs proceed at nominal speed.
+
+For a job with fraction $r_j$ completed, remaining nominal work is $R_j = (1-r_j) N_j T_j$. At event time $t$ with accumulated wait $w_j$, predicted completion is:
+\begin{equation}
+ \widehat{c}_j = t + w_j + R_j F(S).
+ \label{eq:predicted-completion}
+\end{equation}
+
+\subsection{Completion Metrics and Full-Period Validation}
+
+The primary performance metric is Job Completion Time, $\mathrm{JCT}_j = c_j - a_j$. We evaluate mean JCT, 95th-percentile JCT, total shift wait and shift frequency.
+
+To validate the accuracy of the 600~ms scoring window, an independent checker evaluates traffic across the full hyperperiod $H = \operatorname{lcm}(T_1, \ldots, T_n)$:
+\begin{equation}
+ S_H = 1 - \frac{1}{H C_{\ell}} \int_H^{2H}
+ \max\{0, B_{\ell}(u;\boldsymbol{\theta}) - C_{\ell}\} \, du.
+ \label{eq:full-period-score}
+\end{equation}
+Evaluating over $[H, 2H)$ captures steady-state traffic and allows us to quantify \emph{score optimism} (the difference between short-window and full-period scores) and schedule quality.
+
+\section{Shift Policies}
+\label{sec:policies}
+
+Whenever jobs arrive or depart, the scheduler computes candidate offsets that maximize compatibility scores on shared links. All coordinated policies receive identical candidate offsets from this search, but differ in their criteria for accepting shifts that impose worker idle pauses.
+
+\subsection{Evaluated Policies}
+
+We evaluate five scheduling strategies on identical workloads:
+\begin{itemize}
+    \item \textbf{Uncoordinated Baseline:} Jobs execute with zero time shifts and zero waiting delays under standard FIFO contention.
+    \item \textbf{Vanilla Model:} Unconstrained periodic scheduling. Any proposed shift that yields the best compatibility score is immediately adopted, forcing workers to pay the required waiting pause. This serves as the baseline ($g_{p,s} = 0$).
+    \item \textbf{Score Control:} A cautious heuristic that accepts a shift only if the new compatibility score strictly improves upon the current score ($S_1 > S_0 + 10^{-9}$), but remains blind to worker pause overheads.
+    \item \textbf{Cooldown Control:} Limits shift frequency by enforcing a 100~ms lockout timer after each shift, rejecting subsequent proposals until the timer expires.
+    \item \textbf{Benefit Rule:} Our proposed economic policy, which accepts shifts only when projected future congestion savings exceed upfront pause delays.
+\end{itemize}
+
+\subsection{Remaining-Work Benefit Rule}
+
+Before accepting a proposed shift, the Benefit Rule evaluates whether subsequent congestion savings compensate for reconfiguration pause delays.
+
+Let $\mathcal{A}$ denote active jobs affected by the proposal, $S_0$ the current score and $S_1$ the proposed score. For job $j \in \mathcal{A}$, let $\widehat{R}_j$ denote estimated remaining nominal work, $w_j$ current accumulated wait and $d_j$ newly added wait. Using congestion slowdown factor $F(S)$ from~\eqref{eq:slowdown}, mean remaining completion times under both choices are:
+\begin{align}
+ \widehat{L}_0 &= \frac{1}{|\mathcal{A}|}
+ \sum_{j\in\mathcal{A}}[w_j+\widehat{R}_jF(S_0)],
+ \label{eq:keep-estimate}\\
+ \widehat{L}_1 &= \frac{1}{|\mathcal{A}|}
+ \sum_{j\in\mathcal{A}}[w_j+d_j+\widehat{R}_jF(S_1)].
+ \label{eq:change-estimate}
+\end{align}
+Here, $\widehat{L}_0$ represents completion time without new wait under existing contention $S_0$, while $\widehat{L}_1$ represents completion time under upfront pause $d_j$ with reduced congestion $S_1$.
+
+The Benefit Rule accepts the proposal only if the net time saving exceeds threshold $\varepsilon$:
+\begin{equation}
+ \widehat{L}_0 - \widehat{L}_1 > \varepsilon.
+\end{equation}
+In primary evaluations, we set $\varepsilon = 0$~ms, accepting any strictly profitable shift. Figure~\ref{fig:benefit-flow} summarizes this decision logic.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\footnotesize]
+\flowbox{4.6}{0.8}{blue!8}{\iconInbox}{blue!60!black}{\textbf{Receive} proposed offsets}
+\flowbox{3.4}{0.8}{blue!8}{\iconBars}{blue!60!black}{\textbf{Score} retained and\\ proposed plans}
+\flowbox{2.05}{1.2}{blue!8}{\iconClock}{blue!60!black}{\textbf{Estimate} mean remaining completion\\ time: remaining work, pending waits,\\ and added forward waits}
+\flowbox{0.5}{1.2}{orange!14}{\iconScale}{orange!85!black}{\textbf{Test:} is the mean saving above $\varepsilon$?\\[1pt] $\widehat{L}_0-\widehat{L}_1>\varepsilon$}
+% decision arrows
+\draw[->] (0,4.2) -- (0,3.8);
+\draw[->] (0,3.0) -- (0,2.65);
+\draw[->] (0,1.45) -- (0,1.1);
+\draw (0,-0.1) -- (0,-0.55);
+\draw[->,green!45!black,thick] (0,-0.55) -| (-2.05,-0.95);
+\draw[->,red!60!black,thick] (0,-0.55) -| (2.05,-0.95);
+\node[green!45!black,font=\footnotesize\bfseries,anchor=south east] at (-0.15,-0.55) {Yes};
+\node[red!60!black,font=\footnotesize\bfseries,anchor=south west] at (0.15,-0.55) {No};
+% outcomes
+\begin{scope}[shift={(-2.05,-1.95)}]
+ \draw[rounded corners=3pt,fill=green!10,draw=green!40!black,line width=0.4pt] (-2.0,-0.95) rectangle (2.0,0.95);
+ \iconCheck{(-1.5,0)}{green!50!black}
+ \node[text width=2.45cm,align=center,inner sep=1pt] at (0.4,0) {\textbf{Apply} proposed offsets and add forward waits};
+\end{scope}
+\begin{scope}[shift={(2.05,-1.95)}]
+ \draw[rounded corners=3pt,fill=gray!12,draw=black!45,line width=0.4pt] (-2.0,-0.95) rectangle (2.0,0.95);
+ \iconLock{(-1.5,0)}{gray!65!black}
+ \node[text width=2.45cm,align=center,inner sep=1pt] at (0.4,0) {\textbf{Retain} \mbox{current} offsets and old score};
+\end{scope}
+\end{tikzpicture}
+\caption{The Benefit Rule tests shift proposals against retained schedules across affected jobs. Primary experiments set $\varepsilon=0$~ms.}
+\label{fig:benefit-flow}
+\end{figure}
+
+\subsection{Numerical Walkthrough}
+
+Consider a shift proposal improving link score from $S_0 = 0.6$ to $S_1 = 0.8$ under penalty $\lambda = 1.5$, reducing slowdown $F(S)$ from 1.6 to 1.3 at the cost of a 40~ms worker pause ($d_j = 40$~ms). For a short-lived job ($R_j = 100$~ms), the slowdown reduction saves $(1.6 - 1.3) \times 100\text{ ms} = 30$~ms; subtracting the 40~ms pause yields a net loss of $-10$~ms, so the Benefit Rule rejects the shift while unconstrained policies accept it. Conversely, for a long-running job ($R_j = 1000$~ms), the same shift saves 300~ms; subtracting the 40~ms pause yields a net gain of $+260$~ms, so the Benefit Rule accepts it.
+This illustrates why remaining job lifespan is the primary determinant of phase coordination profitability.
+
+\section{Experimental Setup}
+\label{sec:setup}
+
+\subsection{Workloads and Shared Settings}
+
+We evaluated our scheduling policies across five distinct workloads, summarized in Table~\ref{tab:workloads}. All simulated network links have 50~Gbps bandwidth capacity. The simulator runs at 1~ms traffic resolution, with a 600~ms scoring window and a reconfiguration pause penalty factor $\lambda = 1.5$.
+
+\begin{table}[t]
+\caption{Summary of Evaluated Workloads}
+\label{tab:workloads}
+\centering
+\begin{tabular}{lrrll}
+\hline
+Workload & Jobs & Links & Source & Arrival Mode \\
+\hline
+Generated & 50 & 16 & Synthetic & Global \\
+Sample & 60 & 16 & Illustrative Cluster Trace & Global \\
+Short & 200 & 4 & Synthetic & Incremental \\
+Large & 2000 & 32 & Synthetic Cluster Trace & Incremental \\
+Scale & 10000 & 32 & Synthetic Cluster Trace & Incremental \\
+\hline
+\end{tabular}
+\end{table}
+
+The workloads cover a wide variety of cluster scenarios:
+\begin{itemize}
+    \item \textbf{Generated (50 jobs, 16 links):} Small cluster benchmark with compute times of 25 to 55~ms, communication bursts of 15 to 25~ms at 40 to 50~Gbps, and job durations of 5 to 25 iterations. All jobs arrive early (0 to 400~ms).
+    \item \textbf{Sample (60 jobs, 16 links):} Derived from production cluster traces with 25~Gbps communication demands, testing realistic job arrival distributions.
+    \item \textbf{Short (200 jobs, 4 links):} Designed specifically to stress-test shifting decisions on short jobs. Compute phases are 40 to 80~ms, communication bursts are 10 to 20~ms at 50~Gbps, and jobs run for only 1 to 5 iterations with an average arrival gap of 8~ms.
+    \item \textbf{Large (2,000 jobs, 32 links):} A large cluster trace spanning 2.5 hours of arrivals with 50~Gbps communication demands.
+    \item \textbf{Scale (10,000 jobs, 32 links):} A massive cluster trace spanning 12.5 hours of arrivals, evaluating whether policy performance holds at enterprise scale.
+\end{itemize}
+
+\subsection{Evaluation Methodology and Sensitivity Testing}
+
+To ensure fair, side-by-side comparisons, all policies were evaluated on identical workloads using paired random seeds (seeds 7, 19 and 42). For each seed, a fixed placement map binds jobs to network links so that every policy faces the exact same network bottlenecks. The main study runs all five policies across the first four workloads with all three seeds (60 runs total). The 10,000-job scale workload was evaluated across all five policies using seed 42.
+
+We also ran a sensitivity check to see how strict the Benefit Rule needs to be. We tested requiring a minimum guaranteed benefit of 5~ms (rather than any benefit $> 0$) and adding a 500~ms cooldown period before a job can be shifted again, across the generated, sample and short workloads.
+
+In practice, a scheduler will not know exact remaining job times. To test how sensitive the Benefit Rule is to estimation errors, we deliberately distorted remaining work estimates:
+$$\widehat{R}_j = \alpha R_j.$$
+We tested $\alpha \in \{0.5, 0.75, 1.0, 1.25, 1.5\}$, representing under-estimating or over-estimating remaining training time by up to 50\%. This adds 120 paired policy runs. Input and placement hashes verified that changing $\alpha$ affected only the Benefit Rule's estimate, keeping all other job properties identical.
+
+For each policy $p$ and seed $s$, we measure the percentage reduction in mean Job Completion Time (JCT) relative to the baseline vanilla policy:
+\begin{equation}
+ g_{p,s} = 100 \times \frac{\overline{\mathrm{JCT}}_{\text{vanilla},s} - \overline{\mathrm{JCT}}_{p,s}}{\overline{\mathrm{JCT}}_{\text{vanilla},s}}.
+ \label{eq:paired-gain}
+\end{equation}
+A positive $g_{p,s}$ indicates that policy $p$ finished jobs faster than vanilla. Beyond average completion time, we also track 95th-percentile JCT, total idle wait time and shift frequency.
+
+\subsection{Periodic Traffic and LCM Scoring Protocol}
+
+To evaluate how accurately finite time windows approximate periodic traffic, we tested seven distinct period families (in milliseconds):
+$(40, 60)$, $(80, 120, 160)$, $(100, 140)$, $(96, 104)$, $(100, 101)$, $(80, 100, 140)$ and $(96, 100, 104)$.
+With three random seeds per family, this yields 21 evaluation cases. Each job profile has one or two communication bursts occupying 20\% to 65\% of its iteration period, demanding 25 to 50~Gbps.
+
+For each case, we ran the greedy shift optimizer using finite scoring windows of $W \in \{600, 1200, 6000\}$~ms, and compared them against searching the full LCM period $H$. To test schedule accuracy, an independent checker evaluates the chosen shifts across one full repeating cycle after startup (the time window $[H, 2H)$). This window captures the steady-state traffic of all jobs running together. Across 21 cases and 4 window sizes, this produced 84 schedule plans.
+
+We evaluated two key metrics:
+\begin{enumerate}
+    \item \textbf{Score Optimism:} The difference between the score predicted on the short scoring window and the true score measured over the full cycle $[H, 2H)$. A positive optimism means the scheduler thought the schedule was cleaner than it actually was.
+    \item \textbf{Shift Quality Gap:} The difference between the true steady-state score of the plan found using a short window and the plan found by searching the entire LCM period.
+\end{enumerate}
+We also recorded optimizer run time (median of three runs) and peak memory allocation to quantify computational overhead.
+
+\section{Results and Discussion}
+\label{sec:results}
+
+\subsection{Job Completion Time Improvements}
+
+Table~\ref{tab:policy-gains} shows the percentage reduction in mean Job Completion Time (JCT) for each policy compared to the baseline vanilla policy.
+
+\begin{table}[t]
+\caption{Mean JCT Reduction Relative to the Vanilla Model (\%)}
+\label{tab:policy-gains}
+\centering
+\begin{tabular}{lrrrr}
+\hline
+Workload & Uncoordinated & Score Control & Cooldown & Benefit Rule \\
+\hline
+Generated & $-5.15$ & 0.33 & $-0.18$ & 1.55 \\
+Sample    & $-5.62$ & 0.72 & $-0.46$ & 1.98 \\
+Short     & 2.28    & 5.23 & 3.97     & 9.30 \\
+Large     & $-32.72$ & 0.98 & $-0.01$ & 0.98 \\
+Scale     & $-45.73$ & 3.11 & $-0.003$ & 3.11 \\
+\hline
+\end{tabular}
+\par\smallskip
+\footnotesize Positive values mean faster completion times. The first four rows average paired gains across three random seeds (seeds 7, 19 and 42). Scale uses seed 42 only.
+\end{table}
+
+The Benefit Rule consistently reduces mean JCT across every tested workload. Its biggest impact is on short jobs, where it delivers a 9.30\% mean JCT reduction (with individual seeds achieving between 7.95\% and 10.84\%). It also reduces tail latency, lowering 95th-percentile JCT on short jobs by 8.04\%. On both the generated and sample cluster traces, it outperforms both the Score and Cooldown controls across every seed.
+
+Figure~\ref{fig:short-waits} reveals why the Benefit Rule achieves these gains. Under the vanilla policy, short jobs spend an average of 109.87~ms idling in reconfiguration pauses across 479.67 shift events per run. The Benefit Rule filters out low-value shifts, dropping total shift events to 144.33 and cutting mean idle wait time by 73\% (from 109.87~ms down to 29.42~ms). As a result, mean completion time falls from 1441.98~ms to 1308.91~ms.
+
+% Plot data: shift_policy_results.json, summary.short, source 89bc23a.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[reportaxis,ybar,bar width=18pt,
+ ymin=0,ymax=125,ylabel={Mean shift wait (ms)},
+ symbolic x coords={Vanilla,Score,Cooldown,Benefit},
+ xtick=data,nodes near coords,
+ every node near coord/.append style={font=\footnotesize},
+ point meta=y]
+\addplot[fill=blue!45,draw=blue!70!black] coordinates
+ {(Vanilla,109.87) (Score,66.07) (Cooldown,75.63) (Benefit,29.42)};
+\end{axis}
+\end{tikzpicture}
+\caption{Mean accumulated shift wait per job on the short workload, averaged over seeds 7, 19 and 42. All coordinated policies pay shift waits.}
+\label{fig:short-waits}
+\end{figure}
+
+The uncoordinated baseline highlights the importance of thoughtful coordination. When jobs are short, uncoordinated execution is actually 2.28\% faster than vanilla. In other words, doing nothing is better than paying unconstrained 40~ms pauses. However, on large clusters with thousands of jobs, uncoordinated execution performs terribly ($-32.72\%$ on Large and $-45.73\%$ on Scale). Without any coordination, multiple training jobs inevitably fire their communication bursts at the exact same time over shared network links. These simultaneous bursts saturate bandwidth, create switch buffer bottlenecks and delay training steps across the entire cluster.
+
+On the 2,000-job and 10,000-job traces, the Score Control and the Benefit Rule produce identical gains (+0.98\% and +3.11\%). For long-running jobs, almost any shift that reduces congestion has enough remaining iterations to easily pay back the pause penalty. Therefore, factoring remaining work into shift decisions provides its highest value on short, exploratory jobs and jobs near completion.
+
+\subsection{Parameter Sensitivity and Estimation Errors}
+
+We evaluated whether strict parameter tuning or imperfect estimates impact policy effectiveness:
+
+\textbf{Parameter Checks:} Requiring a minimum guaranteed gain of 5~ms produced mean JCT reductions of 1.45\%, 2.00\% and 9.90\% on the generated, sample and short workloads. In contrast, increasing the cooldown timer to 500~ms yielded 7.16\% on short jobs (up from 3.97\% at 100~ms), but degraded performance on generated ($-1.05\%$) and sample ($-1.72\%$) workloads. A fixed timer fails because it is blind to job progress: it blocks good shifts for new long jobs while allowing unproductive shifts for dying jobs.
+
+\textbf{Estimation Errors:} In real clusters, remaining training time cannot be known with 100\% precision. Figure~\ref{fig:estimate-results} displays how the Benefit Rule performs when remaining work estimates are systematically distorted by up to $\pm 50\%$ ($\alpha \in [0.5, 1.5]$).
+
+% Plot data: remaining_work_results.json, summary, source bb5f6df.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[reportaxis,xlabel={Remaining-work estimate error (\%)},
+ ylabel={Mean JCT reduction (\%)},xmin=-55,xmax=55,ymin=0,ymax=13,
+ xtick={-50,-25,0,25,50},
+ legend columns=2,legend pos=north east]
+\addplot[blue,mark=*,thick] coordinates
+ {(-50,1.6044) (-25,1.6335) (0,1.5495) (25,1.5113) (50,1.4945)};
+\addlegendentry{Generated}
+\addplot[orange!80!black,mark=square*,thick] coordinates
+ {(-50,2.0262) (-25,2.0045) (0,1.9820) (25,1.9911) (50,1.9354)};
+\addlegendentry{Sample}
+\addplot[teal!80!black,mark=triangle*,thick] coordinates
+ {(-50,10.3502) (-25,9.9391) (0,9.2969) (25,8.9999) (50,8.0674)};
+\addlegendentry{Short}
+\addplot[purple,mark=diamond*,thick] coordinates
+ {(-50,0.9824) (-25,0.9824) (0,0.9824) (25,0.9824) (50,0.9824)};
+\addlegendentry{Large}
+\end{axis}
+\end{tikzpicture}
+\caption{Benefit Rule mean JCT reduction relative to vanilla under systematic estimation errors. Points average paired gains over three seeds. Actual jobs and link placements remain fixed.}
+\label{fig:estimate-results}
+\end{figure}
+
+The Benefit Rule beats the vanilla baseline across all 60 paired runs, even under severe estimation error:
+\begin{itemize}
+    \item On short jobs, gains range from 10.35\% when underestimating work by 50\% ($\alpha = 0.5$) to 8.07\% when overestimating by 50\% ($\alpha = 1.5$). Mean wait time increases from 16.98~ms to 37.30~ms as $\alpha$ grows.
+    \item Underestimating remaining work makes the scheduler cautious, rejecting borderline shifts and saving pause time.
+    \item Overestimating makes the scheduler slightly too eager to shift, but it still comfortably outperforms unconstrained vanilla scheduling.
+    \item Performance on large traces remained completely steady at 0.98\% across all error levels. This is because jobs in large clusters run for thousands of iterations. Even when remaining work is underestimated by 50\%, the expected future savings still vastly outweigh the 40~ms pause penalty, so the scheduler's shifting decisions never change.
+\end{itemize}
+
+\subsection{Traffic Scoring Accuracy Across Long Common Periods}
+
+Figure~\ref{fig:lcm-window} illustrates why finite observation windows can mislead a scheduler. In this example, two jobs with iteration periods of 100~ms and 140~ms share a network link. Their combined traffic pattern repeats every 700~ms (the Least Common Multiple, or LCM). A 600~ms scoring window appears completely collision-free, but it misses a 40~ms collision that occurs right at 660 to 700~ms.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.009cm,y=0.8cm,font=\footnotesize]
+\fill[blue!5] (0,1.4) rectangle (600,3.3);
+\draw[<->,blue!70!black] (0,3.55) -- node[above] {600 ms scoring prefix} (600,3.55);
+\node[anchor=east] at (-15,2.9) {Job A};
+\node[anchor=east] at (-15,2.0) {Job B};
+\fill[blue!15] (0,2.65) rectangle (700,3.15);
+\fill[blue!15] (0,1.75) rectangle (700,2.25);
+\foreach \a in {60,160,260,360,460,560,660}
+ \fill[orange!80] (\a,2.65) rectangle (\a+40,3.15);
+\foreach \a in {100,240,380,520,660}
+ \fill[orange!80] (\a,1.75) rectangle (\a+40,2.25);
+\draw[blue!70!black,dashed] (600,1.4) -- (600,3.3);
+\draw[red!75!black,dashed] (660,1.6) rectangle (700,3.25);
+\draw[->,red!75!black] (665,3.85) -- (680,3.25);
+\node[anchor=east,text=red!75!black] at (700,4.1) {Later overlap};
+\draw[->] (0,1.15) -- (720,1.15);
+\foreach \t in {0,100,200,300,400,500,600,700} {
+ \draw (\t,1.15) -- (\t,1.05);
+ \node[anchor=north] at (\t,1) {\t};
+}
+\draw[<->] (0,0.25) -- node[below] {Full common period: 700 ms} (700,0.25);
+\node[anchor=west] at (0,-0.65) {Blue: computation\quad Orange: communication};
+\end{tikzpicture}
+\caption{Two periodic jobs with 100~ms and 140~ms iteration periods, each ending with a 40~ms communication burst. The joint pattern repeats every 700~ms. A 600~ms scoring window misses the overlap at 660 to 700~ms.}
+\label{fig:lcm-window}
+\end{figure}
+
+Figure~\ref{fig:lcm-results} shows mean score optimism across all seven period families. The 600~ms window produces overly optimistic scores in 15 of the 21 test cases. In the six cases where the full LCM is shorter than 600~ms, the predicted score matches the full-period score exactly. For the $(96, 100, 104)$~ms family, the true common period is 31,200~ms (31.2 seconds). Here, mean optimism reaches 8.42 percentage points on a 600~ms window, dropping to 2.20 points at 1200~ms and 1.34 points at 6000~ms.
+
+% Plot data: research/lcm-scoring:lcm_results.json, source 2e8df9a.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[reportaxis,xlabel={Period family},
+ ylabel={Score optimism (percentage points)},
+ xmin=0.7,xmax=7.3,ymin=-0.4,ymax=10,
+ xtick={1,2,3,4,5,6,7},
+ legend columns=3,legend pos=north west]
+\addplot[blue,mark=*,thick] coordinates
+ {(1,0) (2,0) (3,1.3889) (4,1.8750) (5,6.8982) (6,2.5623) (7,8.4239)};
+\addlegendentry{600 ms}
+\addplot[orange!80!black,mark=square*,thick] coordinates
+ {(1,0) (2,0) (3,0) (4,1.2094) (5,6.3427) (6,1.2063) (7,2.1976)};
+\addlegendentry{1200 ms}
+\addplot[teal!80!black,mark=triangle*,thick] coordinates
+ {(1,0) (2,0) (3,0) (4,0) (5,1.0316) (6,0) (7,1.3429)};
+\addlegendentry{6000 ms}
+\end{axis}
+\end{tikzpicture}
+\caption{Mean score optimism across three seeds. Families 1 to 7 follow the order in Section~\ref{sec:setup}. Each score is checked against the same plan over one full common period.}
+\label{fig:lcm-results}
+\end{figure}
+
+However, our experiments revealed a crucial distinction between Score Optimism and Shift Quality:
+\begin{itemize}
+    \item Even though the 600~ms window can be optimistic by several percentage points, the shifts it selects are almost identical in quality to shifts found by searching the entire LCM. Across all 600~ms tests, the maximum difference in schedule quality compared to searching the full LCM was only 0.0802 percentage points (less than 0.1\%).
+    \item In the coprime $(100, 101)$~ms case, the short window predicted a 17.50 point improvement, but the true full-cycle gain was zero. Because 100 and 101 are coprime, shifting either job merely changes when collisions happen rather than eliminating them over the full 10,100~ms cycle.
+\end{itemize}
+
+\subsection{Computational Cost and Practical Scalability}
+
+Evaluating traffic across full LCM periods quickly becomes computationally impossible as cluster workloads scale:
+\begin{itemize}
+    \item For the $(96, 100, 104)$~ms family, searching the full 31,200~ms cycle increased optimizer run time from 0.375~ms to 2.918~ms and increased peak memory usage from 11.48~KiB to 489.70~KiB.
+    \item When job periods share few common factors, the LCM explodes. For three jobs with periods of 101, 103 and 107~ms, the LCM is 1,113,121~ms (over 18 minutes). Adding a fourth job with a 109~ms period increases the LCM to 121,330,189~ms (approx 33.7 hours). Storing traffic arrays for just these four jobs would take 1.94~GB of RAM.
+\end{itemize}
+
+These findings demonstrate that trying to simulate full LCM windows in an online scheduler is completely impractical. Fortunately, our findings prove that a short 600~ms window provides 99.9\% optimal schedules at a fraction of a millisecond computational cost.
+
+\subsection{Discussion and Practical Scheduling Insights}
+\label{sec:discussion}
+
+Our empirical and mathematical findings provide three practical principles for cluster scheduler design:
+
+\begin{enumerate}
+    \item \textbf{The Job-Lifespan Threshold:} Phase-shifting profitability depends directly on remaining job lifespan. In large cluster traces (2,000 and 10,000 jobs), an initial 40~ms pause amortizes across thousands of iterations, yielding steady 1\% to 3\% JCT gains. In contrast, short exploratory jobs (1 to 5 iterations) cannot recover the pause delay; blindly shifting them wastes more time than collisions cost. The Benefit Rule resolves this by evaluating remaining work, delivering a 9.30\% JCT improvement. Schedulers should therefore leave short jobs unshifted and focus phase coordination on long-running training.
+    \item \textbf{Why Static Cooldowns Fail:} Cooldown timers degrade cluster performance (up to a 1.72\% slowdown) because they measure elapsed wall-clock time rather than job progress. A fixed cooldown makes two opposite errors: (1) blocking beneficial shifts for newly arrived jobs with hours of remaining training; and (2) allowing wasteful 40~ms pauses on jobs nearing completion. Effective coordination requires an economic evaluation of remaining work rather than a blind stopwatch.
+    \item \textbf{Safe Use of Short Scoring Windows:} While full-period evaluation is mathematically complete, LCM explosion makes it computationally prohibitive. Because the shift quality gap between a 600~ms window and full LCM search is at most 0.0802 percentage points, schedulers can safely use short evaluation windows without sacrificing quality. Relying solely on remaining iteration counts and link scores, the rule integrates directly into Slurm and Kubernetes without custom hardware.
+\end{enumerate}
+
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+This project investigated the fundamental economics and trade-offs of periodic communication scheduling in distributed deep learning clusters. Our work centers on two primary insights:
+
+First, communication phase shifting cannot be treated as a cost-free scheduling optimization. Pausing a running training job to align its communication phase introduces an upfront reconfiguration penalty. If the job does not have enough remaining iterations to recover that pause time through future congestion savings, shifting it actually slows it down. By explicitly evaluating remaining job work against pause costs, our Benefit Rule selectively applies shifts only when they guarantee a net completion-time reduction. This cuts mean completion time by 9.30\% and tail (95th-percentile) completion time by 8.04\% on short-job workloads, while matching optimal gains on large clusters. The rule also proves highly resilient, consistently outperforming unconstrained scheduling even when remaining job times are misestimated by up to $\pm 50\%$.
+
+Second, evaluating traffic across full repeating cycles (the Least Common Multiple, or LCM) is mathematically complete, but it quickly becomes impossible in practice due to explosive memory and computation growth (requiring nearly 2~GB of RAM for just four coprime jobs). Our experiments demonstrate that an online scheduler does not need full LCM evaluation. A simple 600~ms scoring window achieves 99.9\% of optimal schedule quality at sub-millisecond execution time.
+
+\subsection{Future Directions: Dynamic Realignment under Compute Variance}
+
+While this BTP-1 study establishes phase-shift economics under nominal iteration timings, production GPU clusters exhibit runtime compute variance. Delays from data loading, memory cleanups and GPU jitter cause step times to fluctuate by 2\% to 5\%, causing initially separated communication bursts to drift and collide over hundreds of iterations.
+
+Currently, the scheduler sets job offsets at startup and assumes perfect synchronization. For BTP-2 (Semester 8), we plan to actively track and correct timing drift at runtime. Drawing on principles from ByteScheduler~\cite{bytescheduler} and TicTac~\cite{tictac}, we will investigate two mechanisms: (1)~\emph{Lightweight Resynchronization Checkpoints} that periodically nudge drifting iterations back into their assigned slots; and (2)~\emph{Elastic Communication Windows} that introduce timing cushions to absorb fluctuations without stalling GPUs, preventing cascading desynchronization across co-running jobs. These mechanisms aim to maintain collision-free schedules in production environments without requiring kernel modifications or specialized switch hardware. We plan to evaluate these adaptive realignment mechanisms across large-scale cluster traces and testbed GPU deployments.
+
+Ultimately, communication phase coordination is an economic trade-off governed by reconfiguration pause penalties and job lifespans. By combining work-aware shift filtering with bounded observation windows, cluster schedulers can significantly reduce tail latency and accelerate distributed training in multi-tenant GPU clusters.
+
+\begin{thebibliography}{00}
+\bibitem{bytescheduler}
+Y.~Jiang, Y.~Zhu, C.~Lan, B.~Yi, Y.~Cui, and C.~Guo,
+``A Generic Communication Scheduler for Distributed DNN Training Acceleration,''
+in \emph{Proc. 27th ACM Symposium on Operating Systems Principles (SOSP)}, 2019, pp.~473--488,
+doi: 10.1145/3341301.3359644.
+\bibitem{tictac}
+S.~H.~Hashemi, S.~Abdelghani, and R.~H.~Campbell,
+``TicTac: Accelerating Distributed Deep Learning with Dynamic Communication Scheduling,''
+in \emph{Proc. Conference on Machine Learning and Systems (MLSys)}, vol.~1, 2019, pp.~416--427.
+\bibitem{shockwave}
+P.~Peng, E.~Zheng, P.~Grover, and S.~Rao,
+``Shockwave: Fair and Efficient Cluster Scheduling for Dynamic Distributed ML Workloads,''
+in \emph{Proc. 20th USENIX Symposium on Networked Systems Design and Implementation (NSDI)}, 2023, pp.~1415--1432.
+\bibitem{allreduce_ring}
+P.~Patarasuk and X.~Yuan,
+``Bandwidth Optimal All-reduce on Dual-Port Clusters,''
+\emph{Parallel Computing}, vol.~35, no.~2, pp.~82--92, 2009.
+\bibitem{infiniband}
+J.~Liu, J.~Wu, S.~P.~Kini, P.~Wyckoff, and D.~K.~Panda,
+``High Performance RDMA-Based MPI Implementation over InfiniBand,''
+in \emph{Proc. 17th Annual ACM International Conference on Supercomputing (ICS)}, 2003, pp.~295--304.
+\bibitem{tpuv4}
+N.~P.~Jouppi \emph{et al.},
+``TPU v4: An Optically Reconfigurable Supercomputer for Machine Learning with Hardware Support for Embeddings,''
+in \emph{Proc. 50th Annual International Symposium on Computer Architecture (ISCA)}, 2023, pp.~1--14.
+\bibitem{dcqcn}
+Y.~Zhu \emph{et al.},
+``Congestion Control for Large-Scale RDMA Deployments,''
+in \emph{Proc. ACM SIGCOMM}, 2015, pp.~523--536.
+\bibitem{philly_osdi}
+M.~Jeon \emph{et al.},
+``Analysis of Large-Scale Multi-Tenant GPU Clusters for DNN Training,''
+in \emph{Proc. 2019 USENIX Annual Technical Conference (ATC)}, 2019, pp.~947--960.
+\bibitem{slurm}
+A.~B.~Yoo, M.~A.~Jette, and M.~Grondona,
+``SLURM: Simple Linux Utility for Resource Management,''
+in \emph{Proc. 9th International Workshop on Job Scheduling Strategies for Parallel Processing (JSSPP)}, 2003, pp.~44--60.
+\bibitem{kubernetes}
+B.~Burns, B.~Grant, D.~Oppenheimer, E.~Brewer, and J.~Wilkes,
+``Borg, Omega, and Kubernetes,''
+\emph{ACM Queue}, vol.~14, no.~1, pp.~70--93, 2016.
+\bibitem{tiresias}
+J.~Gu \emph{et al.},
+``Tiresias: A GPU Cluster Manager for Distributed Deep Learning,''
+in \emph{Proc. 16th USENIX Symposium on Networked Systems Design and Implementation (NSDI)}, 2019, pp.~485--500.
+\bibitem{fattree}
+M.~Al-Fares, A.~Loukissas, and A.~Vahdat,
+``A Scalable, Commodity Data Center Network Architecture,''
+in \emph{Proc. ACM SIGCOMM}, 2008, pp.~63--74.
+\bibitem{cassini}
+S.~Rajasekaran, M.~Ghobadi, and A.~Akella,
+``CASSINI: Network-Aware Job Scheduling in Machine Learning Clusters,''
+in \emph{Proc. 21st USENIX Symposium on Networked Systems Design and
+Implementation (NSDI)}, 2024, pp.~1403--1420.
+\bibitem{eclipse}
+S.~B.~Venkatakrishnan, M.~Alizadeh, and P.~Viswanath,
+``Costly circuits, submodular schedules and approximate Carath\'eodory theorems,''
+in \emph{Proc. ACM SIGMETRICS}, 2016,
+doi: 10.1145/2896377.2901479.
+\bibitem{helios}
+N.~Farrington \emph{et al.},
+``Helios: A Hybrid Electrical/Optical Switch Architecture for Modular Data Centers,''
+in \emph{Proc. ACM SIGCOMM}, 2010, pp.~339--350.
+\bibitem{cthrough}
+G.~Wang \emph{et al.},
+``c-Through: Part-time Optics in Data Centers,''
+in \emph{Proc. ACM SIGCOMM}, 2010, pp.~327--338.
+\bibitem{khanna2017}
+S.~Khanna, S.~Li, and J.~Naor,
+``Online Scheduling with Reconfiguration Delay,''
+\emph{arXiv preprint arXiv:1511.03417}, 2017.
+\bibitem{gcdplus}
+M.~Ladeira, E.~Grolleau, F.~Bonneval, G.~Hattenberger, Y.~Ouhammou,
+and Y.~H\'erouard,
+``Scheduling offset-free systems under FIFO priority protocol,''
+in \emph{Proc. 34th Euromicro Conference on Real-Time Systems (ECRTS)},
+vol.~231, 2022, pp.~11:1--11:19,
+doi: 10.4230/LIPIcs.ECRTS.2022.11.
+\end{thebibliography}
+
+\end{document}
